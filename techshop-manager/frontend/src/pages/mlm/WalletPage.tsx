@@ -1,0 +1,1 @@
+export default function WalletPage() { return <section><h1 className="text-2xl font-bold text-primary">Mon portefeuille</h1><p className="mt-2 text-text-muted">Commissions, salaires et bonus en USD.</p></section>; }

@@ -105,6 +105,11 @@ enum StatutAlerte {
   RUPTURE
 }
 
+enum MembreStatut { EN_ATTENTE ACTIF SUSPENDU ARCHIVE }
+enum TransactionType { COMMISSION PROMOTION SALAIRE BONUS_RETRAITE DEBIT }
+enum BonusStatut { EN_ATTENTE EN_COURS LIVRE ANNULE }
+enum RetirementBonusStatut { EN_ATTENTE VERSE }
+
 // ============================================
 // SITE
 // ============================================
@@ -203,6 +208,7 @@ model Client {
   parrainagesDonnes     Parrainage[] @relation("ParrainageParrain")
   parrainagesRecus      Parrainage[] @relation("ParrainageFilleul")
   portailToken      PortailToken?
+  membre            Membre?
 
   @@map("clients")
 }
@@ -600,3 +606,55 @@ model SupportTicket {
 
   @@map("support_tickets")
 }
+
+model MlmLevel {
+  id Int @id @default(autoincrement())
+  ordre Int @unique
+  nom String
+  filleulsRequis Int @default(4)
+  commissionParFilleul Decimal @db.Decimal(12, 2)
+  commissionTotale Decimal @db.Decimal(12, 2)
+  bonusDescription String
+  salaireMensuel Decimal @default(0) @db.Decimal(12, 2)
+  salaireActif Boolean @default(false)
+  isActive Boolean @default(true)
+  couleur String
+  icone String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  membres Membre[]
+  matrices Matrix[]
+  bonusAttribues BonusAttribue[]
+  @@map("mlm_levels")
+}
+
+model Membre {
+  id String @id @default(uuid())
+  clientId String @unique
+  matricule String @unique
+  parrainId String?
+  mlmLevelId Int
+  statut MembreStatut @default(ACTIF)
+  dateActivation DateTime?
+  dateInscription DateTime @default(now())
+  client Client @relation(fields: [clientId], references: [id])
+  level MlmLevel @relation(fields: [mlmLevelId], references: [id])
+  parrain Membre? @relation("MlmParrainFilleuls", fields: [parrainId], references: [id])
+  filleuls Membre[] @relation("MlmParrainFilleuls")
+  matrices Matrix[]
+  portefeuille Portefeuille?
+  promotions Promotion[]
+  bonusAttribues BonusAttribue[]
+  salairesVerses SalaireVerse[]
+  bonusRetraites BonusRetraite[] @relation("RetraiteBeneficiaire")
+  @@map("membres")
+}
+
+model Matrix { id String @id @default(uuid()); membreId String; mlmLevelId Int; filleulsValides Int @default(0); estComplete Boolean @default(false); dateComplete DateTime?; createdAt DateTime @default(now()); membre Membre @relation(fields: [membreId], references: [id]); level MlmLevel @relation(fields: [mlmLevelId], references: [id]); positions Position[]; @@unique([membreId, mlmLevelId]); @@map("matrices_mlm") }
+model Position { id String @id @default(uuid()); matrixId String; numeroPosition Int; filleulId String?; estValide Boolean @default(false); dateValidation DateTime?; matrix Matrix @relation(fields: [matrixId], references: [id]); @@unique([matrixId, numeroPosition]); @@map("positions_mlm") }
+model Portefeuille { id String @id @default(uuid()); membreId String @unique; soldeDisponible Decimal @default(0) @db.Decimal(12, 2); totalGagne Decimal @default(0) @db.Decimal(12, 2); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; membre Membre @relation(fields: [membreId], references: [id]); transactions TransactionPortefeuille[]; @@map("portefeuilles") }
+model TransactionPortefeuille { id String @id @default(uuid()); portefeuilleId String; type TransactionType; montant Decimal @db.Decimal(12, 2); description String; referenceId String?; createdAt DateTime @default(now()); portefeuille Portefeuille @relation(fields: [portefeuilleId], references: [id]); @@map("transactions_portefeuille") }
+model Promotion { id String @id @default(uuid()); membreId String; niveauAvantId Int; niveauApresId Int; commissionVersee Decimal @db.Decimal(12, 2); datePromotion DateTime @default(now()); declencheParId String; membre Membre @relation(fields: [membreId], references: [id]); @@map("promotions_mlm") }
+model BonusAttribue { id String @id @default(uuid()); membreId String; mlmLevelId Int; description String; statut BonusStatut @default(EN_ATTENTE); dateAttribution DateTime @default(now()); dateLivraison DateTime?; notes String?; membre Membre @relation(fields: [membreId], references: [id]); level MlmLevel @relation(fields: [mlmLevelId], references: [id]); @@map("bonus_attribues") }
+model SalaireVerse { id String @id @default(uuid()); membreId String; montant Decimal @db.Decimal(12, 2); moisAnnee String; dateVersement DateTime @default(now()); statut String @default("VERSE"); membre Membre @relation(fields: [membreId], references: [id]); @@unique([membreId, moisAnnee]); @@map("salaires_verses") }
+model BonusRetraite { id String @id @default(uuid()); membreId String; filleulCrownId String; montant Decimal @default(50000) @db.Decimal(12, 2); statut RetirementBonusStatut @default(EN_ATTENTE); dateDeclenchement DateTime @default(now()); dateVersement DateTime?; membre Membre @relation("RetraiteBeneficiaire", fields: [membreId], references: [id]); @@unique([membreId, filleulCrownId]); @@map("bonus_retraites") }

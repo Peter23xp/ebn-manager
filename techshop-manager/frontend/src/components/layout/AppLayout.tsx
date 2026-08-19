@@ -6,8 +6,8 @@ import {
   ShoppingCart,
   Receipt,
   Package,
-  GitBranch,
-  Star,
+  Network,
+  Wallet,
   BarChart2,
   Settings,
   User,
@@ -53,8 +53,8 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Ventes',               icon: <Receipt size={16} />,         to: '/sales',                  minRole: 'GERANT' },
   { label: 'Journal retours',      icon: <RotateCcw size={16} />,       to: '/sales/journal-retours',  minRole: 'GERANT' },
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
-  { label: 'Parrainage',           icon: <GitBranch size={16} />,       to: '/parrainage',         minRole: 'GERANT' },
-  { label: 'Fidélité',             icon: <Star size={16} />,            to: '/fidelite',           minRole: 'GERANT' },
+  { label: 'Réseau MLM',           icon: <Network size={16} />,         to: '/mlm',                minRole: 'GERANT' },
+  { label: 'Mon portefeuille',     icon: <Wallet size={16} />,          to: '/mlm/wallet',         minRole: 'CLIENT' },
   { label: 'Rapports',             icon: <BarChart2 size={16} />,       to: '/reports',            minRole: 'GERANT' },
 ];
 
@@ -100,7 +100,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const mainItems     = visibleItems.filter(i => i.to === '/dashboard');
   const clientItems   = visibleItems.filter(i => i.to.startsWith('/clients'));
   const opItems       = visibleItems.filter(i => ['/sales/pos', '/sales', '/sales/journal-retours', '/stocks'].includes(i.to));
-  const businessItems = visibleItems.filter(i => ['/parrainage', '/fidelite', '/reports'].includes(i.to));
+  const businessItems = visibleItems.filter(i => ['/mlm', '/mlm/wallet', '/reports'].includes(i.to));
 
   return (
     <aside className="sidebar flex flex-col shadow-sidebar">
