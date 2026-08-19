@@ -47,7 +47,7 @@ export interface AchatRow {
 
 export interface ClientDetail extends Client {
   site: { id: string; nom: string };
-  parrain: { id: string; prenom: string; nom: string; codeParrain: string; siteNom?: string } | null;
+  parrain: { id: string; prenom: string; nom: string; matricule?: string; codeParrain?: string; telephone?: string; siteNom?: string } | null;
   onboardingEtapes: OnboardingEtapeDetail[];
   ventes: AchatRow[];
   hasTransactions: boolean;
@@ -70,6 +70,7 @@ export interface ClientRow {
   telephone: string;
   statut: StatutClient;
   site: { id: string; nom: string };
+  matricule?: string | null;
   codeParrain: string | null;
   createdAt: string;
 }
@@ -80,6 +81,7 @@ export interface ClientSearchResult {
   prenom: string;
   nom: string;
   telephone: string;
+  matricule?: string | null;
   codeParrain: string | null;
   statut: StatutClient;
 }

@@ -27,7 +27,7 @@ export function ParrainCard({ codeParrain, nbFilleulsActifs, nbFilleulsTotal }: 
       <div className="flex items-center gap-2 mb-2">
         <Share2 size={16} className="text-[#2E86C1]" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
-          Votre code parrain
+          Votre matricule membre
         </span>
       </div>
 
@@ -39,12 +39,12 @@ export function ParrainCard({ codeParrain, nbFilleulsActifs, nbFilleulsTotal }: 
         type="button"
         onClick={handleCopy}
         className="flex items-center gap-2 bg-[#1E3A5F] text-white rounded-xl h-10 px-4 text-sm font-semibold w-full justify-center mb-3"
-        aria-label="Copier le code parrain"
+        aria-label="Copier le matricule"
       >
         {copied ? (
           <><Check size={15} /> Copié !</>
         ) : (
-          <><Copy size={15} /> Copier le code</>
+          <><Copy size={15} /> Copier le matricule</>
         )}
       </button>
 

@@ -116,6 +116,13 @@ enum RetirementBonusStatut {
   PAYE
 }
 
+enum CommissionStatut {
+  EN_ATTENTE
+  VALIDEE
+  PAYEE
+  ANNULEE
+}
+
 // ============================================
 // SITE
 // ============================================
@@ -516,6 +523,35 @@ model SupportTicket {
   @@map("support_tickets")
 }
 
+// ============================================
+// CANDIDATURE AMBASSADEUR (site public)
+// ============================================
+
+enum AmbassadeurStatut {
+  NOUVELLE
+  CONTACTEE
+  CONVERTIE
+  ANNULEE
+}
+
+model AmbassadeurApplication {
+  id          String              @id @default(uuid())
+  prenom      String
+  nom         String
+  telephone   String
+  email       String?
+  ville       String
+  siteNom     String?
+  codeParrain String?
+  motivation  String?
+  statut      AmbassadeurStatut   @default(NOUVELLE)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([statut])
+  @@map("ambassadeur_applications")
+}
+
 // ============================================================
 // MLM — Plan de carrière à 8 niveaux
 // ============================================================
@@ -540,6 +576,7 @@ model MlmLevel {
   membres        Membre[]
   matrices       Matrix[]
   bonusAttribues BonusAttribue[]
+  commissions    Commission[]
 
   @@map("mlm_levels")
 }
@@ -567,6 +604,8 @@ model Membre {
   salairesVerses       SalaireVerse[]
   bonusRetraites       BonusRetraite[]  @relation("MembreBonusRetraite")
   bonusRetraitesDonnes BonusRetraite[]  @relation("FilleulCrownBonusRetraite")
+  commissionsRecues    Commission[]     @relation("CommissionBeneficiaire")
+  commissionsGenerees  Commission[]     @relation("CommissionFilleul")
 
   @@map("membres")
 }
@@ -695,4 +734,29 @@ model BonusRetraite {
 
   @@unique([membreId, filleulCrownId])
   @@map("bonus_retraites")
+}
+
+// ── Commissions MLM (Option B : validation admin requise) ─────
+model Commission {
+  id          String            @id @default(uuid())
+  membreId    String
+  filleulId   String
+  mlmLevelId  Int
+  montant     Decimal           @db.Decimal(12, 2)
+  statut      CommissionStatut  @default(EN_ATTENTE)
+  referenceId String            @unique
+  description String
+  notes       String?
+  valideeAt   DateTime?
+  payeeAt     DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  membre   Membre   @relation("CommissionBeneficiaire", fields: [membreId], references: [id])
+  filleul  Membre   @relation("CommissionFilleul", fields: [filleulId], references: [id])
+  level    MlmLevel @relation(fields: [mlmLevelId], references: [id])
+
+  @@index([membreId])
+  @@index([statut])
+  @@map("commissions")
 }

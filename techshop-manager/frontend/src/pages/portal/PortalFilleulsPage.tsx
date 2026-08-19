@@ -23,10 +23,10 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
   }, [codeParrain]);
 
   const handleShare = useCallback(async () => {
-    const text = `Inscris-toi chez EBN Network avec mon code parrain : ${codeParrain}`;
+    const text = `Inscris-toi chez EBN Network avec mon matricule : ${codeParrain}`;
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'EBN Network — Code Parrain', text });
+        await navigator.share({ title: 'EBN Network — Matricule Parrain', text });
       } catch { /* cancelled */ }
     } else {
       setShowDialog(true);
@@ -39,7 +39,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
       style={{ background: 'linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%)' }}
     >
       <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70 mb-2">
-        Votre code parrain
+        Votre matricule membre
       </p>
       <p className="text-4xl font-mono font-bold text-center my-3" data-testid="code-parrain">
         {codeParrain}
@@ -49,7 +49,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
         <button
           type="button"
           onClick={handleCopy}
-          aria-label="Copier le code parrain"
+          aria-label="Copier le matricule"
           className="flex-1 h-11 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm flex items-center justify-center gap-2"
         >
           {copied ? <><Check size={15} /> Copié !</> : <><Copy size={15} /> Copier</>}
@@ -57,7 +57,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
         <button
           type="button"
           onClick={handleShare}
-          aria-label="Partager le code parrain"
+          aria-label="Partager le matricule"
           className="flex-1 h-11 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm flex items-center justify-center gap-2"
         >
           <Share2 size={15} /> Partager
@@ -65,7 +65,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
       </div>
 
       <p className="text-xs text-white/60 text-center mt-3">
-        Donnez ce code à vos amis lors de leur inscription chez EBN Network.
+        Donnez ce matricule à vos contacts lors de leur inscription chez EBN Network.
       </p>
 
       {/* Share fallback dialog */}
@@ -78,14 +78,14 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
             className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-bold text-[#1E3A5F] mb-3">Partager votre code</p>
+            <p className="font-bold text-[#1E3A5F] mb-3">Partager votre matricule</p>
             <p className="text-sm text-neutral-600 bg-neutral-50 rounded-xl p-3 mb-4">
-              Inscris-toi chez EBN Network avec mon code parrain : <strong>{codeParrain}</strong>
+              Inscris-toi chez EBN Network avec mon matricule : <strong>{codeParrain}</strong>
             </p>
             <button
               type="button"
               onClick={async () => {
-                await navigator.clipboard.writeText(`Inscris-toi chez EBN Network avec mon code parrain : ${codeParrain}`);
+                await navigator.clipboard.writeText(`Inscris-toi chez EBN Network avec mon matricule : ${codeParrain}`);
                 setShowDialog(false);
               }}
               className="w-full h-11 rounded-xl bg-[#1E3A5F] text-white font-semibold text-sm"

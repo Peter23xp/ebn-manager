@@ -106,7 +106,7 @@ function ConfirmModal({
             <p className="text-[13px] text-text-muted mt-1">
               Cette action est <strong>irréversible</strong>. Le compte de{' '}
               <strong>{client.prenom} {client.nom}</strong> sera définitivement activé
-              {nextCode && <> et son code parrain <strong className="font-mono">{nextCode}</strong> sera généré</>}.
+              {nextCode && <> et son matricule <strong className="font-mono">{nextCode}</strong> sera généré</>}.
             </p>
           </div>
         </div>
@@ -222,7 +222,7 @@ function SuccessScreen({
 
       {/* Code parrain */}
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-6 py-4 space-y-3 w-full max-w-sm">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-primary-accent">Code parrain attribué</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-primary-accent">Matricule attribué</p>
         <p className="text-[28px] font-extrabold font-mono text-primary tracking-widest">{result.codeParrain}</p>
         <button
           type="button"
@@ -501,7 +501,7 @@ export default function OnboardingActivationPage() {
             {!client.codeParrain && (
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-primary-accent mb-1">
-                  Code parrain qui sera généré
+                  Matricule qui sera généré
                 </p>
                 <p className="text-[20px] font-extrabold font-mono text-primary tracking-widest">
                   {nextCode ?? 'TSG-XXXX'}
@@ -643,7 +643,7 @@ export default function OnboardingActivationPage() {
               className="btn-primary w-full text-[14px] py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Zap size={16} aria-hidden />
-              ✓ Activer le compte et générer le code parrain
+              ✓ Activer le compte et générer le matricule
             </button>
           </div>
         )}

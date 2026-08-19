@@ -3,7 +3,7 @@ import type { AuthUser, Role } from '@/types';
 
 interface AuthState {
   user: AuthUser | null;
-  accessToken: string | null; // memory only — never persisted
+  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   loginAttempts: number;
@@ -32,23 +32,69 @@ const ROLE_LEVEL: Record<Role, number> = {
   CLIENT: 1,
 };
 
+// ── LocalStorage helpers ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'ebn_auth_v1';
+
+interface StoredAuth {
+  user: AuthUser;
+  accessToken: string;
+}
+
+function saveToStorage(user: AuthUser, accessToken: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, accessToken } as StoredAuth));
+  } catch {
+    // storage quota exceeded or private mode — ignore
+  }
+}
+
+function clearStorage() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function loadFromStorage(): StoredAuth | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as StoredAuth;
+  } catch {
+    return null;
+  }
+}
+
+// Hydrate initial state from localStorage on first load (survives F5 / Ctrl+R)
+const stored = loadFromStorage();
+
 export const useAuthStore = create<AuthState>()((set, get) => ({
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
+  // Restore persisted session if available
+  user: stored?.user ?? null,
+  accessToken: stored?.accessToken ?? null,
+  isAuthenticated: !!stored?.accessToken,
   isLoading: false,
   loginAttempts: 0,
   lockedUntil: null,
   isOfflineMode: false,
   lastSyncAt: null,
 
-  setAuth: (user, accessToken) =>
-    set({ user, accessToken, isAuthenticated: true, loginAttempts: 0, lockedUntil: null }),
+  setAuth: (user, accessToken) => {
+    saveToStorage(user, accessToken);
+    set({ user, accessToken, isAuthenticated: true, loginAttempts: 0, lockedUntil: null });
+  },
 
-  setAccessToken: (accessToken) => set({ accessToken }),
+  setAccessToken: (accessToken) => {
+    const user = get().user;
+    if (user) saveToStorage(user, accessToken);
+    set({ accessToken });
+  },
 
-  logout: () =>
-    set({ user: null, accessToken: null, isAuthenticated: false }),
+  logout: () => {
+    clearStorage();
+    set({ user: null, accessToken: null, isAuthenticated: false });
+  },
 
   hasRole: (minRole) => {
     const user = get().user;

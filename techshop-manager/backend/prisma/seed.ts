@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Démarrage du seed enrichi EBN Network...');
+  console.log('🌱 Démarrage du seed enrichi EBN Network (Format Matricule AAAAMJXXXX)...');
 
   // ============================================
   // 1. SITES (Goma, Bukavu, Kinshasa)
@@ -196,14 +196,14 @@ async function main() {
   console.log('⭐ 3. Configuration des 8 niveaux MLM...');
 
   const mlmLevelsData = [
-    { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système & Kit de Bienvenue', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'star' },
-    { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Kit Santé EBN + Polo Officiel', salaireMensuel: 0, salaireActif: false, couleur: '#60a5fa', icone: 'award' },
-    { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Smartphone Android 4G EBN', salaireMensuel: 0, salaireActif: false, couleur: '#34d399', icone: 'shield' },
-    { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Ordinateur Portable & Formation Pro', salaireMensuel: 0, salaireActif: false, couleur: '#818cf8', icone: 'zap' },
-    { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Voyage International de Découverte', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
-    { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Voiture EBN VIP (Véhicule Tout-Terrain)', salaireMensuel: 250, salaireActif: true, couleur: '#ec4899', icone: 'gem' },
-    { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Villa / Appartement Standing', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
-    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite Exceptionnel 50 000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
+    { ordre: 1, nom: 'Builder', filleulsRequis: 4, commissionParFilleul: 6, commissionTotale: 24, bonusDescription: 'Deux pagnes en nature', salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
+    { ordre: 2, nom: 'Sapphire', filleulsRequis: 4, commissionParFilleul: 12.5, commissionTotale: 50, bonusDescription: 'Premier kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
+    { ordre: 3, nom: 'Ruby', filleulsRequis: 4, commissionParFilleul: 20, commissionTotale: 80, bonusDescription: 'Deuxième kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
+    { ordre: 4, nom: 'Emerald', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Écran plat de 5 pouces / équipement', salaireMensuel: 50, salaireActif: true, couleur: '#10b981', icone: 'tv' },
+    { ordre: 5, nom: 'Diamond', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Moto de luxe + salaire', salaireMensuel: 200, salaireActif: true, couleur: '#06b6d4', icone: 'bike' },
+    { ordre: 6, nom: 'Crown Diamond', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Voiture de luxe + salaire', salaireMensuel: 500, salaireActif: true, couleur: '#8b5cf6', icone: 'crown' },
+    { ordre: 7, nom: 'Ambassadeur', filleulsRequis: 4, commissionParFilleul: 5000, commissionTotale: 20000, bonusDescription: 'Voiture de luxe + salaire + maison/tour', salaireMensuel: 1500, salaireActif: true, couleur: '#6366f1', icone: 'globe' },
+    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 12500, commissionTotale: 50000, bonusDescription: 'Voiture de luxe + maison de grande valeur + salaire', salaireMensuel: 3000, salaireActif: true, couleur: '#d97706', icone: 'award' },
   ];
 
   const dbLevels: Record<number, any> = {};
@@ -255,14 +255,14 @@ async function main() {
     { sku: 'PROD-BIO-03',   siteId: siteGoma.id, qte: 35,  seuil: 8 },
     { sku: 'PROD-COS-01',   siteId: siteGoma.id, qte: 90,  seuil: 15 },
     { sku: 'PROD-COS-02',   siteId: siteGoma.id, qte: 40,  seuil: 10 },
-    { sku: 'PROD-MED-01',   siteId: siteGoma.id, qte: 3,   seuil: 5 }, // Alerte stock bas !
+    { sku: 'PROD-MED-01',   siteId: siteGoma.id, qte: 3,   seuil: 5 },
 
     // Bukavu
     { sku: 'PROD-RECIT-01', siteId: siteBukavu.id, qte: 85,  seuil: 15 },
     { sku: 'PROD-PACK-01',  siteId: siteBukavu.id, qte: 30,  seuil: 10 },
     { sku: 'PROD-PACK-02',  siteId: siteBukavu.id, qte: 15,  seuil: 5 },
     { sku: 'PROD-BIO-01',   siteId: siteBukavu.id, qte: 40,  seuil: 12 },
-    { sku: 'PROD-BIO-02',   siteId: siteBukavu.id, qte: 2,   seuil: 10 }, // Rupture imminente !
+    { sku: 'PROD-BIO-02',   siteId: siteBukavu.id, qte: 2,   seuil: 10 },
     { sku: 'PROD-BIO-03',   siteId: siteBukavu.id, qte: 20,  seuil: 8 },
     { sku: 'PROD-COS-01',   siteId: siteBukavu.id, qte: 50,  seuil: 15 },
     { sku: 'PROD-COS-02',   siteId: siteBukavu.id, qte: 25,  seuil: 10 },
@@ -291,28 +291,13 @@ async function main() {
     }
   }
 
-  // Transfert de stock de démo (Goma -> Bukavu)
-  await prisma.transfertStock.create({
-    data: {
-      produitId: dbProduits['PROD-BIO-01'].id,
-      siteSourceId: siteGoma.id,
-      siteDestinationId: siteBukavu.id,
-      initiateurId: gerantGoma.id,
-      quantiteEnvoyee: 20,
-      motif: 'Réapprovisionnement stock Bukavu',
-      statut: StatutTransfert.EN_TRANSIT,
-      dateExpedition: new Date(Date.now() - 2 * 24 * 3600 * 1000),
-    },
-  }).catch(() => {});
-
-  console.log('  ✓ 9 Produits et leurs stocks multi-sites configurés (avec alertes)');
-
   // ============================================
-  // 5. CLIENTS ET ARBRE MLM COMPLET
+  // 5. CLIENTS ET ARBRE MLM COMPLET (Format AAAAMJXXXX)
   // ============================================
-  console.log('👥 5. Création des clients et du réseau MLM...');
+  console.log('👥 5. Création des clients et du réseau MLM avec matricules AAAAMJXXXX...');
 
   // Définition des profils de clients
+  // Format matricule: 202608010001, 202608010002, etc.
   const clientsDefinitions = [
     // --- NIVEAU 5 RACINE ---
     {
@@ -321,14 +306,15 @@ async function main() {
       nom: 'BAGALWA',
       telephone: '+243991110001',
       email: 'seraphin.client@ebnnetwork.cd',
-      codeParrain: 'TSG-0001',
-      matricule: 'EBN-00001',
+      matricule: '202608010001',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: undefined,
+      parrainMatricule: undefined,
       levelOrdre: 5,
       soldePortefeuille: 680.00,
       totalGagne: 1240.00,
+      // Filleuls directs assignés dans ses 4 positions :
+      filleulsIds: ['cli-002', 'cli-003', 'cli-004', 'cli-005'],
     },
     // --- NIVEAU 4 FILLEULS DE SERAPHIN ---
     {
@@ -337,14 +323,14 @@ async function main() {
       nom: 'KASONGO',
       telephone: '+243991110002',
       email: 'justin.c@ebnnetwork.cd',
-      codeParrain: 'TSG-0002',
-      matricule: 'EBN-00002',
+      matricule: '202608010002',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0001',
+      parrainMatricule: '202608010001',
       levelOrdre: 4,
       soldePortefeuille: 340.00,
       totalGagne: 400.00,
+      filleulsIds: ['cli-006', 'cli-007', 'cli-008', 'cli-009'],
     },
     {
       id: 'cli-003',
@@ -352,14 +338,14 @@ async function main() {
       nom: 'MUGISHO',
       telephone: '+243991110003',
       email: 'aline.c@ebnnetwork.cd',
-      codeParrain: 'TSG-0003',
-      matricule: 'EBN-00003',
+      matricule: '202608010003',
       statut: StatutClient.ACTIF,
       siteId: siteBukavu.id,
-      parrainCode: 'TSG-0001',
+      parrainMatricule: '202608010001',
       levelOrdre: 3,
       soldePortefeuille: 160.00,
       totalGagne: 200.00,
+      filleulsIds: ['cli-010', 'cli-011', 'cli-012'],
     },
     {
       id: 'cli-004',
@@ -367,14 +353,14 @@ async function main() {
       nom: 'ILUNGA',
       telephone: '+243991110004',
       email: 'patrick.c@ebnnetwork.cd',
-      codeParrain: 'TSG-0004',
-      matricule: 'EBN-00004',
+      matricule: '202608010004',
       statut: StatutClient.ACTIF,
       siteId: siteKinshasa.id,
-      parrainCode: 'TSG-0001',
+      parrainMatricule: '202608010001',
       levelOrdre: 2,
       soldePortefeuille: 95.00,
       totalGagne: 100.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-005',
@@ -382,14 +368,14 @@ async function main() {
       nom: 'NEEMA',
       telephone: '+243991110005',
       email: 'clarisse.n@ebnnetwork.cd',
-      codeParrain: 'TSG-0005',
-      matricule: 'EBN-00005',
+      matricule: '202608010005',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0001',
+      parrainMatricule: '202608010001',
       levelOrdre: 2,
       soldePortefeuille: 60.00,
       totalGagne: 60.00,
+      filleulsIds: [],
     },
     // --- NIVEAU 2 & 1 FILLEULS DE JUSTIN (cli-002) ---
     {
@@ -398,14 +384,14 @@ async function main() {
       nom: 'MUSHAGALUSA',
       telephone: '+243991110006',
       email: 'gloire.m@ebnnetwork.cd',
-      codeParrain: 'TSG-0006',
-      matricule: 'EBN-00006',
+      matricule: '202608010006',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0002',
+      parrainMatricule: '202608010002',
       levelOrdre: 2,
       soldePortefeuille: 45.00,
       totalGagne: 60.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-007',
@@ -413,14 +399,14 @@ async function main() {
       nom: 'BARAKA',
       telephone: '+243991110007',
       email: 'espoir.b@ebnnetwork.cd',
-      codeParrain: 'TSG-0007',
-      matricule: 'EBN-00007',
+      matricule: '202608010007',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0002',
+      parrainMatricule: '202608010002',
       levelOrdre: 1,
       soldePortefeuille: 20.00,
       totalGagne: 20.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-008',
@@ -428,14 +414,14 @@ async function main() {
       nom: 'KABUO',
       telephone: '+243991110008',
       email: 'merveille.k@ebnnetwork.cd',
-      codeParrain: 'TSG-0008',
-      matricule: 'EBN-00008',
+      matricule: '202608010008',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0002',
+      parrainMatricule: '202608010002',
       levelOrdre: 1,
       soldePortefeuille: 30.00,
       totalGagne: 30.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-009',
@@ -443,14 +429,14 @@ async function main() {
       nom: 'KASEREKA',
       telephone: '+243991110009',
       email: 'samuel.k@ebnnetwork.cd',
-      codeParrain: 'TSG-0009',
-      matricule: 'EBN-00009',
+      matricule: '202608010009',
       statut: StatutClient.ACTIF,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0002',
+      parrainMatricule: '202608010002',
       levelOrdre: 1,
       soldePortefeuille: 10.00,
       totalGagne: 10.00,
+      filleulsIds: [],
     },
     // --- FILLEULS DE ALINE (cli-003) ---
     {
@@ -459,14 +445,14 @@ async function main() {
       nom: 'CIBALONZA',
       telephone: '+243991110010',
       email: 'bijoux.c@ebnnetwork.cd',
-      codeParrain: 'TSG-0010',
-      matricule: 'EBN-00010',
+      matricule: '202608010010',
       statut: StatutClient.ACTIF,
       siteId: siteBukavu.id,
-      parrainCode: 'TSG-0003',
+      parrainMatricule: '202608010003',
       levelOrdre: 1,
       soldePortefeuille: 20.00,
       totalGagne: 20.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-011',
@@ -474,14 +460,14 @@ async function main() {
       nom: 'MURHULA',
       telephone: '+243991110011',
       email: 'pacifique.m@ebnnetwork.cd',
-      codeParrain: 'TSG-0011',
-      matricule: 'EBN-00011',
+      matricule: '202608010011',
       statut: StatutClient.ACTIF,
       siteId: siteBukavu.id,
-      parrainCode: 'TSG-0003',
+      parrainMatricule: '202608010003',
       levelOrdre: 1,
       soldePortefeuille: 10.00,
       totalGagne: 10.00,
+      filleulsIds: [],
     },
     {
       id: 'cli-012',
@@ -489,14 +475,14 @@ async function main() {
       nom: 'ZAWADI',
       telephone: '+243991110012',
       email: 'dorcas.z@ebnnetwork.cd',
-      codeParrain: 'TSG-0012',
-      matricule: 'EBN-00012',
+      matricule: '202608010012',
       statut: StatutClient.ACTIF,
       siteId: siteBukavu.id,
-      parrainCode: 'TSG-0003',
+      parrainMatricule: '202608010003',
       levelOrdre: 1,
       soldePortefeuille: 40.00,
       totalGagne: 40.00,
+      filleulsIds: [],
     },
     // --- CLIENTS EN ONBOARDING EN COURS ---
     {
@@ -505,12 +491,11 @@ async function main() {
       nom: 'KATEMBO',
       telephone: '+243991110013',
       email: 'moise.k@ebnnetwork.cd',
-      codeParrain: undefined,
       matricule: undefined,
       statut: StatutClient.EN_COURS,
       siteId: siteGoma.id,
-      parrainCode: 'TSG-0001',
-      etapeActive: EtapeOnboarding.FORMATION, // En attente de formation
+      parrainMatricule: '202608010001',
+      etapeActive: EtapeOnboarding.FORMATION,
     },
     {
       id: 'cli-014',
@@ -518,12 +503,11 @@ async function main() {
       nom: 'KAVIRA',
       telephone: '+243991110014',
       email: 'nathalie.k@ebnnetwork.cd',
-      codeParrain: undefined,
       matricule: undefined,
       statut: StatutClient.EN_COURS,
       siteId: siteBukavu.id,
-      parrainCode: 'TSG-0003',
-      etapeActive: EtapeOnboarding.FICHE, // En attente de signature fiche
+      parrainMatricule: '202608010003',
+      etapeActive: EtapeOnboarding.FICHE,
     },
     {
       id: 'cli-015',
@@ -531,19 +515,18 @@ async function main() {
       nom: 'MUKENDI',
       telephone: '+243991110015',
       email: 'jonathan.m@ebnnetwork.cd',
-      codeParrain: undefined,
       matricule: undefined,
       statut: StatutClient.EN_COURS,
       siteId: siteKinshasa.id,
-      parrainCode: 'TSG-0004',
-      etapeActive: EtapeOnboarding.ACTIVATION, // En attente d'achat pack activation
+      parrainMatricule: '202608010004',
+      etapeActive: EtapeOnboarding.ACTIVATION,
     },
   ];
 
   const dbClients: Record<string, any> = {};
   const dbMembres: Record<string, any> = {};
 
-  // Création des clients et étapes d'onboarding
+  // 1. Création des enregistrements Client
   for (const c of clientsDefinitions) {
     const client = await prisma.client.upsert({
       where: { telephone: c.telephone },
@@ -551,7 +534,7 @@ async function main() {
         prenom: c.prenom,
         nom: c.nom,
         email: c.email,
-        codeParrain: c.codeParrain,
+        codeParrain: c.matricule,
         statut: c.statut,
         siteInscriptionId: c.siteId,
         dateActivation: c.statut === StatutClient.ACTIF ? new Date(Date.now() - 30 * 24 * 3600 * 1000) : null,
@@ -562,7 +545,7 @@ async function main() {
         nom: c.nom,
         telephone: c.telephone,
         email: c.email,
-        codeParrain: c.codeParrain,
+        codeParrain: c.matricule,
         statut: c.statut,
         siteInscriptionId: c.siteId,
         createdById: agentGoma.id,
@@ -571,7 +554,7 @@ async function main() {
     });
     dbClients[c.id] = client;
 
-    // Créer les étapes d'onboarding selon le statut
+    // Étapes d'onboarding
     if (c.statut === StatutClient.ACTIF) {
       const etapes = [
         { etape: EtapeOnboarding.RECIT, montant: 25000, statut: StatutEtape.COMPLETE },
@@ -595,75 +578,29 @@ async function main() {
           },
         });
       }
-    } else if (c.statut === StatutClient.EN_COURS && (c as any).etapeActive) {
-      const active = (c as any).etapeActive;
-      // Récit toujours complété pour ceux en cours
-      await prisma.onboardingEtape.upsert({
-        where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.RECIT } },
-        update: { statut: StatutEtape.COMPLETE },
-        create: {
-          clientId: client.id,
-          etape: EtapeOnboarding.RECIT,
-          statut: StatutEtape.COMPLETE,
-          montant: 25000,
-          modePaiement: ModePaiement.MPESA,
-          referenceTransaction: 'MP-8392019',
-          agentId: agentGoma.id,
-          siteId: c.siteId,
-          completeeAt: new Date(Date.now() - 2 * 24 * 3600 * 1000),
-        },
-      });
-
-      if (active === EtapeOnboarding.FICHE || active === EtapeOnboarding.ACTIVATION) {
-        await prisma.onboardingEtape.upsert({
-          where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.FORMATION } },
-          update: { statut: StatutEtape.COMPLETE },
-          create: {
-            clientId: client.id,
-            etape: EtapeOnboarding.FORMATION,
-            statut: StatutEtape.COMPLETE,
-            agentId: formateur.id,
-            siteId: c.siteId,
-            completeeAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
-          },
-        });
-      }
-      if (active === EtapeOnboarding.ACTIVATION) {
-        await prisma.onboardingEtape.upsert({
-          where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.FICHE } },
-          update: { statut: StatutEtape.COMPLETE },
-          create: {
-            clientId: client.id,
-            etape: EtapeOnboarding.FICHE,
-            statut: StatutEtape.COMPLETE,
-            agentId: agentGoma.id,
-            siteId: c.siteId,
-            completeeAt: new Date(),
-          },
-        });
-      }
     }
   }
 
-  // Création des profils MLM Membres
+  // 2. Création des enregistrements Membre (parrainage résolu)
   for (const c of clientsDefinitions) {
     if (c.statut !== StatutClient.ACTIF || !c.matricule || !c.levelOrdre) continue;
 
     const level = dbLevels[c.levelOrdre];
     const client = dbClients[c.id];
 
-    // Trouver le parrain
+    // Résolution du parrain
     let parrainId: string | null = null;
-    if (c.parrainCode) {
-      const parrainDef = clientsDefinitions.find(x => x.codeParrain === c.parrainCode);
-      if (parrainDef && dbMembres[parrainDef.id]) {
-        parrainId = dbMembres[parrainDef.id].id;
+    if (c.parrainMatricule) {
+      const parrainDef = clientsDefinitions.find(x => x.matricule === c.parrainMatricule);
+      if (parrainDef) {
+        parrainId = `mem-${parrainDef.id}`;
       }
     }
 
     const membre = await prisma.membre.upsert({
       where: { clientId: client.id },
       update: {
+        id: `mem-${c.id}`,
         matricule: c.matricule,
         mlmLevelId: level.id,
         parrainId,
@@ -681,7 +618,7 @@ async function main() {
     });
     dbMembres[c.id] = membre;
 
-    // Créer ou maj le portefeuille USD
+    // Portefeuille USD
     const portefeuille = await prisma.portefeuille.upsert({
       where: { membreId: membre.id },
       update: { soldeDisponible: c.soldePortefeuille ?? 0, totalGagne: c.totalGagne ?? 0 },
@@ -721,31 +658,50 @@ async function main() {
       ],
       skipDuplicates: true,
     }).catch(() => {});
+  }
 
-    // Créer les matrices et positions pour chaque niveau atteint
+  // 3. Création des Matrices et Assignation des Positions (Filleuls réels)
+  for (const c of clientsDefinitions) {
+    if (c.statut !== StatutClient.ACTIF || !c.levelOrdre) continue;
+    const membre = dbMembres[c.id];
+    if (!membre) continue;
+
+    const filleulsList = (c as any).filleulsIds ?? [];
+
     for (let lvl = 1; lvl <= c.levelOrdre; lvl++) {
       const isCurrentLevel = (lvl === c.levelOrdre);
+      const filleulsCount = isCurrentLevel ? filleulsList.length : 4;
+      const isComplete = !isCurrentLevel || filleulsCount >= 4;
+
       const matrix = await prisma.matrix.upsert({
         where: { membreId_mlmLevelId: { membreId: membre.id, mlmLevelId: dbLevels[lvl].id } },
-        update: { filleulsValides: isCurrentLevel ? 2 : 4, estComplete: !isCurrentLevel },
+        update: { filleulsValides: filleulsCount, estComplete: isComplete },
         create: {
           membreId: membre.id,
           mlmLevelId: dbLevels[lvl].id,
-          filleulsValides: isCurrentLevel ? 2 : 4,
-          estComplete: !isCurrentLevel,
-          dateComplete: !isCurrentLevel ? new Date(Date.now() - (c.levelOrdre - lvl) * 5 * 24 * 3600 * 1000) : null,
+          filleulsValides: filleulsCount,
+          estComplete: isComplete,
+          dateComplete: isComplete ? new Date(Date.now() - (c.levelOrdre - lvl) * 5 * 24 * 3600 * 1000) : null,
         },
       });
 
-      // 4 positions par matrice
+      // Remplissage des 4 positions avec les vrais filleuls
       for (let pos = 1; pos <= 4; pos++) {
-        const estValide = !isCurrentLevel || pos <= 2;
+        const filleulClientId = isCurrentLevel ? filleulsList[pos - 1] : undefined;
+        const filleulMembre = filleulClientId ? dbMembres[filleulClientId] : undefined;
+        const estValide = !isCurrentLevel || !!filleulMembre;
+
         await prisma.position.upsert({
           where: { matrixId_numeroPosition: { matrixId: matrix.id, numeroPosition: pos } },
-          update: { estValide },
+          update: {
+            filleulId: filleulMembre?.id ?? null,
+            estValide,
+            dateValidation: estValide ? new Date() : null,
+          },
           create: {
             matrixId: matrix.id,
             numeroPosition: pos,
+            filleulId: filleulMembre?.id ?? null,
             estValide,
             dateValidation: estValide ? new Date() : null,
           },
@@ -816,7 +772,7 @@ async function main() {
     }).catch(() => {});
   }
 
-  console.log('  ✓ 15 Clients créés avec arbre MLM complet, portefeuilles, transactions, bonus et salaires');
+  console.log('  ✓ 15 Clients créés avec matricules AAAAMJXXXX, arbre MLM complet interconnecté et matrices 4 positions');
 
   // ============================================
   // 6. VENTES & HISTORIQUE COMMERCIAL
@@ -1024,8 +980,8 @@ async function main() {
   console.log('  • Utilisateurs (8)   : Super Admin (+243902238740), Dir. Régional, Gérants, Agents, Formateur');
   console.log('  • MLM Niveaux (8)   : Niveaux 1 à 7 + Crown Ambassadeur');
   console.log('  • Produits (9)      : Packs, Récits, Bio, Cosmétiques, Équipements (avec stocks & alertes)');
-  console.log('  • Clients (15)      : Actifs + En attente (Formation, Fiche, Activation)');
-  console.log('  • Réseau MLM (12)   : Arbre complet de parrainage, Matrices 4 positions, Portefeuilles USD ($)');
+  console.log('  • Clients (15)      : Actifs + En attente (Matricules: 202608010001 à 202608010012)');
+  console.log('  • Réseau MLM (12)   : Arbre complet de parrainage, Matrices 4 positions avec filleuls réels');
   console.log('  • Ventes & Caisses  : Multi-sites, multi-modes de paiement, Reçus, Avoirs OHADA');
   console.log('  • Support (3)       : Tickets avec statuts et types variés');
   console.log('======================================================\n');

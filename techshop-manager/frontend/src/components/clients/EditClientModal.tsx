@@ -224,16 +224,10 @@ export function EditClientModal({
               <p className="text-[11px] font-bold uppercase tracking-wide text-text-muted mb-2">
                 Champs non modifiables
               </p>
-              {client.codeParrain && (
+              {(client.matricule || client.codeParrain) && (
                 <div className="flex justify-between text-[12px]">
-                  <span className="text-text-muted">Code parrain</span>
-                  <span className="font-mono font-semibold text-text">{client.codeParrain}</span>
-                </div>
-              )}
-              {client.matriculeExterne && (
-                <div className="flex justify-between text-[12px]">
-                  <span className="text-text-muted">Matricule externe</span>
-                  <span className="font-mono font-semibold text-text">{client.matriculeExterne}</span>
+                  <span className="text-text-muted">Matricule membre</span>
+                  <span className="font-mono font-semibold text-primary">{client.matricule || client.codeParrain}</span>
                 </div>
               )}
               <div className="flex justify-between text-[12px]">

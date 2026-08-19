@@ -4,19 +4,19 @@ import { MlmApi } from '@/lib/mlm.api';
 export function useMlmNetwork() {
   const statsQuery = useQuery({
     queryKey: ['mlm-stats'],
-    queryFn: MlmApi.getNetworkStats,
+    queryFn: () => MlmApi.getNetworkStats(),
     staleTime: 5 * 60 * 1000,
   });
 
   const membersByLevelQuery = useQuery({
     queryKey: ['mlm-members-by-level'],
-    queryFn: MlmApi.getMembersByLevel,
+    queryFn: () => MlmApi.getMembersByLevel(),
     staleTime: 5 * 60 * 1000,
   });
 
   const recentPromotionsQuery = useQuery({
     queryKey: ['mlm-recent-promotions'],
-    queryFn: MlmApi.getRecentPromotions,
+    queryFn: () => MlmApi.getRecentPromotions(),
     staleTime: 5 * 60 * 1000,
   });
 

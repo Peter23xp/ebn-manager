@@ -60,7 +60,7 @@ export class ClientsService {
         { nom: { contains: search, mode: 'insensitive' } },
         { telephone: { contains: search } },
         { codeParrain: { contains: search, mode: 'insensitive' } },
-        { matriculeExterne: { contains: search, mode: 'insensitive' } },
+        { membre: { matricule: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -71,14 +71,24 @@ export class ClientsService {
         orderBy: { createdAt: 'desc' },
         include: {
           siteInscription: { select: { id: true, nom: true } },
+          membre: {
+            select: {
+              id: true,
+              matricule: true,
+              mlmLevelId: true,
+              level: { select: { nom: true, ordre: true, couleur: true } },
+            },
+          },
           onboardingEtapes: { select: { etape: true, statut: true, completeeAt: true } },
         },
       }),
       this.prisma.client.count({ where }),
     ]);
 
-    const mappedData = data.map(({ siteInscription, ...rest }) => ({
+    const mappedData = data.map(({ siteInscription, membre, ...rest }) => ({
       ...rest,
+      matricule: membre?.matricule ?? rest.codeParrain,
+      membre,
       site: siteInscription,
     }));
 
@@ -98,6 +108,16 @@ export class ClientsService {
       where: { id },
       include: {
         siteInscription: { select: { id: true, nom: true } },
+        membre: {
+          include: {
+            level: { select: { id: true, nom: true, ordre: true, couleur: true, icone: true } },
+            parrain: {
+              include: {
+                client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+              },
+            },
+          },
+        },
         onboardingEtapes: {
           include: {
             agent: { select: { id: true, nom: true } },
@@ -110,7 +130,6 @@ export class ClientsService {
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
-
       },
     });
 
@@ -118,8 +137,24 @@ export class ClientsService {
       throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
     }
 
-    const { siteInscription, ...rest } = client;
-    return { ...rest, site: siteInscription };
+    const { siteInscription, membre, ...rest } = client;
+    const parrain = membre?.parrain?.client
+      ? {
+          id: membre.parrain.client.id,
+          prenom: membre.parrain.client.prenom,
+          nom: membre.parrain.client.nom,
+          telephone: membre.parrain.client.telephone,
+          matricule: membre.parrain.matricule,
+        }
+      : null;
+
+    return {
+      ...rest,
+      matricule: membre?.matricule ?? client.codeParrain,
+      site: siteInscription,
+      membre,
+      parrain,
+    };
   }
 
   async update(
@@ -184,6 +219,7 @@ export class ClientsService {
       where: {
         statut: StatutClient.ACTIF,
         OR: [
+          { membre:      { matricule: { contains: term, mode: 'insensitive' } } },
           { codeParrain: { contains: term, mode: 'insensitive' } },
           { prenom:      { contains: term, mode: 'insensitive' } },
           { nom:         { contains: term, mode: 'insensitive' } },
@@ -197,6 +233,7 @@ export class ClientsService {
         nom: true,
         codeParrain: true,
         telephone: true,
+        membre: { select: { matricule: true } },
       },
     });
 
@@ -204,7 +241,8 @@ export class ClientsService {
       results: clients.map((c) => ({
         id: c.id,
         nom: `${c.prenom} ${c.nom}`,
-        codeParrain: c.codeParrain,
+        codeParrain: c.membre?.matricule ?? c.codeParrain,
+        matricule: c.membre?.matricule ?? c.codeParrain,
         telephone: c.telephone,
       })),
     };
@@ -293,19 +331,24 @@ export class ClientsService {
     // Résoudre le parrain par code
     let parrainId: string | undefined;
     if (dto.codeParrain) {
-      const parrain = await this.prisma.client.findUnique({
-        where: { codeParrain: dto.codeParrain },
+      const parrain = await this.prisma.client.findFirst({
+        where: {
+          OR: [
+            { codeParrain: dto.codeParrain },
+            { membre: { matricule: dto.codeParrain } },
+          ],
+        },
       });
       if (!parrain) {
         throw new BadRequestException({
           code: 'ERR_BAD_REQUEST',
-          message: 'Code parrain invalide',
+          message: 'Parrain introuvable ou matricule invalide',
         });
       }
       if (parrain.statut !== StatutClient.ACTIF) {
         throw new BadRequestException({
           code: 'ERR_BAD_REQUEST',
-          message: 'Le parrain doit être actif',
+          message: 'Le parrain doit être un membre actif',
         });
       }
       parrainId = parrain.id;
@@ -824,24 +867,34 @@ export class ClientsService {
   }
 
   async getNextCode(): Promise<{ nextCode: string }> {
-    const lastClient = await this.prisma.client.findFirst({
-      where: { codeParrain: { startsWith: 'TSG-' } },
-      orderBy: { dateActivation: 'desc' },
-      select: { codeParrain: true },
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `${yyyy}${mm}${dd}`;
+
+    const countToday = await this.prisma.client.count({
+      where: {
+        OR: [
+          { codeParrain: { startsWith: prefix } },
+          { membre: { matricule: { startsWith: prefix } } },
+        ],
+      },
     });
 
-    let nextNumber = 1;
-    if (lastClient?.codeParrain) {
-      const match = lastClient.codeParrain.match(/^TSG-(\d+)$/);
-      if (match) nextNumber = parseInt(match[1], 10) + 1;
-    }
-
-    // Find first available code (read-only preview)
+    let seq = countToday + 1;
     let code: string;
     let attempts = 0;
     do {
-      code = `TSG-${String(nextNumber + attempts).padStart(4, '0')}`;
-      const exists = await this.prisma.client.findUnique({ where: { codeParrain: code } });
+      code = `${prefix}${String(seq + attempts).padStart(4, '0')}`;
+      const exists = await this.prisma.client.findFirst({
+        where: {
+          OR: [
+            { codeParrain: code },
+            { membre: { matricule: code } },
+          ],
+        },
+      });
       if (!exists) break;
       attempts++;
     } while (attempts < 100);
@@ -850,28 +903,33 @@ export class ClientsService {
   }
 
   private async generateUniqueCodeParrain(): Promise<string> {
-    // Trouver le dernier code TSG-XXXX pour incrémenter
-    const lastClient = await this.prisma.client.findFirst({
-      where: { codeParrain: { startsWith: 'TSG-' } },
-      orderBy: { dateActivation: 'desc' },
-      select: { codeParrain: true },
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `${yyyy}${mm}${dd}`;
+
+    const countToday = await this.prisma.client.count({
+      where: {
+        OR: [
+          { codeParrain: { startsWith: prefix } },
+          { membre: { matricule: { startsWith: prefix } } },
+        ],
+      },
     });
 
-    let nextNumber = 1;
-    if (lastClient?.codeParrain) {
-      const match = lastClient.codeParrain.match(/^TSG-(\d+)$/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    // Chercher un code disponible en cas de collisions
+    let seq = countToday + 1;
     let code: string;
     let attempts = 0;
     do {
-      code = `TSG-${String(nextNumber + attempts).padStart(4, '0')}`;
-      const exists = await this.prisma.client.findUnique({
-        where: { codeParrain: code },
+      code = `${prefix}${String(seq + attempts).padStart(4, '0')}`;
+      const exists = await this.prisma.client.findFirst({
+        where: {
+          OR: [
+            { codeParrain: code },
+            { membre: { matricule: code } },
+          ],
+        },
       });
       if (!exists) break;
       attempts++;

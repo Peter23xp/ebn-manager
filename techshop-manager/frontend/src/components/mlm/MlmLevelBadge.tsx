@@ -46,7 +46,7 @@ export const MlmLevelBadge: React.FC<MlmLevelBadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full font-medium shadow-sm transition-transform hover:scale-105',
+        'inline-flex items-center rounded-full font-medium',
         sizeClasses[size],
         className
       )}

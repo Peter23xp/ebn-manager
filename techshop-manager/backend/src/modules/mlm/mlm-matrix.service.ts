@@ -26,15 +26,19 @@ export class MlmMatrixService {
     });
     if (!client) throw new NotFoundException(`Client ${clientId} introuvable`);
 
-    // Resolve parrain
+    // Resolve parrain by matricule or codeParrain
     let parrainId: string | null = null;
     if (parrainCode) {
-      const parrainClient = await this.prisma.client.findUnique({
-        where: { codeParrain: parrainCode },
-        include: { membre: true },
+      const parrainMembre = await this.prisma.membre.findFirst({
+        where: {
+          OR: [
+            { matricule: parrainCode },
+            { client: { codeParrain: parrainCode } },
+          ],
+        },
       });
-      if (parrainClient?.membre) {
-        parrainId = parrainClient.membre.id;
+      if (parrainMembre) {
+        parrainId = parrainMembre.id;
       }
     }
 
@@ -42,9 +46,16 @@ export class MlmMatrixService {
     const level1 = await this.prisma.mlmLevel.findFirst({ where: { ordre: 1 } });
     if (!level1) throw new BadRequestException('MlmLevel niveau 1 introuvable — seed la DB d\'abord');
 
-    // Generate matricule
-    const count = await this.prisma.membre.count();
-    const matricule = `EBN-${String(count + 1).padStart(5, '0')}`;
+    // Generate matricule in AAAAMMJJXXXX format
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `${yyyy}${mm}${dd}`;
+    const countToday = await this.prisma.membre.count({
+      where: { matricule: { startsWith: prefix } },
+    });
+    const matricule = `${prefix}${String(countToday + 1).padStart(4, '0')}`;
 
     // Create member + wallet + matrix in a transaction
     await this.prisma.$transaction(async (tx) => {
@@ -142,17 +153,20 @@ export class MlmMatrixService {
     });
 
     if (isNowComplete) {
-      await this._triggerPromotion(tx, parrainId, mlmLevelId);
+      await this._triggerPromotion(tx, parrainId, mlmLevelId, filleulId);
     }
   }
 
   /**
-   * Promote the member to the next level, credit their wallet, create next level matrix.
+   * OPTION B: Promote the member to the next level.
+   * Creates a Commission record with EN_ATTENTE status (NO automatic wallet credit).
+   * Wallet is only credited when admin validates the commission.
    */
   private async _triggerPromotion(
     tx: Prisma.TransactionClient,
     membreId: string,
     completedLevelId: number,
+    triggerFilleulId: string,
   ): Promise<void> {
     const [completedLevel, membre] = await Promise.all([
       tx.mlmLevel.findUnique({ where: { id: completedLevelId } }),
@@ -170,35 +184,44 @@ export class MlmMatrixService {
       orderBy: { ordre: 'asc' },
     });
 
-    // Promote
     if (nextLevel) {
+      // Promote member
       await tx.membre.update({
         where: { id: membreId },
         data: { mlmLevelId: nextLevel.id },
       });
 
-      // Record promotion
+      // Record promotion history
       await tx.promotion.create({
         data: {
           membreId,
           niveauAvantId: completedLevel.id,
           niveauApresId: nextLevel.id,
           commissionVersee: completedLevel.commissionTotale,
-          declencheParId: membreId,
+          declencheParId: triggerFilleulId,
         },
       });
 
-      // Credit commission to wallet
-      await this.walletService.creditWalletInTx(
-        tx,
-        membreId,
-        Number(completedLevel.commissionTotale),
-        'COMMISSION',
-        `Commission niveau ${completedLevel.nom} (promotion)`,
-        `promotion-${membreId}-${completedLevel.id}`,
-      );
+      // OPTION B: Create Commission EN_ATTENTE (no automatic wallet credit)
+      const commissionRef = `commission-${membreId}-level${completedLevel.ordre}-${triggerFilleulId}`;
+      const existingCommission = await tx.commission.findUnique({
+        where: { referenceId: commissionRef },
+      });
+      if (!existingCommission) {
+        await tx.commission.create({
+          data: {
+            membreId,
+            filleulId: triggerFilleulId,
+            mlmLevelId: completedLevelId,
+            montant: completedLevel.commissionTotale,
+            statut: 'EN_ATTENTE',
+            referenceId: commissionRef,
+            description: `Commission niveau ${completedLevel.nom} — 4 filleuls complétés`,
+          },
+        });
+      }
 
-      // Credit bonus to BonusAttribue
+      // Create BonusAttribue (physical bonus — also EN_ATTENTE by default)
       await tx.bonusAttribue.create({
         data: {
           membreId,
@@ -226,7 +249,8 @@ export class MlmMatrixService {
         });
       }
 
-      // Handle salary if level has one
+      // Salary: only applicable for eligible levels — create EN_ATTENTE record
+      // (salary credit also requires admin validation; stored via SalaireVerse with statut PENDING)
       if (nextLevel.salaireActif && Number(nextLevel.salaireMensuel) > 0) {
         const moisAnnee = new Date().toISOString().slice(0, 7);
         const exists = await tx.salaireVerse.findUnique({
@@ -238,16 +262,9 @@ export class MlmMatrixService {
               membreId,
               montant: nextLevel.salaireMensuel,
               moisAnnee,
+              statut: 'EN_ATTENTE',
             },
           });
-          await this.walletService.creditWalletInTx(
-            tx,
-            membreId,
-            Number(nextLevel.salaireMensuel),
-            'SALAIRE',
-            `Salaire ${nextLevel.nom} — ${moisAnnee}`,
-            `salaire-${membreId}-${moisAnnee}`,
-          );
         }
       }
 
@@ -257,21 +274,14 @@ export class MlmMatrixService {
           where: { membreId_filleulCrownId: { membreId: membre.parrainId, filleulCrownId: membreId } },
         });
         if (!existing) {
+          // Create retirement bonus EN_ATTENTE — no automatic wallet credit
           await tx.bonusRetraite.create({
-            data: { membreId: membre.parrainId, filleulCrownId: membreId },
+            data: { membreId: membre.parrainId, filleulCrownId: membreId, statut: 'EN_ATTENTE' },
           });
-          await this.walletService.creditWalletInTx(
-            tx,
-            membre.parrainId,
-            50000,
-            'BONUS_RETRAITE',
-            `Bonus retraite — filleul Crown Ambassadeur`,
-            `bonus-retraite-${membre.parrainId}-${membreId}`,
-          );
         }
       }
 
-      // Now fill parrain's next-level matrix
+      // Fill parrain's next-level matrix
       if (membre.parrainId && nextLevel) {
         await this._fillParrainPosition(tx, membre.parrainId, membreId, nextLevel.id);
       }
@@ -311,6 +321,12 @@ export class MlmMatrixService {
         include: {
           client: { select: { id: true, prenom: true, nom: true } },
           level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+          matrices: {
+            where: { estComplete: false },
+            select: { mlmLevelId: true, filleulsValides: true },
+            orderBy: { level: { ordre: 'desc' } },
+            take: 1,
+          },
           filleuls: {
             include: {
               client: { select: { id: true, prenom: true, nom: true } },
@@ -321,6 +337,7 @@ export class MlmMatrixService {
       });
       if (!m) return null;
 
+      const currentMatrix = m.matrices[0];
       const children = await Promise.all(
         m.filleuls.map((f) => buildTree(f.id, currentDepth - 1)),
       );
@@ -331,11 +348,121 @@ export class MlmMatrixService {
         client: m.client,
         level: m.level,
         statut: m.statut,
+        dateInscription: m.dateInscription,
+        dateActivation: m.dateActivation,
+        progression: currentMatrix
+          ? { filleulsValides: currentMatrix.filleulsValides, filleulsRequis: 4 }
+          : null,
         children: children.filter(Boolean),
       };
     };
 
     return buildTree(memberId, depth);
+  }
+
+  // ── Commission management ───────────────────────────────────────────────────
+
+  async listCommissions(params: {
+    page?: number;
+    limit?: number;
+    statut?: string;
+    membreId?: string;
+    levelId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.CommissionWhereInput = {};
+    if (params.statut) where.statut = params.statut as any;
+    if (params.membreId) where.membreId = params.membreId;
+    if (params.levelId) where.mlmLevelId = params.levelId;
+    if (params.dateFrom || params.dateTo) {
+      where.createdAt = {};
+      if (params.dateFrom) (where.createdAt as any).gte = new Date(params.dateFrom);
+      if (params.dateTo) (where.createdAt as any).lte = new Date(params.dateTo);
+    }
+
+    const [commissions, total] = await Promise.all([
+      this.prisma.commission.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          membre: {
+            include: { client: { select: { id: true, prenom: true, nom: true, telephone: true } } },
+          },
+          filleul: {
+            include: { client: { select: { id: true, prenom: true, nom: true } } },
+          },
+          level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+        },
+      }),
+      this.prisma.commission.count({ where }),
+    ]);
+
+    return {
+      commissions: commissions.map((c) => ({
+        ...c,
+        montant: Number(c.montant),
+      })),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async validateCommission(commissionId: string): Promise<any> {
+    const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+    if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
+    if (commission.statut !== 'EN_ATTENTE')
+      throw new BadRequestException(`Commission déjà traitée (statut: ${commission.statut})`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.commission.update({
+        where: { id: commissionId },
+        data: { statut: 'VALIDEE', valideeAt: new Date() },
+      });
+
+      // Credit wallet now that it's validated
+      await this.walletService.creditWalletInTx(
+        tx,
+        commission.membreId,
+        Number(commission.montant),
+        'COMMISSION',
+        commission.description,
+        commission.referenceId,
+      );
+
+      return { ...updated, montant: Number(updated.montant) };
+    });
+  }
+
+  async payCommission(commissionId: string): Promise<any> {
+    const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+    if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
+    if (commission.statut !== 'VALIDEE')
+      throw new BadRequestException(`La commission doit être validée avant d'être marquée comme payée`);
+
+    const updated = await this.prisma.commission.update({
+      where: { id: commissionId },
+      data: { statut: 'PAYEE', payeeAt: new Date() },
+    });
+    return { ...updated, montant: Number(updated.montant) };
+  }
+
+  async cancelCommission(commissionId: string, notes?: string): Promise<any> {
+    const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+    if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
+    if (commission.statut === 'PAYEE')
+      throw new BadRequestException(`Impossible d'annuler une commission déjà payée`);
+
+    const updated = await this.prisma.commission.update({
+      where: { id: commissionId },
+      data: { statut: 'ANNULEE', notes },
+    });
+    return { ...updated, montant: Number(updated.montant) };
   }
 
   // ── Pending bonuses ─────────────────────────────────────────────────────────
@@ -365,12 +492,7 @@ export class MlmMatrixService {
 
     return {
       bonuses,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -420,6 +542,32 @@ export class MlmMatrixService {
         },
       },
       orderBy: { dateVersement: 'desc' },
+    });
+  }
+
+  async validateRetirement(bonusId: string): Promise<any> {
+    const bonus = await this.prisma.bonusRetraite.findUnique({ where: { id: bonusId } });
+    if (!bonus) throw new NotFoundException(`Bonus retraite ${bonusId} introuvable`);
+    if (bonus.statut !== 'EN_ATTENTE')
+      throw new BadRequestException(`Bonus retraite déjà traité`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.bonusRetraite.update({
+        where: { id: bonusId },
+        data: { statut: 'PAYE' },
+      });
+
+      // Credit wallet for retirement bonus upon admin validation
+      await this.walletService.creditWalletInTx(
+        tx,
+        bonus.membreId,
+        Number(bonus.montant),
+        'BONUS_RETRAITE',
+        `Bonus retraite — filleul Crown Ambassadeur (validé)`,
+        `bonus-retraite-${bonus.membreId}-${bonus.filleulCrownId}`,
+      );
+
+      return updated;
     });
   }
 }

@@ -146,9 +146,9 @@ export class MailerService {
         Bonjour <strong>${nomClient}</strong>, votre compte client est maintenant <strong style="color:#1A6B3A">actif</strong>.
       </p>
       <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:20px;text-align:center;margin-bottom:24px">
-        <p style="color:#166534;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px;font-weight:600">Votre code parrain</p>
+        <p style="color:#166534;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px;font-weight:600">Votre matricule membre</p>
         <p style="color:#15803d;font-size:32px;font-weight:900;letter-spacing:6px;margin:0;font-family:monospace">${codeParrain}</p>
-        <p style="color:#166534;font-size:12px;margin:8px 0 0">Partagez ce code pour parrainer vos proches et gagner des récompenses</p>
+        <p style="color:#166534;font-size:12px;margin:8px 0 0">Partagez ce matricule pour parrainer vos prospects et progresser dans le plan MLM EBN</p>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
         <tr>

@@ -87,7 +87,7 @@ export interface Client {
   nom: string;
   telephone: string;
   email?: string;
-  matriculeExterne?: string;
+  matricule?: string;
   codeParrain?: string;
   statut: StatutClient;
   notes?: string;

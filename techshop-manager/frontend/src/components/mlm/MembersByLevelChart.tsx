@@ -22,15 +22,19 @@ ChartJS.register(
 
 interface MembersByLevelChartProps {
   data?: {
-    levelId: number;
-    count: number;
+    levelId?: number;
+    ordre?: number;
+    count?: number;
+    membresActifs?: number;
+    nom?: string;
+    couleur?: string;
   }[];
   isLoading: boolean;
 }
 
 export const MembersByLevelChart: React.FC<MembersByLevelChartProps> = ({ data, isLoading }) => {
   if (isLoading) {
-    return <div className="w-full h-[300px] bg-gray-50 animate-pulse rounded-xl" />;
+    return <div className="w-full h-[300px] skeleton rounded-xl" />;
   }
 
   const chartData = {
@@ -39,8 +43,8 @@ export const MembersByLevelChart: React.FC<MembersByLevelChartProps> = ({ data, 
       {
         label: 'Membres',
         data: MLM_LEVELS_REF.map(l => {
-          const found = data?.find(d => d.levelId === l.ordre);
-          return found ? found.count : 0;
+          const found = data?.find((d: any) => (d.levelId === l.ordre || d.ordre === l.ordre));
+          return found ? (found.count ?? found.membresActifs ?? 0) : 0;
         }),
         backgroundColor: MLM_LEVELS_REF.map(l => l.couleur),
         borderRadius: 4,

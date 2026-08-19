@@ -23,6 +23,9 @@ import {
   CreditCard,
   RotateCcw,
   HelpCircle,
+  Award,
+  DollarSign,
+  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
@@ -53,7 +56,11 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Ventes',               icon: <Receipt size={16} />,         to: '/sales',                  minRole: 'GERANT' },
   { label: 'Journal retours',      icon: <RotateCcw size={16} />,       to: '/sales/journal-retours',  minRole: 'GERANT' },
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
-  { label: 'Réseau MLM',           icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
+  { label: 'Dashboard MLM',        icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
+  { label: '8 Niveaux MLM',        icon: <Award size={16} />,         to: '/mlm/levels',         minRole: 'AGENT' },
+  { label: 'Arbre MLM',            icon: <Layers size={16} />,        to: '/mlm/tree',           minRole: 'GERANT' },
+  { label: 'Commissions',          icon: <DollarSign size={16} />,    to: '/mlm/commissions',    minRole: 'GERANT' },
+  { label: 'Membres MLM',          icon: <Users size={16} />,         to: '/mlm/members',        minRole: 'GERANT' },
   { label: 'Mon Portefeuille',     icon: <Wallet size={16} />,        to: '/mlm/wallet',         minRole: 'AGENT' },
   { label: 'Rapports',             icon: <BarChart2 size={16} />,       to: '/reports',            minRole: 'GERANT' },
 ];
@@ -100,7 +107,8 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const mainItems     = visibleItems.filter(i => i.to === '/dashboard');
   const clientItems   = visibleItems.filter(i => i.to.startsWith('/clients'));
   const opItems       = visibleItems.filter(i => ['/sales/pos', '/sales', '/sales/journal-retours', '/stocks'].includes(i.to));
-  const businessItems = visibleItems.filter(i => ['/mlm', '/mlm/wallet', '/reports'].includes(i.to));
+  const mlmItems      = visibleItems.filter(i => i.to.startsWith('/mlm'));
+  const businessItems = visibleItems.filter(i => ['/reports'].includes(i.to));
 
   return (
     <aside className="sidebar flex flex-col shadow-sidebar">
@@ -186,9 +194,29 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           </>
         )}
 
+        {mlmItems.length > 0 && (
+          <>
+            <NavSection label="Réseau MLM" />
+            <div className="space-y-0.5 px-2">
+              {mlmItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/mlm'}
+                  onClick={onClose}
+                  className={({ isActive }) => cn('sidebar-link', isActive && 'active')}
+                >
+                  <span className="sidebar-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </>
+        )}
+
         {businessItems.length > 0 && (
           <>
-            <NavSection label="Business" />
+            <NavSection label="Rapports" />
             <div className="space-y-0.5 px-2">
               {businessItems.map((item) => (
                 <NavLink

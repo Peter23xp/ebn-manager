@@ -224,28 +224,26 @@ export function ClientInfoTab({ client }: ClientInfoTabProps) {
             Informations commerciales
           </p>
 
-          {/* Code parrain + copier */}
+          {/* Matricule + copier */}
           <div className="rounded-xl bg-bg border border-border px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1">Code parrain</p>
-            {client.codeParrain ? (
+            <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1">Matricule membre</p>
+            {client.matricule || client.codeParrain ? (
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-semibold font-mono text-primary-accent">{client.codeParrain}</p>
+                <p className="text-[13px] font-semibold font-mono text-primary-accent">{client.matricule || client.codeParrain}</p>
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(client.codeParrain!)}
+                  onClick={() => copyToClipboard(client.matricule || client.codeParrain!)}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-primary-accent hover:bg-primary-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent"
-                  aria-label="Copier le code parrain"
+                  aria-label="Copier le matricule"
                   title="Copier"
                 >
                   <Copy size={13} aria-hidden />
                 </button>
               </div>
             ) : (
-              <p className="text-[13px] text-text-muted italic font-normal">Non généré</p>
+              <p className="text-[13px] text-text-muted italic font-normal">Non généré (en cours d'adhésion)</p>
             )}
           </div>
-
-          <Field label="Matricule externe"  value={client.matriculeExterne || undefined} mono />
 
           {/* Statut */}
           <div className="rounded-xl bg-bg border border-border px-4 py-3">
@@ -275,7 +273,9 @@ export function ClientInfoTab({ client }: ClientInfoTabProps) {
                 <span className="text-[13px] font-semibold text-primary-accent group-hover:underline">
                   {client.parrain.prenom} {client.parrain.nom}
                 </span>
-                <span className="text-[11px] font-mono text-text-muted">{client.parrain.codeParrain}</span>
+                <span className="text-[11px] font-mono font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                  {client.parrain.matricule || client.parrain.codeParrain}
+                </span>
               </Link>
             ) : (
               <p className="text-[13px] text-text-muted italic font-normal">Aucun parrain</p>

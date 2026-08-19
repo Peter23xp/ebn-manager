@@ -6,16 +6,12 @@ export function useMlmMembers(params: {
   limit?: number;
   statut?: string;
   levelId?: number;
+  parrainId?: string;
   search?: string;
 }) {
   return useQuery({
     queryKey: ['mlm-members', params],
-    queryFn: () => MlmApi.getNetworkStats().then(() =>
-      // Fetch members from API
-      import('@/lib/api').then(({ api }) =>
-        api.get('/mlm/members', { params }).then((r) => r.data),
-      ),
-    ),
+    queryFn: () => MlmApi.listMembers(params),
   });
 }
 
@@ -38,7 +34,7 @@ export function useMemberMatrix(memberId: string, levelId: number) {
 export function useNetworkTree(memberId: string, depth = 3) {
   return useQuery({
     queryKey: ['mlm-tree', memberId, depth],
-    queryFn: () => MlmApi.getNetworkTree(memberId),
+    queryFn: () => MlmApi.getNetworkTree(memberId, depth),
     enabled: !!memberId,
   });
 }

@@ -134,7 +134,7 @@ export default function ClientsListPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle pointer-events-none" aria-hidden />
             <input
               type="search"
-              placeholder="Nom, téléphone, code parrain…"
+              placeholder="Nom, téléphone, matricule…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="w-full pl-8 pr-3 py-2 border border-border rounded-lg text-[13px] bg-white text-text placeholder:text-text-subtle focus:outline-none focus:ring-2 focus:ring-primary-accent/30 focus:border-primary-accent transition duration-150"
@@ -283,8 +283,8 @@ export default function ClientsListPage() {
                           <p className="text-[13px] font-semibold text-text truncate">
                             {client.prenom} {client.nom}
                           </p>
-                          {client.codeParrain && (
-                            <p className="text-[11px] text-text-muted font-mono">{client.codeParrain}</p>
+                          {(client.matricule || client.codeParrain) && (
+                            <p className="text-[11px] text-text-muted font-mono font-medium">{client.matricule || client.codeParrain}</p>
                           )}
                         </div>
                       </div>

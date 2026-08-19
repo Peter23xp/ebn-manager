@@ -283,9 +283,9 @@ export default function ClientDetailPage() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <ClientStatusBadge statut={client.statut} size="md" />
-                  {client.codeParrain && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-100 text-slate-600">
-                      {client.codeParrain}
+                  {(client.matricule || client.codeParrain) && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-primary/10 text-primary">
+                      {client.matricule || client.codeParrain}
                     </span>
                   )}
                 </div>

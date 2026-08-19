@@ -20,7 +20,7 @@ import { MlmService, UpdateMlmConfigDto } from './mlm.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 import { MlmWalletService } from './mlm-wallet.service';
 
-@Controller('api/v1/mlm')
+@Controller('mlm')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MlmController {
   constructor(
@@ -58,15 +58,29 @@ export class MlmController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('statut') statut?: string,
     @Query('levelId', new DefaultValuePipe(0), ParseIntPipe) levelId?: number,
+    @Query('parrainId') parrainId?: string,
     @Query('search') search?: string,
   ) {
-    return this.mlmService.listMembers({ page, limit, statut, levelId: levelId || undefined, search });
+    return this.mlmService.listMembers({
+      page,
+      limit,
+      statut,
+      levelId: levelId || undefined,
+      parrainId,
+      search,
+    });
   }
 
   @Get('members/:memberId/progress')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
   getMemberProgress(@Param('memberId') memberId: string) {
     return this.mlmService.getMemberProgress(memberId);
+  }
+
+  @Get('members/:memberId/filleuls')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
+  getMemberFilleuls(@Param('memberId') memberId: string) {
+    return this.mlmService.getMemberFilleuls(memberId);
   }
 
   @Get('members/:memberId/promotions')
@@ -77,6 +91,17 @@ export class MlmController {
 
   // ── Matrix ───────────────────────────────────────────────────────────────────
 
+  // ⚠️ IMPORTANT: /tree must come BEFORE /:levelId to avoid NestJS ParseIntPipe
+  // trying to parse the literal string "tree" as an integer (→ 400 Bad Request)
+  @Get('matrix/:memberId/tree')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
+  getNetworkTree(
+    @Param('memberId') memberId: string,
+    @Query('depth', new DefaultValuePipe(3), ParseIntPipe) depth: number,
+  ) {
+    return this.matrixService.getNetworkTree(memberId, depth);
+  }
+
   @Get('matrix/:memberId/:levelId')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
   getMemberMatrix(
@@ -86,31 +111,57 @@ export class MlmController {
     return this.matrixService.getMemberMatrix(memberId, levelId);
   }
 
-  @Get('matrix/:memberId/tree')
+  // ── Commissions (Option B — admin validation required) ────────────────────────
+
+  @Get('commissions')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
-  getNetworkTree(
-    @Param('memberId') memberId: string,
-    @Query('depth', new DefaultValuePipe(3), ParseIntPipe) depth: number,
+  listCommissions(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('statut') statut?: string,
+    @Query('membreId') membreId?: string,
+    @Query('levelId', new DefaultValuePipe(0), ParseIntPipe) levelId?: number,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
-    return this.matrixService.getNetworkTree(memberId, depth);
+    return this.matrixService.listCommissions({
+      page,
+      limit,
+      statut,
+      membreId,
+      levelId: levelId || undefined,
+      dateFrom,
+      dateTo,
+    });
+  }
+
+  @Put('commissions/:commissionId/validate')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  validateCommission(@Param('commissionId') commissionId: string) {
+    return this.matrixService.validateCommission(commissionId);
+  }
+
+  @Put('commissions/:commissionId/pay')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  payCommission(@Param('commissionId') commissionId: string) {
+    return this.matrixService.payCommission(commissionId);
+  }
+
+  @Patch('commissions/:commissionId/cancel')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  cancelCommission(
+    @Param('commissionId') commissionId: string,
+    @Body('notes') notes?: string,
+  ) {
+    return this.matrixService.cancelCommission(commissionId, notes);
   }
 
   // ── Wallet ───────────────────────────────────────────────────────────────────
-
-  @Get('wallet')
-  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
-  getWalletGlobal(@Query('memberId') memberId?: string) {
-    if (!memberId) {
-      return { error: 'Paramètre memberId requis pour admin' };
-    }
-    return this.walletService.getWallet(memberId);
-  }
-
-  @Get('wallet/:memberId')
-  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
-  getWallet(@Param('memberId') memberId: string) {
-    return this.walletService.getWallet(memberId);
-  }
+  // ⚠️ Literal routes MUST come before parameterized ones to avoid NestJS matching
+  // "transactions" as a :memberId param (→ NotFoundException or wrong handler)
 
   @Get('wallet/transactions')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
@@ -127,6 +178,21 @@ export class MlmController {
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
   getEarningsByLevel(@Param('memberId') memberId: string) {
     return this.walletService.getEarningsByLevel(memberId);
+  }
+
+  @Get('wallet/:memberId')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
+  getWallet(@Param('memberId') memberId: string) {
+    return this.walletService.getWallet(memberId);
+  }
+
+  @Get('wallet')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  getWalletGlobal(@Query('memberId') memberId?: string) {
+    if (!memberId) {
+      return { error: 'Paramètre memberId requis pour admin' };
+    }
+    return this.walletService.getWallet(memberId);
   }
 
   // ── Config ───────────────────────────────────────────────────────────────────
@@ -180,6 +246,13 @@ export class MlmController {
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
   getMemberRetirement(@Param('memberId') memberId: string) {
     return this.matrixService.getMemberRetirement(memberId);
+  }
+
+  @Put('retirement/:bonusId/validate')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  validateRetirement(@Param('bonusId') bonusId: string) {
+    return this.matrixService.validateRetirement(bonusId);
   }
 
   // ── Internal: activate member (called from clients module) ────────────────────

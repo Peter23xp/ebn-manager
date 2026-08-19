@@ -15,6 +15,7 @@ import { SitesModule } from './modules/sites/sites.module';
 import { ConfigAppModule } from './modules/config-app/config-app.module';
 import { SupportModule } from './modules/support/support.module';
 import { MlmModule } from './modules/mlm/mlm.module';
+import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -35,6 +36,7 @@ import { HealthModule } from './health/health.module';
     ConfigAppModule,
     SupportModule,
     MlmModule,
+    PublicModule,
     HealthModule,
   ],
 })

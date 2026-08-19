@@ -31,7 +31,9 @@ export function ClientParrainageTab({ client }: ClientParrainageTabProps) {
                 <p className="text-[13px] font-semibold text-text">
                   {client.parrain.prenom} {client.parrain.nom}
                 </p>
-                <p className="text-[11px] text-text-muted font-mono">{client.parrain.codeParrain}</p>
+                <p className="text-[11px] font-mono font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded inline-block">
+                  {client.parrain.matricule || client.parrain.codeParrain}
+                </p>
               </div>
               <Link
                 to={`/clients/${client.parrain.id}`}
@@ -46,18 +48,18 @@ export function ClientParrainageTab({ client }: ClientParrainageTabProps) {
         )}
       </div>
 
-      {/* Section B — Code parrain */}
-      {client.codeParrain && (
+      {/* Section B — Matricule */}
+      {(client.matricule || client.codeParrain) && (
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted mb-3">Mon code parrain</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted mb-3">Mon matricule membre</p>
           <div className="rounded-xl bg-bg border border-border px-4 py-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <span className="text-[22px] font-extrabold font-mono text-primary tracking-wider">
-                {client.codeParrain}
+                {client.matricule || client.codeParrain}
               </span>
               <button
                 type="button"
-                onClick={() => copyToClipboard(client.codeParrain!)}
+                onClick={() => copyToClipboard(client.matricule || client.codeParrain!)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[12px] font-medium text-text-muted hover:text-primary-accent hover:border-primary-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent"
               >
                 <Copy size={13} aria-hidden />
@@ -66,7 +68,7 @@ export function ClientParrainageTab({ client }: ClientParrainageTabProps) {
             </div>
             <div className="flex items-center gap-2 text-[12px] text-text-muted">
               <GitBranch size={13} className="text-primary-accent" aria-hidden />
-              <span>Code parrain du membre — partageable avec les prospects</span>
+              <span>Matricule officiel du membre — partageable avec les prospects</span>
             </div>
           </div>
         </div>
