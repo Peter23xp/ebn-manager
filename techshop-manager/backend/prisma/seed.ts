@@ -1,19 +1,19 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, StatutClient, EtapeOnboarding, StatutEtape, ModePaiement, StatutVente, TypeMouvement, StatutTransfert, MembreStatut, TransactionType, BonusStatut, TicketType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Démarrage du seed...');
+  console.log('🌱 Démarrage du seed enrichi EBN Network...');
 
   // ============================================
-  // 1. SITES
+  // 1. SITES (Goma, Bukavu, Kinshasa)
   // ============================================
-  console.log('📍 Création des sites...');
+  console.log('📍 1. Création des sites...');
 
   const siteGoma = await prisma.site.upsert({
     where: { id: 'site-goma-001' },
-    update: {},
+    update: { nom: 'EBN Network Goma', ville: 'Goma', adresse: 'Avenue du Commerce, Goma, Nord-Kivu', actif: true },
     create: {
       id: 'site-goma-001',
       nom: 'EBN Network Goma',
@@ -25,7 +25,7 @@ async function main() {
 
   const siteBukavu = await prisma.site.upsert({
     where: { id: 'site-bukavu-001' },
-    update: {},
+    update: { nom: 'EBN Network Bukavu', ville: 'Bukavu', adresse: 'Boulevard Patrice Lumumba, Bukavu, Sud-Kivu', actif: true },
     create: {
       id: 'site-bukavu-001',
       nom: 'EBN Network Bukavu',
@@ -37,7 +37,7 @@ async function main() {
 
   const siteKinshasa = await prisma.site.upsert({
     where: { id: 'site-kinshasa-001' },
-    update: {},
+    update: { nom: 'EBN Network Kinshasa', ville: 'Kinshasa', adresse: 'Avenue Kasa-Vubu, Gombe, Kinshasa', actif: true },
     create: {
       id: 'site-kinshasa-001',
       nom: 'EBN Network Kinshasa',
@@ -47,23 +47,24 @@ async function main() {
     },
   });
 
-  console.log(`  ✓ Site: ${siteGoma.nom}`);
-  console.log(`  ✓ Site: ${siteBukavu.nom}`);
-  console.log(`  ✓ Site: ${siteKinshasa.nom}`);
+  console.log(`  ✓ Sites: ${siteGoma.nom}, ${siteBukavu.nom}, ${siteKinshasa.nom}`);
 
   // ============================================
-  // 2. SUPER ADMIN
+  // 2. UTILISATEURS / ÉQUIPE
   // ============================================
-  console.log('👤 Création du Super Admin...');
+  console.log('👤 2. Création des utilisateurs et rôles...');
 
   const passwordHash = await bcrypt.hash('Admin@2025', 10);
 
+  // Super Admin
   const superAdmin = await prisma.utilisateur.upsert({
     where: { telephone: '+243902238740' },
-    update: { passwordHash },
+    update: { passwordHash, nom: 'Peter AKILIMALI', role: Role.SUPER_ADMIN, actif: true, langue: 'fr' },
     create: {
+      id: 'user-admin-001',
       nom: 'Peter AKILIMALI',
       telephone: '+243902238740',
+      email: 'admin@ebnnetwork.cd',
       passwordHash,
       role: Role.SUPER_ADMIN,
       actif: true,
@@ -71,42 +72,934 @@ async function main() {
     },
   });
 
-  console.log(`  ✓ Super Admin: ${superAdmin.nom} (${superAdmin.telephone})`);
+  // Directeur Régional
+  const dirRegional = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000001' },
+    update: { passwordHash, role: Role.DIRECTEUR_REGIONAL, siteId: siteGoma.id },
+    create: {
+      id: 'user-dir-001',
+      nom: 'Séraphin BAGALWA',
+      telephone: '+243990000001',
+      email: 'seraphin.bagalwa@ebnnetwork.cd',
+      passwordHash,
+      role: Role.DIRECTEUR_REGIONAL,
+      siteId: siteGoma.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  // Gérants
+  const gerantGoma = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000002' },
+    update: { passwordHash, role: Role.GERANT, siteId: siteGoma.id },
+    create: {
+      id: 'user-gerant-goma',
+      nom: 'Justin KASONGO',
+      telephone: '+243990000002',
+      email: 'justin.kasongo@ebnnetwork.cd',
+      passwordHash,
+      role: Role.GERANT,
+      siteId: siteGoma.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  const gerantBukavu = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000003' },
+    update: { passwordHash, role: Role.GERANT, siteId: siteBukavu.id },
+    create: {
+      id: 'user-gerant-bukavu',
+      nom: 'Aline MUGISHO',
+      telephone: '+243990000003',
+      email: 'aline.mugisho@ebnnetwork.cd',
+      passwordHash,
+      role: Role.GERANT,
+      siteId: siteBukavu.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  const gerantKinshasa = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000004' },
+    update: { passwordHash, role: Role.GERANT, siteId: siteKinshasa.id },
+    create: {
+      id: 'user-gerant-kin',
+      nom: 'Patrick ILUNGA',
+      telephone: '+243990000004',
+      email: 'patrick.ilunga@ebnnetwork.cd',
+      passwordHash,
+      role: Role.GERANT,
+      siteId: siteKinshasa.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  // Agents commerciaux / Caissiers
+  const agentGoma = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000005' },
+    update: { passwordHash, role: Role.AGENT, siteId: siteGoma.id },
+    create: {
+      id: 'user-agent-goma',
+      nom: 'David CIRHUZA',
+      telephone: '+243990000005',
+      email: 'david.cirhuza@ebnnetwork.cd',
+      passwordHash,
+      role: Role.AGENT,
+      siteId: siteGoma.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  const agentBukavu = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000006' },
+    update: { passwordHash, role: Role.AGENT, siteId: siteBukavu.id },
+    create: {
+      id: 'user-agent-bukavu',
+      nom: 'Sarah NABINTU',
+      telephone: '+243990000006',
+      email: 'sarah.nabintu@ebnnetwork.cd',
+      passwordHash,
+      role: Role.AGENT,
+      siteId: siteBukavu.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  // Formateur
+  const formateur = await prisma.utilisateur.upsert({
+    where: { telephone: '+243990000007' },
+    update: { passwordHash, role: Role.FORMATEUR, siteId: siteGoma.id },
+    create: {
+      id: 'user-formateur-001',
+      nom: 'Eric BAHATI',
+      telephone: '+243990000007',
+      email: 'eric.bahati@ebnnetwork.cd',
+      passwordHash,
+      role: Role.FORMATEUR,
+      siteId: siteGoma.id,
+      actif: true,
+      langue: 'fr',
+    },
+  });
+
+  console.log('  ✓ 8 Utilisateurs créés (Super Admin, Dir. Régional, Gérants, Agents, Formateur)');
 
   // ============================================
   // 3. MLM LEVELS (8 niveaux)
   // ============================================
-  console.log('⭐ Création des niveaux MLM...');
+  console.log('⭐ 3. Configuration des 8 niveaux MLM...');
 
-  const mlmLevels = [
-    { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système', salaireMensuel: 0, salaireActif: false, couleur: '#cbd5e1', icone: 'star' },
-    { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Bonus niveau 2', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'award' },
-    { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Bonus niveau 3', salaireMensuel: 0, salaireActif: false, couleur: '#64748b', icone: 'shield' },
-    { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Bonus niveau 4', salaireMensuel: 0, salaireActif: false, couleur: '#334155', icone: 'zap' },
-    { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Bonus niveau 5', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
-    { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Bonus niveau 6', salaireMensuel: 250, salaireActif: true, couleur: '#d97706', icone: 'gem' },
-    { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Bonus niveau 7', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
-    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
+  const mlmLevelsData = [
+    { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système & Kit de Bienvenue', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'star' },
+    { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Kit Santé EBN + Polo Officiel', salaireMensuel: 0, salaireActif: false, couleur: '#60a5fa', icone: 'award' },
+    { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Smartphone Android 4G EBN', salaireMensuel: 0, salaireActif: false, couleur: '#34d399', icone: 'shield' },
+    { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Ordinateur Portable & Formation Pro', salaireMensuel: 0, salaireActif: false, couleur: '#818cf8', icone: 'zap' },
+    { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Voyage International de Découverte', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
+    { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Voiture EBN VIP (Véhicule Tout-Terrain)', salaireMensuel: 250, salaireActif: true, couleur: '#ec4899', icone: 'gem' },
+    { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Villa / Appartement Standing', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
+    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite Exceptionnel 50 000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
   ];
 
-  for (const level of mlmLevels) {
-    await prisma.mlmLevel.upsert({
+  const dbLevels: Record<number, any> = {};
+  for (const level of mlmLevelsData) {
+    const saved = await prisma.mlmLevel.upsert({
       where: { ordre: level.ordre },
       update: level,
       create: level,
     });
+    dbLevels[level.ordre] = saved;
   }
-  console.log(`  ✓ ${mlmLevels.length} niveaux MLM créés ou mis à jour`);
+  console.log(`  ✓ ${mlmLevelsData.length} niveaux MLM validés`);
 
   // ============================================
-  // 4. CONFIG GENERALE
+  // 4. PRODUITS & CATALOGUE
   // ============================================
-  console.log('⚙️  Création de la config générale...');
+  console.log('📦 4. Création des produits et gestion des stocks...');
+
+  const produitsData = [
+    { sku: 'PROD-RECIT-01', nom: 'Récit d\'Adhésion EBN Network', categorie: 'Adhésion', description: 'Livret d\'adhésion officiel et carte membre EBN', prixAchat: 10000, prixVente: 25000 },
+    { sku: 'PROD-PACK-01',  nom: 'Pack Starter Santé EBN', categorie: 'Packs', description: 'Pack de démarrage contenant 3 compléments bio', prixAchat: 45000, prixVente: 75000 },
+    { sku: 'PROD-PACK-02',  nom: 'Pack Business EBN Premium', categorie: 'Packs', description: 'Pack complet avec échantillons, produits et supports', prixAchat: 120000, prixVente: 180000 },
+    { sku: 'PROD-BIO-01',   nom: 'Spiruline Pure Bio 100g', categorie: 'Compléments', description: 'Super-aliment riche en protéines et fer', prixAchat: 15000, prixVente: 28000 },
+    { sku: 'PROD-BIO-02',   nom: 'Thé Vert Détox & Minceur', categorie: 'Compléments', description: 'Infusion antioxydante aux herbes naturelles', prixAchat: 8000, prixVente: 16000 },
+    { sku: 'PROD-BIO-03',   nom: 'Gélules Ginseng & Vitalité', categorie: 'Compléments', description: 'Renforce le tonus physique et mental', prixAchat: 22000, prixVente: 40000 },
+    { sku: 'PROD-COS-01',   nom: 'Savon Noir Purifiant Bio', categorie: 'Cosmétiques', description: 'Soin dermatologique purifiant pour le visage et corps', prixAchat: 4000, prixVente: 8500 },
+    { sku: 'PROD-COS-02',   nom: 'Crème Hydratante Karité & Aloé', categorie: 'Cosmétiques', description: 'Nourrit intensément et protège la peau', prixAchat: 14000, prixVente: 26000 },
+    { sku: 'PROD-MED-01',   nom: 'Tensiomètre Électronique EBN', categorie: 'Équipements', description: 'Appareil médical de suivi de tension artérielle', prixAchat: 65000, prixVente: 110000 },
+  ];
+
+  const dbProduits: Record<string, any> = {};
+  for (const p of produitsData) {
+    const saved = await prisma.produit.upsert({
+      where: { sku: p.sku },
+      update: p,
+      create: p,
+    });
+    dbProduits[p.sku] = saved;
+  }
+
+  // Stock par site
+  const stockConfig = [
+    // Goma
+    { sku: 'PROD-RECIT-01', siteId: siteGoma.id, qte: 120, seuil: 15 },
+    { sku: 'PROD-PACK-01',  siteId: siteGoma.id, qte: 45,  seuil: 10 },
+    { sku: 'PROD-PACK-02',  siteId: siteGoma.id, qte: 25,  seuil: 5 },
+    { sku: 'PROD-BIO-01',   siteId: siteGoma.id, qte: 80,  seuil: 12 },
+    { sku: 'PROD-BIO-02',   siteId: siteGoma.id, qte: 60,  seuil: 10 },
+    { sku: 'PROD-BIO-03',   siteId: siteGoma.id, qte: 35,  seuil: 8 },
+    { sku: 'PROD-COS-01',   siteId: siteGoma.id, qte: 90,  seuil: 15 },
+    { sku: 'PROD-COS-02',   siteId: siteGoma.id, qte: 40,  seuil: 10 },
+    { sku: 'PROD-MED-01',   siteId: siteGoma.id, qte: 3,   seuil: 5 }, // Alerte stock bas !
+
+    // Bukavu
+    { sku: 'PROD-RECIT-01', siteId: siteBukavu.id, qte: 85,  seuil: 15 },
+    { sku: 'PROD-PACK-01',  siteId: siteBukavu.id, qte: 30,  seuil: 10 },
+    { sku: 'PROD-PACK-02',  siteId: siteBukavu.id, qte: 15,  seuil: 5 },
+    { sku: 'PROD-BIO-01',   siteId: siteBukavu.id, qte: 40,  seuil: 12 },
+    { sku: 'PROD-BIO-02',   siteId: siteBukavu.id, qte: 2,   seuil: 10 }, // Rupture imminente !
+    { sku: 'PROD-BIO-03',   siteId: siteBukavu.id, qte: 20,  seuil: 8 },
+    { sku: 'PROD-COS-01',   siteId: siteBukavu.id, qte: 50,  seuil: 15 },
+    { sku: 'PROD-COS-02',   siteId: siteBukavu.id, qte: 25,  seuil: 10 },
+    { sku: 'PROD-MED-01',   siteId: siteBukavu.id, qte: 8,   seuil: 5 },
+
+    // Kinshasa
+    { sku: 'PROD-RECIT-01', siteId: siteKinshasa.id, qte: 200, seuil: 25 },
+    { sku: 'PROD-PACK-01',  siteId: siteKinshasa.id, qte: 70,  seuil: 15 },
+    { sku: 'PROD-PACK-02',  siteId: siteKinshasa.id, qte: 50,  seuil: 10 },
+    { sku: 'PROD-BIO-01',   siteId: siteKinshasa.id, qte: 110, seuil: 20 },
+    { sku: 'PROD-BIO-02',   siteId: siteKinshasa.id, qte: 95,  seuil: 15 },
+    { sku: 'PROD-BIO-03',   siteId: siteKinshasa.id, qte: 60,  seuil: 12 },
+    { sku: 'PROD-COS-01',   siteId: siteKinshasa.id, qte: 140, seuil: 20 },
+    { sku: 'PROD-COS-02',   siteId: siteKinshasa.id, qte: 65,  seuil: 15 },
+    { sku: 'PROD-MED-01',   siteId: siteKinshasa.id, qte: 18,  seuil: 8 },
+  ];
+
+  for (const sc of stockConfig) {
+    const p = dbProduits[sc.sku];
+    if (p) {
+      await prisma.stockSite.upsert({
+        where: { produitId_siteId: { produitId: p.id, siteId: sc.siteId } },
+        update: { quantite: sc.qte, seuilAlerte: sc.seuil },
+        create: { produitId: p.id, siteId: sc.siteId, quantite: sc.qte, seuilAlerte: sc.seuil },
+      });
+    }
+  }
+
+  // Transfert de stock de démo (Goma -> Bukavu)
+  await prisma.transfertStock.create({
+    data: {
+      produitId: dbProduits['PROD-BIO-01'].id,
+      siteSourceId: siteGoma.id,
+      siteDestinationId: siteBukavu.id,
+      initiateurId: gerantGoma.id,
+      quantiteEnvoyee: 20,
+      motif: 'Réapprovisionnement stock Bukavu',
+      statut: StatutTransfert.EN_TRANSIT,
+      dateExpedition: new Date(Date.now() - 2 * 24 * 3600 * 1000),
+    },
+  }).catch(() => {});
+
+  console.log('  ✓ 9 Produits et leurs stocks multi-sites configurés (avec alertes)');
+
+  // ============================================
+  // 5. CLIENTS ET ARBRE MLM COMPLET
+  // ============================================
+  console.log('👥 5. Création des clients et du réseau MLM...');
+
+  // Définition des profils de clients
+  const clientsDefinitions = [
+    // --- NIVEAU 5 RACINE ---
+    {
+      id: 'cli-001',
+      prenom: 'Séraphin',
+      nom: 'BAGALWA',
+      telephone: '+243991110001',
+      email: 'seraphin.client@ebnnetwork.cd',
+      codeParrain: 'TSG-0001',
+      matricule: 'EBN-00001',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: undefined,
+      levelOrdre: 5,
+      soldePortefeuille: 680.00,
+      totalGagne: 1240.00,
+    },
+    // --- NIVEAU 4 FILLEULS DE SERAPHIN ---
+    {
+      id: 'cli-002',
+      prenom: 'Justin',
+      nom: 'KASONGO',
+      telephone: '+243991110002',
+      email: 'justin.c@ebnnetwork.cd',
+      codeParrain: 'TSG-0002',
+      matricule: 'EBN-00002',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0001',
+      levelOrdre: 4,
+      soldePortefeuille: 340.00,
+      totalGagne: 400.00,
+    },
+    {
+      id: 'cli-003',
+      prenom: 'Aline',
+      nom: 'MUGISHO',
+      telephone: '+243991110003',
+      email: 'aline.c@ebnnetwork.cd',
+      codeParrain: 'TSG-0003',
+      matricule: 'EBN-00003',
+      statut: StatutClient.ACTIF,
+      siteId: siteBukavu.id,
+      parrainCode: 'TSG-0001',
+      levelOrdre: 3,
+      soldePortefeuille: 160.00,
+      totalGagne: 200.00,
+    },
+    {
+      id: 'cli-004',
+      prenom: 'Patrick',
+      nom: 'ILUNGA',
+      telephone: '+243991110004',
+      email: 'patrick.c@ebnnetwork.cd',
+      codeParrain: 'TSG-0004',
+      matricule: 'EBN-00004',
+      statut: StatutClient.ACTIF,
+      siteId: siteKinshasa.id,
+      parrainCode: 'TSG-0001',
+      levelOrdre: 2,
+      soldePortefeuille: 95.00,
+      totalGagne: 100.00,
+    },
+    {
+      id: 'cli-005',
+      prenom: 'Clarisse',
+      nom: 'NEEMA',
+      telephone: '+243991110005',
+      email: 'clarisse.n@ebnnetwork.cd',
+      codeParrain: 'TSG-0005',
+      matricule: 'EBN-00005',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0001',
+      levelOrdre: 2,
+      soldePortefeuille: 60.00,
+      totalGagne: 60.00,
+    },
+    // --- NIVEAU 2 & 1 FILLEULS DE JUSTIN (cli-002) ---
+    {
+      id: 'cli-006',
+      prenom: 'Gloire',
+      nom: 'MUSHAGALUSA',
+      telephone: '+243991110006',
+      email: 'gloire.m@ebnnetwork.cd',
+      codeParrain: 'TSG-0006',
+      matricule: 'EBN-00006',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0002',
+      levelOrdre: 2,
+      soldePortefeuille: 45.00,
+      totalGagne: 60.00,
+    },
+    {
+      id: 'cli-007',
+      prenom: 'Espoir',
+      nom: 'BARAKA',
+      telephone: '+243991110007',
+      email: 'espoir.b@ebnnetwork.cd',
+      codeParrain: 'TSG-0007',
+      matricule: 'EBN-00007',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0002',
+      levelOrdre: 1,
+      soldePortefeuille: 20.00,
+      totalGagne: 20.00,
+    },
+    {
+      id: 'cli-008',
+      prenom: 'Merveille',
+      nom: 'KABUO',
+      telephone: '+243991110008',
+      email: 'merveille.k@ebnnetwork.cd',
+      codeParrain: 'TSG-0008',
+      matricule: 'EBN-00008',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0002',
+      levelOrdre: 1,
+      soldePortefeuille: 30.00,
+      totalGagne: 30.00,
+    },
+    {
+      id: 'cli-009',
+      prenom: 'Samuel',
+      nom: 'KASEREKA',
+      telephone: '+243991110009',
+      email: 'samuel.k@ebnnetwork.cd',
+      codeParrain: 'TSG-0009',
+      matricule: 'EBN-00009',
+      statut: StatutClient.ACTIF,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0002',
+      levelOrdre: 1,
+      soldePortefeuille: 10.00,
+      totalGagne: 10.00,
+    },
+    // --- FILLEULS DE ALINE (cli-003) ---
+    {
+      id: 'cli-010',
+      prenom: 'Bijoux',
+      nom: 'CIBALONZA',
+      telephone: '+243991110010',
+      email: 'bijoux.c@ebnnetwork.cd',
+      codeParrain: 'TSG-0010',
+      matricule: 'EBN-00010',
+      statut: StatutClient.ACTIF,
+      siteId: siteBukavu.id,
+      parrainCode: 'TSG-0003',
+      levelOrdre: 1,
+      soldePortefeuille: 20.00,
+      totalGagne: 20.00,
+    },
+    {
+      id: 'cli-011',
+      prenom: 'Pacifique',
+      nom: 'MURHULA',
+      telephone: '+243991110011',
+      email: 'pacifique.m@ebnnetwork.cd',
+      codeParrain: 'TSG-0011',
+      matricule: 'EBN-00011',
+      statut: StatutClient.ACTIF,
+      siteId: siteBukavu.id,
+      parrainCode: 'TSG-0003',
+      levelOrdre: 1,
+      soldePortefeuille: 10.00,
+      totalGagne: 10.00,
+    },
+    {
+      id: 'cli-012',
+      prenom: 'Dorcas',
+      nom: 'ZAWADI',
+      telephone: '+243991110012',
+      email: 'dorcas.z@ebnnetwork.cd',
+      codeParrain: 'TSG-0012',
+      matricule: 'EBN-00012',
+      statut: StatutClient.ACTIF,
+      siteId: siteBukavu.id,
+      parrainCode: 'TSG-0003',
+      levelOrdre: 1,
+      soldePortefeuille: 40.00,
+      totalGagne: 40.00,
+    },
+    // --- CLIENTS EN ONBOARDING EN COURS ---
+    {
+      id: 'cli-013',
+      prenom: 'Moïse',
+      nom: 'KATEMBO',
+      telephone: '+243991110013',
+      email: 'moise.k@ebnnetwork.cd',
+      codeParrain: undefined,
+      matricule: undefined,
+      statut: StatutClient.EN_COURS,
+      siteId: siteGoma.id,
+      parrainCode: 'TSG-0001',
+      etapeActive: EtapeOnboarding.FORMATION, // En attente de formation
+    },
+    {
+      id: 'cli-014',
+      prenom: 'Nathalie',
+      nom: 'KAVIRA',
+      telephone: '+243991110014',
+      email: 'nathalie.k@ebnnetwork.cd',
+      codeParrain: undefined,
+      matricule: undefined,
+      statut: StatutClient.EN_COURS,
+      siteId: siteBukavu.id,
+      parrainCode: 'TSG-0003',
+      etapeActive: EtapeOnboarding.FICHE, // En attente de signature fiche
+    },
+    {
+      id: 'cli-015',
+      prenom: 'Jonathan',
+      nom: 'MUKENDI',
+      telephone: '+243991110015',
+      email: 'jonathan.m@ebnnetwork.cd',
+      codeParrain: undefined,
+      matricule: undefined,
+      statut: StatutClient.EN_COURS,
+      siteId: siteKinshasa.id,
+      parrainCode: 'TSG-0004',
+      etapeActive: EtapeOnboarding.ACTIVATION, // En attente d'achat pack activation
+    },
+  ];
+
+  const dbClients: Record<string, any> = {};
+  const dbMembres: Record<string, any> = {};
+
+  // Création des clients et étapes d'onboarding
+  for (const c of clientsDefinitions) {
+    const client = await prisma.client.upsert({
+      where: { telephone: c.telephone },
+      update: {
+        prenom: c.prenom,
+        nom: c.nom,
+        email: c.email,
+        codeParrain: c.codeParrain,
+        statut: c.statut,
+        siteInscriptionId: c.siteId,
+        dateActivation: c.statut === StatutClient.ACTIF ? new Date(Date.now() - 30 * 24 * 3600 * 1000) : null,
+      },
+      create: {
+        id: c.id,
+        prenom: c.prenom,
+        nom: c.nom,
+        telephone: c.telephone,
+        email: c.email,
+        codeParrain: c.codeParrain,
+        statut: c.statut,
+        siteInscriptionId: c.siteId,
+        createdById: agentGoma.id,
+        dateActivation: c.statut === StatutClient.ACTIF ? new Date(Date.now() - 30 * 24 * 3600 * 1000) : null,
+      },
+    });
+    dbClients[c.id] = client;
+
+    // Créer les étapes d'onboarding selon le statut
+    if (c.statut === StatutClient.ACTIF) {
+      const etapes = [
+        { etape: EtapeOnboarding.RECIT, montant: 25000, statut: StatutEtape.COMPLETE },
+        { etape: EtapeOnboarding.FORMATION, montant: null, statut: StatutEtape.COMPLETE },
+        { etape: EtapeOnboarding.FICHE, montant: null, statut: StatutEtape.COMPLETE },
+        { etape: EtapeOnboarding.ACTIVATION, montant: 75000, statut: StatutEtape.COMPLETE },
+      ];
+      for (const e of etapes) {
+        await prisma.onboardingEtape.upsert({
+          where: { clientId_etape: { clientId: client.id, etape: e.etape } },
+          update: { statut: e.statut, montant: e.montant },
+          create: {
+            clientId: client.id,
+            etape: e.etape,
+            statut: e.statut,
+            montant: e.montant,
+            modePaiement: e.montant ? ModePaiement.CASH : null,
+            agentId: agentGoma.id,
+            siteId: c.siteId,
+            completeeAt: new Date(Date.now() - 30 * 24 * 3600 * 1000),
+          },
+        });
+      }
+    } else if (c.statut === StatutClient.EN_COURS && (c as any).etapeActive) {
+      const active = (c as any).etapeActive;
+      // Récit toujours complété pour ceux en cours
+      await prisma.onboardingEtape.upsert({
+        where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.RECIT } },
+        update: { statut: StatutEtape.COMPLETE },
+        create: {
+          clientId: client.id,
+          etape: EtapeOnboarding.RECIT,
+          statut: StatutEtape.COMPLETE,
+          montant: 25000,
+          modePaiement: ModePaiement.MPESA,
+          referenceTransaction: 'MP-8392019',
+          agentId: agentGoma.id,
+          siteId: c.siteId,
+          completeeAt: new Date(Date.now() - 2 * 24 * 3600 * 1000),
+        },
+      });
+
+      if (active === EtapeOnboarding.FICHE || active === EtapeOnboarding.ACTIVATION) {
+        await prisma.onboardingEtape.upsert({
+          where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.FORMATION } },
+          update: { statut: StatutEtape.COMPLETE },
+          create: {
+            clientId: client.id,
+            etape: EtapeOnboarding.FORMATION,
+            statut: StatutEtape.COMPLETE,
+            agentId: formateur.id,
+            siteId: c.siteId,
+            completeeAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
+          },
+        });
+      }
+      if (active === EtapeOnboarding.ACTIVATION) {
+        await prisma.onboardingEtape.upsert({
+          where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.FICHE } },
+          update: { statut: StatutEtape.COMPLETE },
+          create: {
+            clientId: client.id,
+            etape: EtapeOnboarding.FICHE,
+            statut: StatutEtape.COMPLETE,
+            agentId: agentGoma.id,
+            siteId: c.siteId,
+            completeeAt: new Date(),
+          },
+        });
+      }
+    }
+  }
+
+  // Création des profils MLM Membres
+  for (const c of clientsDefinitions) {
+    if (c.statut !== StatutClient.ACTIF || !c.matricule || !c.levelOrdre) continue;
+
+    const level = dbLevels[c.levelOrdre];
+    const client = dbClients[c.id];
+
+    // Trouver le parrain
+    let parrainId: string | null = null;
+    if (c.parrainCode) {
+      const parrainDef = clientsDefinitions.find(x => x.codeParrain === c.parrainCode);
+      if (parrainDef && dbMembres[parrainDef.id]) {
+        parrainId = dbMembres[parrainDef.id].id;
+      }
+    }
+
+    const membre = await prisma.membre.upsert({
+      where: { clientId: client.id },
+      update: {
+        matricule: c.matricule,
+        mlmLevelId: level.id,
+        parrainId,
+        statut: MembreStatut.ACTIF,
+      },
+      create: {
+        id: `mem-${c.id}`,
+        clientId: client.id,
+        matricule: c.matricule,
+        mlmLevelId: level.id,
+        parrainId,
+        statut: MembreStatut.ACTIF,
+        dateActivation: new Date(Date.now() - 25 * 24 * 3600 * 1000),
+      },
+    });
+    dbMembres[c.id] = membre;
+
+    // Créer ou maj le portefeuille USD
+    const portefeuille = await prisma.portefeuille.upsert({
+      where: { membreId: membre.id },
+      update: { soldeDisponible: c.soldePortefeuille ?? 0, totalGagne: c.totalGagne ?? 0 },
+      create: {
+        membreId: membre.id,
+        soldeDisponible: c.soldePortefeuille ?? 0,
+        totalGagne: c.totalGagne ?? 0,
+      },
+    });
+
+    // Transactions de portefeuille
+    await prisma.transactionPortefeuille.createMany({
+      data: [
+        {
+          portefeuilleId: portefeuille.id,
+          type: TransactionType.COMMISSION,
+          montant: 40.00,
+          description: 'Commissions 4 filleuls validés - Niveau 1',
+          createdAt: new Date(Date.now() - 20 * 24 * 3600 * 1000),
+        },
+        {
+          portefeuilleId: portefeuille.id,
+          type: TransactionType.PROMOTION,
+          montant: 60.00,
+          description: 'Bonus promotion Niveau 2',
+          createdAt: new Date(Date.now() - 15 * 24 * 3600 * 1000),
+        },
+        ...(c.levelOrdre >= 5 ? [
+          {
+            portefeuilleId: portefeuille.id,
+            type: TransactionType.SALAIRE,
+            montant: 100.00,
+            description: 'Salaire mensuel Niveau 5 - Mois 07/2026',
+            createdAt: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+          },
+        ] : []),
+      ],
+      skipDuplicates: true,
+    }).catch(() => {});
+
+    // Créer les matrices et positions pour chaque niveau atteint
+    for (let lvl = 1; lvl <= c.levelOrdre; lvl++) {
+      const isCurrentLevel = (lvl === c.levelOrdre);
+      const matrix = await prisma.matrix.upsert({
+        where: { membreId_mlmLevelId: { membreId: membre.id, mlmLevelId: dbLevels[lvl].id } },
+        update: { filleulsValides: isCurrentLevel ? 2 : 4, estComplete: !isCurrentLevel },
+        create: {
+          membreId: membre.id,
+          mlmLevelId: dbLevels[lvl].id,
+          filleulsValides: isCurrentLevel ? 2 : 4,
+          estComplete: !isCurrentLevel,
+          dateComplete: !isCurrentLevel ? new Date(Date.now() - (c.levelOrdre - lvl) * 5 * 24 * 3600 * 1000) : null,
+        },
+      });
+
+      // 4 positions par matrice
+      for (let pos = 1; pos <= 4; pos++) {
+        const estValide = !isCurrentLevel || pos <= 2;
+        await prisma.position.upsert({
+          where: { matrixId_numeroPosition: { matrixId: matrix.id, numeroPosition: pos } },
+          update: { estValide },
+          create: {
+            matrixId: matrix.id,
+            numeroPosition: pos,
+            estValide,
+            dateValidation: estValide ? new Date() : null,
+          },
+        });
+      }
+    }
+  }
+
+  // Historique des promotions & Bonus attribués pour Séraphin Bagalwa
+  const membreSeraphin = dbMembres['cli-001'];
+  if (membreSeraphin) {
+    // Promotions
+    await prisma.promotion.createMany({
+      data: [
+        { membreId: membreSeraphin.id, niveauAvantId: 1, niveauApresId: 2, commissionVersee: 60, declencheParId: 'auto' },
+        { membreId: membreSeraphin.id, niveauAvantId: 2, niveauApresId: 3, commissionVersee: 100, declencheParId: 'auto' },
+        { membreId: membreSeraphin.id, niveauAvantId: 3, niveauApresId: 4, commissionVersee: 200, declencheParId: 'auto' },
+        { membreId: membreSeraphin.id, niveauAvantId: 4, niveauApresId: 5, commissionVersee: 400, declencheParId: 'auto' },
+      ],
+      skipDuplicates: true,
+    }).catch(() => {});
+
+    // Bonus physiques
+    await prisma.bonusAttribue.createMany({
+      data: [
+        {
+          membreId: membreSeraphin.id,
+          mlmLevelId: dbLevels[2].id,
+          description: 'Kit Santé EBN + Polo Officiel',
+          statut: BonusStatut.LIVRE,
+          dateAttribution: new Date(Date.now() - 20 * 24 * 3600 * 1000),
+          dateLivraison: new Date(Date.now() - 18 * 24 * 3600 * 1000),
+        },
+        {
+          membreId: membreSeraphin.id,
+          mlmLevelId: dbLevels[3].id,
+          description: 'Smartphone Android 4G EBN',
+          statut: BonusStatut.LIVRE,
+          dateAttribution: new Date(Date.now() - 15 * 24 * 3600 * 1000),
+          dateLivraison: new Date(Date.now() - 12 * 24 * 3600 * 1000),
+        },
+        {
+          membreId: membreSeraphin.id,
+          mlmLevelId: dbLevels[4].id,
+          description: 'Ordinateur Portable & Formation Pro',
+          statut: BonusStatut.LIVRE,
+          dateAttribution: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+          dateLivraison: new Date(Date.now() - 8 * 24 * 3600 * 1000),
+        },
+        {
+          membreId: membreSeraphin.id,
+          mlmLevelId: dbLevels[5].id,
+          description: 'Voyage International de Découverte',
+          statut: BonusStatut.EN_ATTENTE,
+          dateAttribution: new Date(Date.now() - 3 * 24 * 3600 * 1000),
+        },
+      ],
+      skipDuplicates: true,
+    }).catch(() => {});
+
+    // Salaires versés
+    await prisma.salaireVerse.createMany({
+      data: [
+        { membreId: membreSeraphin.id, montant: 100.00, moisAnnee: '2026-07', statut: 'VERSE' },
+        { membreId: membreSeraphin.id, montant: 100.00, moisAnnee: '2026-08', statut: 'VERSE' },
+      ],
+      skipDuplicates: true,
+    }).catch(() => {});
+  }
+
+  console.log('  ✓ 15 Clients créés avec arbre MLM complet, portefeuilles, transactions, bonus et salaires');
+
+  // ============================================
+  // 6. VENTES & HISTORIQUE COMMERCIAL
+  // ============================================
+  console.log('💰 6. Création des ventes et mouvements de caisse...');
+
+  const ventesExemples = [
+    {
+      numeroVente: 'GOM-202608-0001',
+      siteId: siteGoma.id,
+      agentId: agentGoma.id,
+      clientId: dbClients['cli-001'].id,
+      modePaiement: ModePaiement.CASH,
+      montantBrut: 75000,
+      montantNet: 75000,
+      montantRecu: 80000,
+      monnaieRendue: 5000,
+      articles: [{ produitId: dbProduits['PROD-PACK-01'].id, quantite: 1, prix: 75000 }],
+      createdAt: new Date(Date.now() - 14 * 24 * 3600 * 1000),
+    },
+    {
+      numeroVente: 'GOM-202608-0002',
+      siteId: siteGoma.id,
+      agentId: agentGoma.id,
+      clientId: dbClients['cli-002'].id,
+      modePaiement: ModePaiement.MPESA,
+      referenceTransaction: 'MP-9382104',
+      montantBrut: 56000,
+      montantNet: 56000,
+      articles: [{ produitId: dbProduits['PROD-BIO-01'].id, quantite: 2, prix: 28000 }],
+      createdAt: new Date(Date.now() - 10 * 24 * 3600 * 1000),
+    },
+    {
+      numeroVente: 'BUK-202608-0001',
+      siteId: siteBukavu.id,
+      agentId: agentBukavu.id,
+      clientId: dbClients['cli-003'].id,
+      modePaiement: ModePaiement.AIRTEL_MONEY,
+      referenceTransaction: 'AM-4829103',
+      montantBrut: 180000,
+      montantNet: 180000,
+      articles: [{ produitId: dbProduits['PROD-PACK-02'].id, quantite: 1, prix: 180000 }],
+      createdAt: new Date(Date.now() - 7 * 24 * 3600 * 1000),
+    },
+    {
+      numeroVente: 'GOM-202608-0003',
+      siteId: siteGoma.id,
+      agentId: agentGoma.id,
+      clientId: dbClients['cli-006'].id,
+      modePaiement: ModePaiement.CASH,
+      montantBrut: 34500,
+      montantNet: 34500,
+      montantRecu: 35000,
+      monnaieRendue: 500,
+      articles: [
+        { produitId: dbProduits['PROD-BIO-02'].id, quantite: 1, prix: 16000 },
+        { produitId: dbProduits['PROD-COS-01'].id, quantite: 1, prix: 8500 },
+        { produitId: dbProduits['PROD-COS-01'].id, quantite: 1, prix: 10000 },
+      ],
+      createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000),
+    },
+    {
+      numeroVente: 'KIN-202608-0001',
+      siteId: siteKinshasa.id,
+      agentId: gerantKinshasa.id,
+      clientId: dbClients['cli-004'].id,
+      modePaiement: ModePaiement.VIREMENT,
+      referenceTransaction: 'VIR-RAW-202608',
+      montantBrut: 110000,
+      montantNet: 110000,
+      articles: [{ produitId: dbProduits['PROD-MED-01'].id, quantite: 1, prix: 110000 }],
+      createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
+    },
+  ];
+
+  for (const v of ventesExemples) {
+    const existing = await prisma.vente.findUnique({ where: { numeroVente: v.numeroVente } });
+    if (!existing) {
+      await prisma.vente.create({
+        data: {
+          numeroVente: v.numeroVente,
+          siteId: v.siteId,
+          agentId: v.agentId,
+          clientId: v.clientId,
+          statut: StatutVente.VALIDE,
+          montantBrut: v.montantBrut,
+          montantNet: v.montantNet,
+          modePaiement: v.modePaiement,
+          referenceTransaction: v.referenceTransaction,
+          montantRecu: v.montantRecu,
+          monnaieRendue: v.monnaieRendue,
+          createdAt: v.createdAt,
+          lignes: {
+            create: v.articles.map(a => ({
+              produitId: a.produitId,
+              quantite: a.quantite,
+              prixUnitaire: a.prix,
+              sousTotal: a.quantite * a.prix,
+            })),
+          },
+        },
+      });
+    }
+  }
+
+  // Exemple de retour de marchandise avec avoir
+  const firstVente = await prisma.vente.findFirst({ where: { numeroVente: 'GOM-202608-0002' } });
+  if (firstVente) {
+    await prisma.retour.create({
+      data: {
+        venteId: firstVente.id,
+        numeroAvoir: 'AV-2026-0001',
+        motif: 'PRODUIT_DEFECTUEUX',
+        motifDescription: 'Flacon endommagé lors de la livraison',
+        modeRemboursement: 'ESPECES',
+        montantRembourse: 28000,
+        stockRemis: false,
+        agentId: agentGoma.id,
+        lignes: {
+          create: [{ produitId: dbProduits['PROD-BIO-01'].id, quantite: 1 }],
+        },
+      },
+    }).catch(() => {});
+  }
+
+  console.log('  ✓ 5 Ventes multi-sites avec reçus et 1 retour avec document d\'avoir créés');
+
+  // ============================================
+  // 7. TICKETS DE SUPPORT
+  // ============================================
+  console.log('🎧 7. Création des tickets de support de démonstration...');
+
+  const ticketsData = [
+    {
+      ticketRef: 'TCK-202608-001',
+      nom: 'Justin KASONGO',
+      email: 'justin.kasongo@ebnnetwork.cd',
+      siteNom: 'EBN Network Goma',
+      role: 'Gérant',
+      type: TicketType.QUESTION,
+      sujet: 'Question sur la synchronisation des stocks entre Goma et Bukavu',
+      description: 'Bonjour, j\'ai expédié 20 flacons de Spiruline vers Bukavu hier. Pouvez-vous confirmer le statut de réception ?',
+    },
+    {
+      ticketRef: 'TCK-202608-002',
+      nom: 'Aline MUGISHO',
+      email: 'aline.mugisho@ebnnetwork.cd',
+      siteNom: 'EBN Network Bukavu',
+      role: 'Gérant',
+      type: TicketType.SUGGESTION,
+      sujet: 'Ajout de moyens de paiement locaux supplémentaires',
+      description: 'Serait-il possible d\'ajouter Orange Money dans les options de paiement des récits ? Beaucoup de nouveaux membres le demandent.',
+    },
+    {
+      ticketRef: 'TCK-202608-003',
+      nom: 'David CIRHUZA',
+      email: 'david.cirhuza@ebnnetwork.cd',
+      siteNom: 'EBN Network Goma',
+      role: 'Agent Commercial',
+      type: TicketType.CONFIG,
+      sujet: 'Demande de configuration d\'une nouvelle imprimante de reçus thermique 80mm',
+      description: 'Nous avons reçu une nouvelle imprimante Xprinter 80mm pour la caisse de Goma. Paramétrage format reçu validé.',
+    },
+  ];
+
+  for (const t of ticketsData) {
+    await prisma.supportTicket.upsert({
+      where: { ticketRef: t.ticketRef },
+      update: t,
+      create: t,
+    });
+  }
+
+  console.log('  ✓ 3 Tickets de support créés');
+
+  // ============================================
+  // 8. CONFIG GENERALE
+  // ============================================
+  console.log('⚙️  8. Vérification de la configuration générale...');
 
   const existingConfigGenerale = await prisma.configGenerale.findFirst();
-
   if (!existingConfigGenerale) {
-    const configGenerale = await prisma.configGenerale.create({
+    await prisma.configGenerale.create({
       data: {
         smsApiKey: null,
         smsUsername: null,
@@ -118,25 +1011,29 @@ async function main() {
         fraisRetourPct: 0,
       },
     });
-    console.log(`  ✓ Config générale créée (délai retour: ${configGenerale.delaiRetourJours} jours)`);
-  } else {
-    console.log('  ℹ Config générale déjà existante, ignorée');
   }
 
   // ============================================
-  // RÉSUMÉ
+  // RÉSUMÉ FINAL
   // ============================================
-  console.log('\n✅ Seed terminé avec succès!');
-  console.log('\n📊 Résumé:');
-  console.log(`  - 3 sites créés: Goma, Bukavu, Kinshasa`);
-  console.log(`  - 1 Super Admin: ${superAdmin.telephone}`);
-  console.log(`  - 8 Niveaux MLM configurés`);
-  console.log(`  - Config générale par défaut`);
+  console.log('\n======================================================');
+  console.log('🎉 SEED COMPLET EBN NETWORK TERMINÉ AVEC SUCCÈS !');
+  console.log('======================================================');
+  console.log('📊 Données prêtes pour tous les écrans :');
+  console.log('  • Sites (3)         : Goma, Bukavu, Kinshasa');
+  console.log('  • Utilisateurs (8)   : Super Admin (+243902238740), Dir. Régional, Gérants, Agents, Formateur');
+  console.log('  • MLM Niveaux (8)   : Niveaux 1 à 7 + Crown Ambassadeur');
+  console.log('  • Produits (9)      : Packs, Récits, Bio, Cosmétiques, Équipements (avec stocks & alertes)');
+  console.log('  • Clients (15)      : Actifs + En attente (Formation, Fiche, Activation)');
+  console.log('  • Réseau MLM (12)   : Arbre complet de parrainage, Matrices 4 positions, Portefeuilles USD ($)');
+  console.log('  • Ventes & Caisses  : Multi-sites, multi-modes de paiement, Reçus, Avoirs OHADA');
+  console.log('  • Support (3)       : Tickets avec statuts et types variés');
+  console.log('======================================================\n');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Erreur seed:', e);
+    console.error('❌ Erreur lors du seed enrichi:', e);
     process.exit(1);
   })
   .finally(async () => {
