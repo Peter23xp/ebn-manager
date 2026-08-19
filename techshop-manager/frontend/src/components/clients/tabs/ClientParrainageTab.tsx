@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Copy, GitBranch } from 'lucide-react';
-import { cn, formatDate, initials } from '@/lib/utils';
-import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { Copy, GitBranch, Network } from 'lucide-react';
+import { initials } from '@/lib/utils';
 import type { ClientDetail } from '@/lib/clients.api';
 
 interface ClientParrainageTabProps {
@@ -13,18 +12,6 @@ function copyToClipboard(text: string) {
 }
 
 export function ClientParrainageTab({ client }: ClientParrainageTabProps) {
-  const filleuls = client.parrainage?.filleuls ?? [];
-  const totalGains = client.parrainage?.totalGains ?? 0;
-
-  const nbActifs   = filleuls.filter((f) => f.statut === 'ACTIF').length;
-  const nbEnCours  = filleuls.filter((f) => f.statut === 'EN_COURS').length;
-
-  // Tri : ACTIF → EN_COURS → autres
-  const sortedFilleuls = [...filleuls].sort((a, b) => {
-    const order = { ACTIF: 0, EN_COURS: 1, SUSPENDU: 2, ARCHIVE: 3 };
-    return (order[a.statut] ?? 9) - (order[b.statut] ?? 9);
-  });
-
   return (
     <div className="space-y-6">
 
@@ -79,91 +66,27 @@ export function ClientParrainageTab({ client }: ClientParrainageTabProps) {
             </div>
             <div className="flex items-center gap-2 text-[12px] text-text-muted">
               <GitBranch size={13} className="text-primary-accent" aria-hidden />
-              <span>
-                <span className="font-semibold text-success">{nbActifs} filleul{nbActifs !== 1 ? 's' : ''} actif{nbActifs !== 1 ? 's' : ''}</span>
-                {nbEnCours > 0 && (
-                  <span className="ml-1 text-warning">· {nbEnCours} en cours d'activation</span>
-                )}
-              </span>
+              <span>Code parrain du membre — partageable avec les prospects</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Section C — Filleuls */}
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-text-muted mb-3">
-          Mes filleuls ({filleuls.length})
-        </p>
-
-        {filleuls.length === 0 ? (
-          <p className="text-[13px] text-text-muted italic text-center py-8">
-            Aucun filleul pour ce client.
+      {/* Section C — MLM notice */}
+      <div className="rounded-xl border border-dashed border-primary-accent/30 bg-primary-light/20 px-4 py-5 flex items-start gap-3">
+        <Network size={20} className="text-primary-accent flex-shrink-0 mt-0.5" aria-hidden />
+        <div>
+          <p className="text-[13px] font-semibold text-primary">Réseau MLM à 8 niveaux</p>
+          <p className="text-[12px] text-text-muted mt-1">
+            Les filleuls, matrices et commissions de ce membre sont gérés dans le module MLM.
           </p>
-        ) : (
-          <>
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-sm" aria-label="Liste des filleuls">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left">Filleul</th>
-                    <th className="px-4 py-3 text-left hidden sm:table-cell">Code</th>
-                    <th className="px-4 py-3 text-left">Statut</th>
-                    <th className="px-4 py-3 text-left hidden md:table-cell">Activation</th>
-                    <th className="px-4 py-3 text-right hidden lg:table-cell">Points générés</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedFilleuls.map((f, i) => (
-                    <tr
-                      key={f.id}
-                      className="border-b border-border/60 last:border-b-0 transition-colors hover:bg-blue-50/40"
-                      style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          to={`/clients/${f.id}`}
-                          className="flex items-center gap-2.5 group"
-                        >
-                          <span
-                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-primary-light text-primary-accent"
-                            aria-hidden
-                          >
-                            {initials(f.nom, f.prenom)}
-                          </span>
-                          <span className="text-[13px] font-semibold text-primary-accent group-hover:underline truncate">
-                            {f.prenom} {f.nom}
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-[12px] font-mono text-text-muted hidden sm:table-cell">
-                        {f.codeParrain ?? '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <ClientStatusBadge statut={f.statut} size="sm" />
-                      </td>
-                      <td className="px-4 py-3 text-[12px] text-text-muted hidden md:table-cell">
-                        {f.dateActivation ? formatDate(f.dateActivation) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-[12px] font-bold text-platine font-mono hidden lg:table-cell">
-                        {f.pointsGeneres.toLocaleString('fr')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {totalGains > 0 && (
-              <div className="mt-3 flex items-center justify-end gap-2 px-1">
-                <span className="text-[12px] text-text-muted">Total gains parrainage :</span>
-                <span className="text-[13px] font-bold text-platine font-mono">
-                  {totalGains.toLocaleString('fr')} pts
-                </span>
-              </div>
-            )}
-          </>
-        )}
+          <Link
+            to="/mlm"
+            className="inline-flex items-center gap-1 mt-2 text-[12px] font-semibold text-primary-accent hover:text-blue-700 transition-colors"
+          >
+            Accéder au tableau MLM →
+          </Link>
+        </div>
       </div>
     </div>
   );

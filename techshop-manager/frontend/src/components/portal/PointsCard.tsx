@@ -1,17 +1,17 @@
 import { cn } from '@/lib/utils';
-import { ClientLevelBadge } from '@/components/clients/ClientLevelBadge';
-import type { NiveauFidelite } from '@/types';
 import type { NiveauConfig } from '@/lib/portal.api';
 
+type LegacyNiveau = 'BRONZE' | 'ARGENT' | 'OR' | 'PLATINE';
+
 interface PointsCardProps {
-  niveauFidelite: NiveauFidelite;
+  niveauFidelite: LegacyNiveau;
   pointsActuels: number;
   remisePct: number;
   prochainNiveau: { nom: string; seuilPts: number; pointsManquants: number } | null;
   niveauxConfig: NiveauConfig[];
 }
 
-const NIVEAU_STYLE: Record<NiveauFidelite, { gradient: string; border: string }> = {
+const NIVEAU_STYLE: Record<LegacyNiveau, { gradient: string; border: string }> = {
   BRONZE:  { gradient: 'from-amber-50 to-amber-100',   border: 'border-l-amber-500' },
   ARGENT:  { gradient: 'from-gray-50 to-gray-100',     border: 'border-l-gray-400'  },
   OR:      { gradient: 'from-yellow-50 to-yellow-100', border: 'border-l-yellow-500'},
@@ -39,7 +39,7 @@ export function PointsCard({
     pct = span > 0 ? Math.min(100, Math.round(((pointsActuels - base) / span) * 100)) : 0;
   }
 
-  const barColor: Record<NiveauFidelite, string> = {
+  const barColor: Record<LegacyNiveau, string> = {
     BRONZE:  'bg-amber-500',
     ARGENT:  'bg-gray-400',
     OR:      'bg-yellow-500',
@@ -60,7 +60,9 @@ export function PointsCard({
       </p>
 
       <div className="flex items-center gap-3 mb-3">
-        <ClientLevelBadge niveau={niveauFidelite} size="md" />
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/70 text-primary-accent border border-primary-accent/30">
+          {niveauFidelite}
+        </span>
         <span className="text-4xl font-bold text-[#1E3A5F]" aria-label={`${pointsActuels} points`}>
           {pointsActuels.toLocaleString('fr')}
           <span className="text-base font-medium text-neutral-500 ml-1">pts</span>

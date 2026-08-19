@@ -1,4 +1,4 @@
-﻿import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Printer, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -100,7 +100,7 @@ export default function AvoirDocumentPage() {
         <div className="flex items-start justify-between gap-4 border-b border-border pb-5">
           <div>
             <h1 className="text-[22px] font-extrabold text-primary tracking-tight">AVOIR COMMERCIAL</h1>
-            <p className="text-[13px] text-text-muted mt-0.5">Système OHADA — Progress Business</p>
+            <p className="text-[13px] text-text-muted mt-0.5">Système OHADA — EBN Network</p>
           </div>
           <div className="text-right">
             <p className="text-[13px] font-bold text-primary font-mono">{avoir.numeroAvoir}</p>
@@ -208,7 +208,7 @@ export default function AvoirDocumentPage() {
         {/* Pied de page */}
         <div className="border-t border-border pt-4 text-[11px] text-text-muted text-center space-y-1">
           <p>Document généré conformément au système comptable OHADA.</p>
-          <p>Progress Business — {avoir.vente.site.nom}</p>
+          <p>EBN Network — {avoir.vente.site.nom}</p>
         </div>
       </div>
     </div>

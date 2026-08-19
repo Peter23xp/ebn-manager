@@ -308,7 +308,7 @@ export default function SitesPage() {
           </div>
           <div>
             <h1 className="text-page-title text-primary">Gestion des sites</h1>
-            <p className="text-xs text-text-muted mt-0.5">Progress Business — Goma · Bukavu · Kinshasa</p>
+            <p className="text-xs text-text-muted mt-0.5">EBN Network — Goma · Bukavu · Kinshasa</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

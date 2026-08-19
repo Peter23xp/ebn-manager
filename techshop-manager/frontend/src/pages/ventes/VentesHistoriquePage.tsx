@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -73,7 +73,7 @@ function exportCSV(ventes: SalesListResponse['ventes']) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ventes-progress-business-${new Date().toISOString().slice(0, 7)}.csv`;
+  a.download = `ventes-ebn-network-${new Date().toISOString().slice(0, 7)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -19,16 +19,13 @@ export interface CreateVenteDto {
   modePaiement: ModePaiement;
   referenceTransaction?: string;
   montantRecu?: number;
-  appliquerRemiseFidelite: boolean;
 }
 
 export interface VenteResult {
   id: string;
   numeroVente: string;
   montantBrut: number;
-  remiseFidelite: number;
   montantNet: number;
-  pointsAttribues?: number;
   createdAt: string;
 }
 

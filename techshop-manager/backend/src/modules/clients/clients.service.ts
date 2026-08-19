@@ -15,6 +15,7 @@ import {
 import { EtapeOnboarding, ModePaiement, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
 import { PortalAuthService } from '../portal/portal-auth.service';
 import { MailerService } from '../mailer/mailer.service';
+import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 
 @Injectable()
 export class ClientsService {
@@ -22,6 +23,7 @@ export class ClientsService {
     private prisma: PrismaService,
     private portalAuthService: PortalAuthService,
     private mailer: MailerService,
+    private mlmMatrixService: MlmMatrixService,
   ) {}
 
   async findAll(
@@ -102,17 +104,13 @@ export class ClientsService {
           },
           orderBy: { createdAt: 'asc' },
         },
-        parrain: { select: { id: true, prenom: true, nom: true, codeParrain: true } },
-        filleuls: { select: { id: true, prenom: true, nom: true, statut: true, createdAt: true } },
+
         ventes: {
           select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
-        mouvementsPoints: {
-          orderBy: { createdAt: 'desc' },
-          take: 30,
-        },
+
       },
     });
 
@@ -174,6 +172,44 @@ export class ClientsService {
     };
   }
 
+  /**
+   * Recherche un parrain actif par matricule (codeParrain) OU par prénom/nom.
+   * Utilisé par le formulaire d'inscription pour la saisie assistée.
+   */
+  async searchParrain(q: string) {
+    if (!q || q.trim().length < 2) return { results: [] };
+
+    const term = q.trim();
+    const clients = await this.prisma.client.findMany({
+      where: {
+        statut: StatutClient.ACTIF,
+        OR: [
+          { codeParrain: { contains: term, mode: 'insensitive' } },
+          { prenom:      { contains: term, mode: 'insensitive' } },
+          { nom:         { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      take: 8,
+      orderBy: { nom: 'asc' },
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        codeParrain: true,
+        telephone: true,
+      },
+    });
+
+    return {
+      results: clients.map((c) => ({
+        id: c.id,
+        nom: `${c.prenom} ${c.nom}`,
+        codeParrain: c.codeParrain,
+        telephone: c.telephone,
+      })),
+    };
+  }
+
   async search(q: string, statut?: string) {
     const where: any = {};
     if (statut) where.statut = statut;
@@ -197,7 +233,7 @@ export class ClientsService {
         telephone: true,
         codeParrain: true,
         statut: true,
-        niveauFidelite: true,
+
       },
     });
 
@@ -292,7 +328,7 @@ export class ClientsService {
           matriculeExterne: dto.matriculeExterne,
           siteInscriptionId: dto.siteId,
           createdById: dto.agentId,
-          parrainId: parrainId,
+
           statut: StatutClient.EN_COURS,
         },
       });
@@ -578,26 +614,7 @@ export class ClientsService {
         },
       });
 
-      // Attribuer les 40 points au client
-      const updatedClient = await tx.client.update({
-        where: { id: clientId },
-        data: {
-          pointsFidelite: { increment: POINTS_ACTIVATION },
-          pointsCumules: { increment: POINTS_ACTIVATION },
-        },
-        select: { pointsFidelite: true },
-      });
 
-      await tx.mouvementPoints.create({
-        data: {
-          type: 'GAIN_VENTE',
-          delta: POINTS_ACTIVATION,
-          soldeApres: updatedClient.pointsFidelite,
-          description: `Points offerts à l'activation — ${numeroVente}`,
-          clientId,
-          venteId: newVente.id,
-        },
-      });
 
       // Décrémenter le stock
       const quantiteApres = stockSite.quantite - 1;
@@ -620,21 +637,7 @@ export class ClientsService {
         },
       });
 
-      // Créer le parrainage si le client a un parrain
-      if (client.parrainId) {
-        const existingParrainage = await tx.parrainage.findUnique({
-          where: { filleulId: clientId },
-        });
-        if (!existingParrainage) {
-          await tx.parrainage.create({
-            data: {
-              parrainId: client.parrainId,
-              filleulId: clientId,
-              niveau: 1,
-            },
-          });
-        }
-      }
+
 
       return updated;
     });
@@ -656,6 +659,13 @@ export class ClientsService {
         codeParrain,
         siteCodeRaw,
       );
+    }
+
+    // Activer le profil Membre MLM et initialiser matrice / portefeuille
+    try {
+      await this.mlmMatrixService.onClientActivated(activatedClient.id);
+    } catch (err) {
+      console.error(`[MLM ACTIVATION ERROR] Erreur lors de l'initialisation MLM pour le client ${activatedClient.id}:`, err);
     }
 
     return this.findOne(activatedClient.id);

@@ -60,6 +60,12 @@ export class ClientsController {
     return this.clientsService.search(q ?? '', statut);
   }
 
+  @Get('search-parrain')
+  @Roles(Role.AGENT)
+  searchParrain(@Query('q') q?: string) {
+    return this.clientsService.searchParrain(q ?? '');
+  }
+
   @Get('next-code')
   @Roles(Role.AGENT)
   getNextCode() {

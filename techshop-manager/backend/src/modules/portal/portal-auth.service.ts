@@ -37,7 +37,7 @@ export class PortalAuthService {
       throw new UnauthorizedException({
         error: {
           code: 'CLIENT_NOT_ACTIVE',
-          message: "Votre compte n'est pas encore activé. Contactez votre agent Progress Business.",
+          message: "Votre compte n'est pas encore activé. Contactez votre agent EBN Network.",
         },
       });
     }
@@ -56,7 +56,7 @@ export class PortalAuthService {
       throw new UnauthorizedException({
         error: {
           code: 'PIN_NOT_SET',
-          message: 'Aucun PIN configuré. Contactez votre agent Progress Business.',
+          message: 'Aucun PIN configuré. Contactez votre agent EBN Network.',
         },
       });
     }

@@ -296,8 +296,8 @@ export function FicheAdhesionPDF({ data }: { data: FicheAdhesionData }) {
           <Image src={LOGO_URL} style={styles.logo} />
           <View style={styles.companyBlock}>
             <Text style={styles.companyName}>
-              PROGRESS{' '}
-              <Text style={styles.companyNameAccent}>BUSINESS</Text>
+              ENTREPRISE BÉNIE{' '}
+              <Text style={styles.companyNameAccent}>NETWORK</Text>
             </Text>
             <Text style={styles.companyMeta}>
               {'RCCM : RDC/RCCM/19-B-0615\nIDNAT : 5-83-N685001\nIMPOT : A19086215'}
@@ -431,7 +431,7 @@ export function FicheAdhesionPDF({ data }: { data: FicheAdhesionData }) {
               Le membre a atteint les points de satisfaction (40 points),{' '}
             </Text>
             Désormais membre officiel de{' '}
-            <Text style={styles.satBold}>PROGRESS BUSINESS</Text>
+            <Text style={styles.satBold}>EBN NETWORK</Text>
           </Text>
         </View>
 

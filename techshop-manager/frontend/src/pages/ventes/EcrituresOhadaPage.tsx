@@ -1,4 +1,4 @@
-﻿import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Printer, Download, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -197,7 +197,7 @@ export default function EcrituresOhadaPage() {
 
         {/* Pied */}
         <div className="border-t border-border pt-4 text-[11px] text-text-muted text-center">
-          <p>Conforme au Plan Comptable OHADA (SYSCOHADA) — Progress Business</p>
+          <p>Conforme au Plan Comptable OHADA (SYSCOHADA) — EBN Network</p>
         </div>
       </div>
     </div>

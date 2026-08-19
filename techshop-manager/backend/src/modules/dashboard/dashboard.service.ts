@@ -77,20 +77,8 @@ export class DashboardService {
           where: { ...siteFilter, createdAt: { gte: prevDateDebut, lte: prevDateFin }, statut: 'VALIDE' },
           _sum: { montantNet: true },
         }),
-        this.prisma.parrainage.count({
-          where: {
-            statut: 'VALIDE',
-            dateCreation: { gte: dateDebut, lte: dateFin },
-            ...(siteIds ? { filleul: { siteInscriptionId: { in: siteIds } } } : {}),
-          },
-        }),
-        this.prisma.parrainage.count({
-          where: {
-            statut: 'VALIDE',
-            dateCreation: { gte: prevDateDebut, lte: prevDateFin },
-            ...(siteIds ? { filleul: { siteInscriptionId: { in: siteIds } } } : {}),
-          },
-        }),
+        Promise.resolve(0),
+        Promise.resolve(0),
         this.prisma.stockSite.findMany({
           where: siteIds ? { siteId: { in: siteIds } } : {},
           select: { quantite: true, seuilAlerte: true },
@@ -259,7 +247,7 @@ export class DashboardService {
       this.getSitesComparison(dateDebut, dateFin, period),
       this.getRevenueChartData(dateDebut, dateFin, period),
       this.getTopProducts(dateDebut, dateFin, 5),
-      this.getTopParrains(period, 5),
+      Promise.resolve([]),
     ]);
 
     return { comparison, revenueChart, topProduits, topParrains };
@@ -462,48 +450,5 @@ export class DashboardService {
       });
   }
 
-  private async getTopParrains(period: string, limit: number) {
-    const { dateDebut } = getPeriodRange(period);
 
-    const parrainages = await this.prisma.parrainage.findMany({
-      where: { statut: 'VALIDE', dateCreation: { gte: dateDebut } },
-      include: {
-        parrain: {
-          select: { id: true, nom: true, prenom: true, siteInscription: { select: { nom: true } } },
-        },
-      },
-    });
-
-    const byParrain: Record<string, {
-      clientId: string;
-      clientNom: string;
-      clientPrenom: string;
-      siteNom: string;
-      nbFilleulsActives: number;
-    }> = {};
-
-    parrainages.forEach((p) => {
-      const key = p.parrainId;
-      if (!byParrain[key]) {
-        byParrain[key] = {
-          clientId: p.parrainId,
-          clientNom: p.parrain.nom,
-          clientPrenom: p.parrain.prenom,
-          siteNom: p.parrain.siteInscription?.nom ?? '',
-          nbFilleulsActives: 0,
-        };
-      }
-      byParrain[key].nbFilleulsActives += 1;
-    });
-
-    return Object.values(byParrain)
-      .sort((a, b) => b.nbFilleulsActives - a.nbFilleulsActives)
-      .slice(0, limit)
-      .map((p, i) => ({
-        rang: i + 1,
-        ...p,
-        recompenseDue: p.nbFilleulsActives * 500, // 500 pts per filleul by default
-        recompenseType: 'POINTS' as const,
-      }));
-  }
 }

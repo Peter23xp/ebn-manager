@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, Eye, EyeOff, WifiOff } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -177,7 +177,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-black text-primary">PROGRESS BUSINESS</h1>
+          <h1 className="text-2xl font-black text-primary">EBN NETWORK</h1>
           <p className="text-text-muted mt-1 text-sm">Réinitialisation du mot de passe</p>
         </div>
 

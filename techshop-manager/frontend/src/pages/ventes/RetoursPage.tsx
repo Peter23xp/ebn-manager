@@ -15,7 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
-import type { StatutVente, ModePaiement, NiveauFidelite } from '@/types';
+import type { StatutVente, ModePaiement } from '@/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ type ReturnMotif =
   | 'CHANGE_AVIS'
   | 'AUTRE';
 
-type ReturnMode = 'CASH' | 'MOBILE_MONEY' | 'AVOIR_POINTS';
+type ReturnMode = 'CASH' | 'MOBILE_MONEY';
 
 interface LigneRetour {
   id: string;
@@ -44,7 +44,6 @@ interface VenteRetour {
   createdAt: string;
   statut: StatutVente;
   montantBrut: number;
-  remiseFidelite: number;
   montantNet: number;
   modePaiement: ModePaiement;
   client?: {
@@ -52,8 +51,6 @@ interface VenteRetour {
     nom: string;
     prenom: string;
     telephone: string;
-    niveauFidelite: NiveauFidelite;
-    pointsFidelite: number;
   };
   lignes: LigneRetour[];
 }
@@ -76,7 +73,6 @@ const MOTIF_LABELS: Record<ReturnMotif, string> = {
 const MODE_REMBOURSEMENT_LABELS: Record<ReturnMode, string> = {
   CASH: 'Espèces',
   MOBILE_MONEY: 'Mobile Money',
-  AVOIR_POINTS: 'Avoir en points fidélité',
 };
 
 // ── Modal confirmation ────────────────────────────────────────────────────────
@@ -285,9 +281,8 @@ export default function RetoursPage() {
     return sum + (ligne ? ligne.prixUnitaire * qty : 0);
   }, 0);
 
-  const remisePct = vente.montantBrut > 0 ? vente.remiseFidelite / vente.montantBrut : 0;
+  const remisePct = 0; // Removed legacy fidelite
   const montantARembourser = Math.round(montantBrutRetour * (1 - remisePct));
-  const pointsADeduire = vente.client ? Math.floor(montantARembourser / 1000) : 0;
   const nbArticlesRetournes = Array.from(selectedLines.values()).reduce((a, b) => a + b, 0);
 
   const lignesDisponibles = vente.lignes.filter((l) => !l.retournee);
@@ -519,20 +514,6 @@ export default function RetoursPage() {
                   </div>
                 </label>
 
-                {/* AVOIR_POINTS */}
-                {vente.client && (
-                  <label className={cn('flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors', returnMode === 'AVOIR_POINTS' ? 'border-primary-accent bg-blue-50' : 'border-border hover:border-border-strong')}>
-                    <input type="radio" name="returnMode" value="AVOIR_POINTS" checked={returnMode === 'AVOIR_POINTS'} onChange={() => setReturnMode('AVOIR_POINTS')} className="mt-1 accent-primary-accent" />
-                    <div>
-                      <p className="font-medium text-text text-sm">Avoir en points de fidélité</p>
-                      {returnMode === 'AVOIR_POINTS' && (
-                        <p className="text-sm text-text-muted mt-1">
-                          +{Math.floor(montantARembourser / 1000)} pts crédités sur le compte de {vente.client.prenom} {vente.client.nom}
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                )}
               </div>
             </div>
           )}
@@ -560,12 +541,6 @@ export default function RetoursPage() {
                     <span>Montant à rembourser</span>
                     <span className="text-danger">{formatUSD(montantARembourser)}</span>
                   </div>
-                  {vente.client && pointsADeduire > 0 && (
-                    <div className="flex justify-between text-text-muted">
-                      <span>Points à déduire</span>
-                      <span>-{pointsADeduire} pts</span>
-                    </div>
-                  )}
                 </div>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[12px] text-amber-800">
                   Un avoir commercial numéroté sera généré automatiquement.

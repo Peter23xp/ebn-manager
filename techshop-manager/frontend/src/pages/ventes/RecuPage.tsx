@@ -1,17 +1,17 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Printer, MessageSquare, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
-import type { ModePaiement, NiveauFidelite, StatutVente } from '@/types';
+import type { ModePaiement, StatutVente } from '@/types';
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 
 type ReceiptFormat = '80mm' | '58mm';
 
-const LS_FORMAT_KEY = 'progress_business_receipt_format';
+const LS_FORMAT_KEY = 'ebn_network_receipt_format';
 
 interface LigneRecu {
   id: string;
@@ -33,17 +33,13 @@ interface VenteRecu {
     nom: string;
     prenom: string;
     telephone: string;
-    niveauFidelite: NiveauFidelite;
-    pointsApres?: number;
   };
   lignes: LigneRecu[];
   montantBrut: number;
-  remiseFidelite: number;
   montantNet: number;
   modePaiement: ModePaiement;
   montantRecu?: number;
   monnaieRendue?: number;
-  pointsAttribues: number;
 }
 
 const PAYMENT_LABELS: Record<ModePaiement, string> = {
@@ -228,10 +224,7 @@ export default function RecuPage() {
   const sep = format === '80mm' ? sep80 : sep58;
   const dash = format === '80mm' ? dash80 : dash58;
 
-  const remisePct =
-    vente && vente.montantBrut > 0
-      ? Math.round((vente.remiseFidelite / vente.montantBrut) * 100)
-      : 0;
+
 
   return (
     <div className="bg-bg min-h-screen">
@@ -297,8 +290,8 @@ export default function RecuPage() {
             {/* En-tête */}
             <div className="text-center mb-1">
               <p>{sep}</p>
-              <p className="font-bold text-[14px]">PROGRESS BUSINESS</p>
-              <p>Progress Business {vente.site.nom}</p>
+              <p className="font-bold text-[14px]">EBN NETWORK</p>
+              <p>EBN Network {vente.site.nom}</p>
               <p>{sep}</p>
             </div>
 
@@ -351,14 +344,7 @@ export default function RecuPage() {
                 <span>Sous-total :</span>
                 <span>{formatUSD(vente.montantBrut)}</span>
               </div>
-              {vente.remiseFidelite > 0 && (
-                <div className="flex justify-between">
-                  <span>
-                    Remise {vente.client?.niveauFidelite ?? ''}({remisePct}%) :
-                  </span>
-                  <span>-{formatUSD(vente.remiseFidelite)}</span>
-                </div>
-              )}
+
             </div>
             <p>{sep}</p>
 
@@ -387,25 +373,14 @@ export default function RecuPage() {
                 )}
             </div>
 
-            {/* Points */}
-            {vente.pointsAttribues > 0 && (
-              <>
-                <p>{dash}</p>
-                <div className="mb-1">
-                  <p>Points gagnés : +{vente.pointsAttribues} pts</p>
-                  {vente.client?.pointsApres != null && (
-                    <p>Solde points : {vente.client.pointsApres} pts</p>
-                  )}
-                </div>
-              </>
-            )}
+
 
             {/* Pied */}
             <p>{dash}</p>
             <div className="text-center">
               <p>Merci pour votre achat !</p>
               <p>Ce reçu est votre preuve d'achat.</p>
-              <p>Progress Business — Goma, RDC</p>
+              <p>EBN Network — Goma, RDC</p>
             </div>
             <p>{sep}</p>
           </div>

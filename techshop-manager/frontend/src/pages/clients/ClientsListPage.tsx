@@ -5,9 +5,8 @@ import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { useClients } from '@/hooks/useClients';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
-import { ClientLevelBadge } from '@/components/clients/ClientLevelBadge';
 import { Pagination } from '@/components/ui/Pagination';
-import type { StatutClient, NiveauFidelite } from '@/types';
+import type { StatutClient } from '@/types';
 
 // ── Avatar initiales ──────────────────────────────────────────────
 
@@ -50,7 +49,7 @@ export default function ClientsListPage() {
 
   const [search, setSearch] = useState('');
   const [statut, setStatut] = useState<StatutClient | ''>('');
-  const [niveau, setNiveau] = useState<NiveauFidelite | ''>('');
+
   const [page, setPage]     = useState(1);
 
   const isAgent     = user?.role === 'AGENT';
@@ -65,17 +64,17 @@ export default function ClientsListPage() {
   const { clients, meta, isLoading, isFetching, isError, refetch } = useClients({
     search,
     statut,
-    niveau,
+
     page,
     limit: 25,
   });
 
-  const hasActiveFilters = !!(search || statut || niveau);
+  const hasActiveFilters = !!(search || statut);
 
   const resetFilters = () => {
     setSearch('');
     setStatut('');
-    setNiveau('');
+
     setPage(1);
   };
 
@@ -169,28 +168,7 @@ export default function ClientsListPage() {
               <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle" aria-hidden />
             </div>
 
-            {/* Filtre niveau */}
-            <div className="relative">
-              <select
-                value={niveau}
-                onChange={(e) => { setNiveau(e.target.value as NiveauFidelite | ''); setPage(1); }}
-                className={cn(
-                  'appearance-none pl-3 pr-7 py-2 border rounded-lg text-[12px] font-medium bg-white cursor-pointer',
-                  'focus:outline-none focus:ring-2 focus:ring-primary-accent/30 focus:border-primary-accent transition duration-150',
-                  niveau
-                    ? 'border-primary-accent text-primary-accent bg-primary-light/30'
-                    : 'border-border text-text-muted hover:border-border-strong hover:text-text',
-                )}
-                aria-label="Filtrer par niveau"
-              >
-                <option value="">Niveau</option>
-                <option value="BRONZE">Bronze</option>
-                <option value="ARGENT">Argent</option>
-                <option value="OR">Or</option>
-                <option value="PLATINE">Platine</option>
-              </select>
-              <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle" aria-hidden />
-            </div>
+
 
             {/* Réinitialiser — séparé visuellement, style lien */}
             {hasActiveFilters && (
@@ -273,9 +251,7 @@ export default function ClientsListPage() {
                   {showSiteFilter && (
                     <th className="px-4 py-3 text-left hidden md:table-cell">Site</th>
                   )}
-                  <th className="px-4 py-3 text-left hidden sm:table-cell">Niveau</th>
                   <th className="px-4 py-3 text-left">Statut</th>
-                  <th className="px-4 py-3 text-right hidden lg:table-cell">Points</th>
                   <th className="px-4 py-3 text-left hidden lg:table-cell">Inscription</th>
                 </tr>
               </thead>
@@ -326,19 +302,9 @@ export default function ClientsListPage() {
                       </td>
                     )}
 
-                    {/* Niveau */}
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <ClientLevelBadge niveau={client.niveauFidelite} />
-                    </td>
-
                     {/* Statut */}
                     <td className="px-4 py-3">
                       <ClientStatusBadge statut={client.statut} />
-                    </td>
-
-                    {/* Points */}
-                    <td className="px-4 py-3 text-right text-[12px] font-bold text-platine font-mono hidden lg:table-cell">
-                      {client.pointsFidelite.toLocaleString('fr')}
                     </td>
 
                     {/* Date inscription */}

@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageSEO } from '@/components/seo/PageSEO';
 import { Loader2 } from 'lucide-react';
@@ -113,7 +113,7 @@ export default function PortalLoginPage() {
         setLockedUntil(err.response.data.error.unlocksAt);
         setError('Compte bloqué. Réessayez dans quelques minutes.');
       } else if (code === 'CLIENT_NOT_ACTIVE') {
-        setError("Votre compte n'est pas encore activé. Contactez votre agent Progress Business.");
+        setError("Votre compte n'est pas encore activé. Contactez votre agent EBN Network.");
       } else {
         const left = err?.response?.data?.error?.attemptsLeft;
         setError(
@@ -135,8 +135,8 @@ export default function PortalLoginPage() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/assets/Progress business logo.png" alt="Progress Business" className="w-24 h-24 rounded-2xl mx-auto mb-4 object-contain" />
-          <h1 className="text-xl font-bold text-[#1E3A5F]">Progress Business</h1>
+          <img src="/assets/Progress business logo.png" alt="EBN Network" className="w-24 h-24 rounded-2xl mx-auto mb-4 object-contain" />
+          <h1 className="text-xl font-bold text-[#1E3A5F]">EBN Network</h1>
           <p className="text-sm text-neutral-500 mt-1">Espace Client — Connectez-vous</p>
         </div>
 
@@ -190,7 +190,7 @@ export default function PortalLoginPage() {
 
           <p className="text-xs text-center text-neutral-400">
             Vous avez oublié votre PIN ?<br />
-            Contactez votre agent Progress Business.
+            Contactez votre agent EBN Network.
           </p>
         </div>
       </div>

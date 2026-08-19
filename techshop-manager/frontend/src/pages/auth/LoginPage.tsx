@@ -144,12 +144,12 @@ export default function LoginPage() {
             <div className="flex items-center gap-3 mb-14">
               <img
                 src="/assets/Progress business logo.png"
-                alt="Progress Business"
+                alt="EBN Network"
                 className="h-16 w-16 rounded-xl object-contain flex-shrink-0"
               />
               <div>
                 <p className="text-[9px] font-bold tracking-[0.25em] text-text-subtle uppercase">
-                  Progress Business
+                  EBN Network
                 </p>
                 <p className="text-[16px] font-black text-primary tracking-tight leading-none mt-0.5">
                   MANAGER
@@ -163,7 +163,7 @@ export default function LoginPage() {
               <span className="text-primary-accent">centralisée.</span>
             </h2>
             <p className="mt-4 text-[13px] text-text-muted leading-relaxed max-w-[280px]">
-              Caisse, clients, stocks et parrainage —
+              Caisse, clients, stocks et réseau MLM —
               en un seul outil, même sans réseau.
             </p>
           </div>
@@ -188,7 +188,7 @@ export default function LoginPage() {
           </div>
 
           {/* Pied */}
-          <p className="text-[11px] text-text-subtle">v1.0 · Progress Business RDC © 2025</p>
+          <p className="text-[11px] text-text-subtle">v1.0 · EBN Network RDC © 2025</p>
         </div>
 
         {/* ── Colonne droite : formulaire ── */}
@@ -198,10 +198,10 @@ export default function LoginPage() {
           <div className="lg:hidden flex items-center gap-3 mb-10 self-start">
             <img
               src="/assets/Progress business logo.png"
-              alt="Progress Business"
+              alt="EBN Network"
               className="h-14 w-14 rounded-xl object-contain flex-shrink-0"
             />
-            <p className="text-[14px] font-black text-primary tracking-tight">PROGRESS BUSINESS</p>
+            <p className="text-[14px] font-black text-primary tracking-tight">EBN NETWORK</p>
           </div>
 
           <div className="w-full max-w-[400px]">
@@ -404,7 +404,7 @@ export default function LoginPage() {
 
             {/* Version mobile */}
             <p className="lg:hidden text-center text-[11px] text-text-subtle mt-8">
-              v1.0 · Progress Business RDC © 2025
+              v1.0 · EBN Network RDC © 2025
             </p>
           </div>
         </div>

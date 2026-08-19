@@ -22,8 +22,7 @@ const schema = z
     telephone:        z.string().regex(/^\+243[0-9]{9}$/, 'Format invalide (+243XXXXXXXXX)'),
     email:            z.string().email('Email invalide').or(z.literal('')).optional(),
     siteId:           z.string().min(1, 'Site requis'),
-    codeParrain:      z.string().regex(/^TSG-[0-9]{4}$/).or(z.literal('')).optional(),
-    matriculeExterne: z.string().max(50).optional(),
+    codeParrain:      z.string().optional(),
     montantRecit:     z.number({ invalid_type_error: 'Montant requis' }).positive('Montant requis'),
     modePaiement:     z.enum(['CASH', 'MPESA', 'AIRTEL_MONEY', 'VIREMENT']),
     numeroRecu:       z.string().optional(),
@@ -109,7 +108,6 @@ export default function OnboardingRecitPage() {
           ...data,
           email: data.email || undefined,
           codeParrain: data.codeParrain || undefined,
-          matriculeExterne: data.matriculeExterne || undefined,
           numeroRecu: data.numeroRecu || undefined,
         },
       ),
@@ -124,7 +122,6 @@ export default function OnboardingRecitPage() {
         telephone: '',
         email: '',
         codeParrain: '',
-        matriculeExterne: '',
         siteId:       getValues('siteId'),
         modePaiement: getValues('modePaiement'),
         montantRecit: getValues('montantRecit'),
@@ -284,7 +281,7 @@ export default function OnboardingRecitPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="form-group">
               <label className="form-label">
-                Code parrain <span className="text-text-muted font-normal">(optionnel)</span>
+                Parrain <span className="text-text-muted font-normal">(optionnel — matricule ou nom)</span>
               </label>
               <Controller
                 name="codeParrain"
@@ -300,18 +297,7 @@ export default function OnboardingRecitPage() {
                 )}
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="matriculeExterne" className="form-label">
-                Matricule externe <span className="text-text-muted font-normal">(optionnel)</span>
-              </label>
-              <input
-                id="matriculeExterne"
-                placeholder="ex: NK-GOM-001-0001"
-                disabled={disabled}
-                className={fieldCls(false)}
-                {...register('matriculeExterne')}
-              />
-            </div>
+
           </div>
 
           {/* Séparateur Achat */}

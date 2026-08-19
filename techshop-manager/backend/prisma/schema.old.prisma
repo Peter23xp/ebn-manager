@@ -1,0 +1,602 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  SUPER_ADMIN
+  DIRECTEUR_REGIONAL
+  GERANT
+  AGENT
+  FORMATEUR
+  CLIENT
+}
+
+enum StatutClient {
+  EN_COURS
+  ACTIF
+  SUSPENDU
+  ARCHIVE
+}
+
+enum NiveauFidelite {
+  BRONZE
+  ARGENT
+  OR
+  PLATINE
+}
+
+enum EtapeOnboarding {
+  RECIT
+  FORMATION
+  FICHE
+  ACTIVATION
+}
+
+enum StatutEtape {
+  EN_ATTENTE
+  EN_COURS
+  COMPLETE
+}
+
+enum ModePaiement {
+  CASH
+  MPESA
+  AIRTEL_MONEY
+  VIREMENT
+}
+
+enum StatutVente {
+  VALIDE
+  RETOURNEE_PARTIELLE
+  RETOURNEE
+  ANNULEE
+}
+
+enum TypeMouvement {
+  ENTREE
+  SORTIE_VENTE
+  TRANSFERT_DEPART
+  TRANSFERT_ARRIVEE
+  AJUSTEMENT_INVENTAIRE
+}
+
+enum StatutTransfert {
+  EN_TRANSIT
+  RECU
+  ANNULE
+}
+
+enum StatutParrainage {
+  EN_ATTENTE
+  VALIDE
+  RECOMPENSE_VERSEE
+}
+
+enum TypeRecompense {
+  POINTS
+  REMISE_PROCHAINE_VENTE
+  COMMISSION_CDF
+}
+
+enum StatutExport {
+  PENDING
+  READY
+  ERROR
+}
+
+enum SyncStatus {
+  SYNCED
+  PENDING
+  CONFLICT
+}
+
+enum StatutAlerte {
+  ALERTE
+  RUPTURE
+}
+
+// ============================================
+// SITE
+// ============================================
+
+model Site {
+  id          String   @id @default(uuid())
+  nom         String
+  ville       String
+  adresse     String?
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gerantId    String?
+
+  utilisateurs    Utilisateur[]
+  clients         Client[]
+  stockSites      StockSite[]
+  ventesSource    Vente[]
+  mouvements      MouvementStock[]
+  transfertsSource    TransfertStock[] @relation("SiteSource")
+  transfertsDest      TransfertStock[] @relation("SiteDestination")
+  onboardingEtapes    OnboardingEtape[]
+
+  @@map("sites")
+}
+
+// ============================================
+// UTILISATEUR
+// ============================================
+
+model Utilisateur {
+  id                String   @id @default(uuid())
+  nom               String
+  telephone         String   @unique
+  email             String?  @unique
+  passwordHash      String
+  role              Role
+  actif             Boolean  @default(true)
+  langue            String   @default("fr")
+  derniereConnexion DateTime?
+  tentativesConnexion Int    @default(0)
+  bloqueJusquA      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  siteId  String?
+  site    Site?   @relation(fields: [siteId], references: [id])
+
+  ventesCreees    Vente[]
+  clientsCrees    Client[]
+  etapesValidees  OnboardingEtape[]
+  entreesStock    MouvementStock[]
+  transfertsInities TransfertStock[] @relation("TransfertInitiateur")
+
+  @@map("utilisateurs")
+}
+
+// ============================================
+// CLIENT
+// ============================================
+
+model Client {
+  id                String         @id @default(uuid())
+  prenom            String
+  nom               String
+  telephone         String         @unique
+  email             String?        @unique
+  matriculeExterne  String?        @unique
+  codeParrain       String?        @unique
+  statut            StatutClient   @default(EN_COURS)
+  pointsFidelite    Int            @default(0)
+  pointsCumules     Int            @default(0)
+  niveauFidelite    NiveauFidelite @default(BRONZE)
+  notes             String?
+  dateActivation    DateTime?
+  pinHash           String?
+  tentativesPin     Int            @default(0)
+  bloqueJusquA      DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  siteInscriptionId String
+  siteInscription   Site          @relation(fields: [siteInscriptionId], references: [id])
+
+  createdById String
+  createdBy   Utilisateur @relation(fields: [createdById], references: [id])
+
+  parrainId String?
+  parrain   Client?  @relation("ParrainFilleuls", fields: [parrainId], references: [id])
+  filleuls  Client[] @relation("ParrainFilleuls")
+
+  onboardingEtapes  OnboardingEtape[]
+  ventes            Vente[]
+  mouvementsPoints  MouvementPoints[]
+  parrainagesDonnes     Parrainage[] @relation("ParrainageParrain")
+  parrainagesRecus      Parrainage[] @relation("ParrainageFilleul")
+  portailToken      PortailToken?
+
+  @@map("clients")
+}
+
+// ============================================
+// ONBOARDING
+// ============================================
+
+model OnboardingEtape {
+  id                   String          @id @default(uuid())
+  etape                EtapeOnboarding
+  statut               StatutEtape     @default(EN_ATTENTE)
+  completeeAt          DateTime?
+  montant              Decimal?        @db.Decimal(12, 2)
+  modePaiement         ModePaiement?
+  referenceTransaction String?
+  notes                String?
+  createdAt            DateTime        @default(now())
+
+  clientId  String
+  client    Client      @relation(fields: [clientId], references: [id])
+
+  agentId   String
+  agent     Utilisateur @relation(fields: [agentId], references: [id])
+
+  siteId    String
+  site      Site        @relation(fields: [siteId], references: [id])
+
+  @@unique([clientId, etape])
+  @@map("onboarding_etapes")
+}
+
+// ============================================
+// PRODUIT
+// ============================================
+
+model Produit {
+  id          String   @id @default(uuid())
+  sku         String   @unique
+  nom         String
+  description String?
+  categorie   String
+  prixVente   Decimal  @db.Decimal(12, 2)
+  prixAchat   Decimal  @db.Decimal(12, 2)
+  actif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockSites     StockSite[]
+  mouvements     MouvementStock[]
+  lignesVente    LigneVente[]
+  lignesRetour   LigneRetour[]
+  transferts     TransfertStock[]
+
+  @@map("produits")
+}
+
+// ============================================
+// STOCK SITE
+// ============================================
+
+model StockSite {
+  id           String       @id @default(uuid())
+  quantite     Int          @default(0)
+  seuilAlerte  Int          @default(5)
+  updatedAt    DateTime     @updatedAt
+
+  produitId String
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  @@unique([produitId, siteId])
+  @@map("stock_sites")
+}
+
+// ============================================
+// MOUVEMENT STOCK
+// ============================================
+
+model MouvementStock {
+  id             String        @id @default(uuid())
+  type           TypeMouvement
+  quantite       Int
+  quantiteAvant  Int
+  quantiteApres  Int
+  reference      String?
+  createdAt      DateTime      @default(now())
+
+  produitId String
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  agentId String
+  agent   Utilisateur @relation(fields: [agentId], references: [id])
+
+  @@map("mouvements_stock")
+}
+
+// ============================================
+// TRANSFERT STOCK
+// ============================================
+
+model TransfertStock {
+  id               String          @id @default(uuid())
+  quantiteEnvoyee  Int
+  quantiteRecue    Int?
+  motif            String?
+  observations     String?
+  statut           StatutTransfert @default(EN_TRANSIT)
+  dateExpedition   DateTime        @default(now())
+  dateReception    DateTime?
+  createdAt        DateTime        @default(now())
+
+  produitId String
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  siteSourceId String
+  siteSource   Site   @relation("SiteSource", fields: [siteSourceId], references: [id])
+
+  siteDestinationId String
+  siteDestination   Site   @relation("SiteDestination", fields: [siteDestinationId], references: [id])
+
+  initiateurId String
+  initiateur   Utilisateur @relation("TransfertInitiateur", fields: [initiateurId], references: [id])
+
+  @@map("transferts_stock")
+}
+
+// ============================================
+// VENTE
+// ============================================
+
+model Vente {
+  id                  String      @id @default(uuid())
+  numeroVente         String      @unique
+  statut              StatutVente @default(VALIDE)
+  montantBrut         Decimal     @db.Decimal(12, 2)
+  remiseFidelite      Decimal     @default(0) @db.Decimal(12, 2)
+  remiseParrainage    Decimal     @default(0) @db.Decimal(12, 2)
+  montantNet          Decimal     @db.Decimal(12, 2)
+  modePaiement        ModePaiement
+  referenceTransaction String?
+  montantRecu         Decimal?    @db.Decimal(12, 2)
+  monnaieRendue       Decimal?    @db.Decimal(12, 2)
+  pointsAttribues     Int         @default(0)
+  syncStatus          SyncStatus  @default(SYNCED)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+
+  agentId String
+  agent   Utilisateur @relation(fields: [agentId], references: [id])
+
+  lignes  LigneVente[]
+  retours Retour[]
+
+  @@map("ventes")
+}
+
+// ============================================
+// LIGNE VENTE
+// ============================================
+
+model LigneVente {
+  id          String  @id @default(uuid())
+  quantite    Int
+  prixUnitaire Decimal @db.Decimal(12, 2)
+  sousTotal   Decimal @db.Decimal(12, 2)
+
+  venteId   String
+  vente     Vente   @relation(fields: [venteId], references: [id])
+
+  produitId String
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  @@map("lignes_vente")
+}
+
+// ============================================
+// RETOUR
+// ============================================
+
+model Retour {
+  id                   String   @id @default(uuid())
+  numeroAvoir          String?  @unique
+  motif                String
+  motifDescription     String?
+  modeRemboursement    String
+  referenceTransaction String?
+  montantRembourse     Decimal  @db.Decimal(12, 2)
+  stockRemis           Boolean  @default(false)
+  agentId              String?
+  createdAt            DateTime @default(now())
+
+  venteId String
+  vente   Vente  @relation(fields: [venteId], references: [id])
+
+  lignes LigneRetour[]
+
+  @@map("retours")
+}
+
+// ============================================
+// LIGNE RETOUR
+// ============================================
+
+model LigneRetour {
+  id       String @id @default(uuid())
+  quantite Int
+
+  retourId String
+  retour   Retour @relation(fields: [retourId], references: [id])
+
+  produitId String
+  produit   Produit @relation(fields: [produitId], references: [id])
+
+  @@map("lignes_retour")
+}
+
+// ============================================
+// PARRAINAGE
+// ============================================
+
+model Parrainage {
+  id                  String           @id @default(uuid())
+  niveau              Int              @default(1)
+  statut              StatutParrainage @default(EN_ATTENTE)
+  recompenseType      TypeRecompense?
+  recompenseValeur    Decimal?         @db.Decimal(12, 2)
+  recompenseVerseAt   DateTime?
+  dateCreation        DateTime         @default(now())
+
+  parrainId String
+  parrain   Client @relation("ParrainageParrain", fields: [parrainId], references: [id])
+
+  filleulId String @unique
+  filleul   Client @relation("ParrainageFilleul", fields: [filleulId], references: [id])
+
+  @@map("parrainages")
+}
+
+// ============================================
+// REGLE PARRAINAGE
+// ============================================
+
+model RegleParrainage {
+  id                      String         @id @default(uuid())
+  multiNiveaux            Boolean        @default(false)
+  typeRecompense          TypeRecompense @default(POINTS)
+  valeurNiveau1           Decimal        @db.Decimal(12, 2)
+  valeurNiveau2           Decimal?       @db.Decimal(12, 2)
+  conditionDeclenchement  String         @default("ACTIVATION")
+  plafondMensuel          Int?
+  updatedAt               DateTime       @updatedAt
+
+  @@map("regle_parrainage")
+}
+
+// ============================================
+// MOUVEMENT POINTS
+// ============================================
+
+model MouvementPoints {
+  id          String   @id @default(uuid())
+  type        String
+  delta       Int
+  soldeApres  Int
+  description String?
+  createdAt   DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  venteId String?
+
+  @@map("mouvements_points")
+}
+
+// ============================================
+// CONFIG FIDELITE
+// ============================================
+
+model ConfigFidelite {
+  id                String   @id @default(uuid())
+  ratioPtsCDF       Int      @default(1000)
+  dureeValiditeMois Int      @default(0)
+  cumulRemises      Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+
+  niveaux NiveauConfig[]
+
+  @@map("config_fidelite")
+}
+
+model NiveauConfig {
+  id        String @id @default(uuid())
+  nom       String
+  seuilPts  Int
+  remisePct Decimal @db.Decimal(5, 2)
+  couleur   String?
+
+  configId String
+  config   ConfigFidelite @relation(fields: [configId], references: [id])
+
+  @@map("niveaux_config")
+}
+
+// ============================================
+// CONFIG GENERALE
+// ============================================
+
+model ConfigGenerale {
+  id                    String   @id @default(uuid())
+  smsApiKey             String?
+  smsUsername           String?
+  smsSenderId           String?
+  matriculeExterneActif Boolean  @default(false)
+  matriculeRegex        String?
+  dureeSectionHeures    Int      @default(8)
+  delaiRetourJours      Int      @default(7)
+  fraisRetourPct        Decimal  @default(0) @db.Decimal(5, 2)
+  updatedAt             DateTime @updatedAt
+
+  @@map("config_generale")
+}
+
+// ============================================
+// EXPORT JOB
+// ============================================
+
+model ExportJob {
+  id          String       @id @default(uuid())
+  type        String
+  format      String
+  filtres     Json?
+  statut      StatutExport @default(PENDING)
+  downloadUrl String?
+  errorMsg    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("export_jobs")
+}
+
+// ============================================
+// PORTAIL TOKEN CLIENT
+// ============================================
+
+model PortailToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id])
+
+  @@map("portail_tokens")
+}
+
+// ============================================
+// SUPPORT
+// ============================================
+
+enum TicketType {
+  BUG
+  SUGGESTION
+  QUESTION
+  CONFIG
+  URGENCE
+}
+
+model SupportTicket {
+  id            String     @id @default(uuid())
+  ticketRef     String     @unique
+  nom           String
+  email         String
+  siteNom       String
+  role          String
+  type          TicketType
+  sujet         String
+  description   String     @db.Text
+  systemInfo    String?    @db.Text
+  hasScreenshot Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+
+  @@map("support_tickets")
+}

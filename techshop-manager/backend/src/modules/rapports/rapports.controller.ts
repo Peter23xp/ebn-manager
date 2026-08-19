@@ -89,24 +89,7 @@ export class RapportsController {
     return this.rapportsService.getStocksConsolide({ siteId, categorie });
   }
 
-  // ── SCR-033 : Parrainage ───────────────────────────────────────────────────
 
-  @Get('parrainage')
-  @Roles(Role.GERANT)
-  getParrainage(
-    @Request() req: any,
-    @Query('siteId') siteId?: string,
-    @Query('dateDebut') dateDebut?: string,
-    @Query('dateFin') dateFin?: string,
-  ) {
-    const user = req.user;
-    const isGerant = user?.role === 'GERANT';
-    return this.rapportsService.getParrainageReport({
-      siteId: isGerant ? user.siteId : siteId,
-      dateDebut,
-      dateFin,
-    });
-  }
 
   // ── SCR-034 : Export jobs ──────────────────────────────────────────────────
 

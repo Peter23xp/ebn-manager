@@ -8,14 +8,13 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { VentesModule } from './modules/ventes/ventes.module';
 import { StocksModule } from './modules/stocks/stocks.module';
-import { ParrainageModule } from './modules/parrainage/parrainage.module';
-import { FideliteModule } from './modules/fidelite/fidelite.module';
 import { RapportsModule } from './modules/rapports/rapports.module';
 import { PortalModule } from './modules/portal/portal.module';
 import { UsersModule } from './modules/users/users.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { ConfigAppModule } from './modules/config-app/config-app.module';
 import { SupportModule } from './modules/support/support.module';
+import { MlmModule } from './modules/mlm/mlm.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -29,14 +28,13 @@ import { HealthModule } from './health/health.module';
     ClientsModule,
     VentesModule,
     StocksModule,
-    ParrainageModule,
-    FideliteModule,
     RapportsModule,
     PortalModule,
     UsersModule,
     SitesModule,
     ConfigAppModule,
     SupportModule,
+    MlmModule,
     HealthModule,
   ],
 })

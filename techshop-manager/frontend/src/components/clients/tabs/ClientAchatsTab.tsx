@@ -84,7 +84,6 @@ export function ClientAchatsTab({ client }: ClientAchatsTabProps) {
                   <th className="px-4 py-3 text-left hidden md:table-cell">Produits</th>
                   <th className="px-4 py-3 text-right">Montant</th>
                   <th className="px-4 py-3 text-left hidden sm:table-cell">Paiement</th>
-                  <th className="px-4 py-3 text-right hidden lg:table-cell">Points</th>
                   <th className="px-4 py-3 text-left hidden sm:table-cell">Statut</th>
                 </tr>
               </thead>
@@ -124,18 +123,11 @@ export function ClientAchatsTab({ client }: ClientAchatsTabProps) {
                         <p className="text-[13px] font-bold text-text font-mono">
                           {formatUSD(v.montantNet)}
                         </p>
-                        {v.remiseFidelite > 0 && (
-                          <p className="text-[10px] text-warning font-mono">
-                            -{formatUSD(v.remiseFidelite)}
-                          </p>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-[12px] text-text-muted hidden sm:table-cell">
                         {MODE_LABEL[v.modePaiement] ?? v.modePaiement}
                       </td>
-                      <td className="px-4 py-3 text-right text-[12px] font-bold text-success font-mono hidden lg:table-cell">
-                        {v.pointsAttribues > 0 ? `+${v.pointsAttribues.toLocaleString('fr')}` : '—'}
-                      </td>
+
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span className={cn(
                           'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold',

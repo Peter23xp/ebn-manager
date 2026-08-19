@@ -1,22 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, Check, ShoppingBag, Users } from 'lucide-react';
 import { PortalLayout } from '@/components/portal/PortalLayout';
-import { ClientLevelBadge } from '@/components/clients/ClientLevelBadge';
 import { usePortalPoints, type PointsFilter } from '@/hooks/usePortalPoints';
 import { cn } from '@/lib/utils';
-import type { NiveauFidelite } from '@/types';
 import type { NiveauConfig } from '@/lib/portal.api';
+
+type LegacyNiveau = 'BRONZE' | 'ARGENT' | 'OR' | 'PLATINE';
 
 // ── Niveaux guide ─────────────────────────────────────────────────────────────
 
-const NIVEAU_ORDER: NiveauFidelite[] = ['BRONZE', 'ARGENT', 'OR', 'PLATINE'];
-const NIVEAU_GRADIENT: Record<NiveauFidelite, string> = {
+const NIVEAU_ORDER: LegacyNiveau[] = ['BRONZE', 'ARGENT', 'OR', 'PLATINE'];
+const NIVEAU_GRADIENT: Record<LegacyNiveau, string> = {
   BRONZE:  'from-amber-50 to-amber-100',
   ARGENT:  'from-gray-50 to-gray-100',
   OR:      'from-yellow-50 to-yellow-100',
   PLATINE: 'from-purple-50 to-purple-100',
 };
-const NIVEAU_BORDER: Record<NiveauFidelite, string> = {
+const NIVEAU_BORDER: Record<LegacyNiveau, string> = {
   BRONZE:  'border-amber-300',
   ARGENT:  'border-gray-300',
   OR:      'border-yellow-400',
@@ -25,7 +25,7 @@ const NIVEAU_BORDER: Record<NiveauFidelite, string> = {
 
 function NiveauxGuide({ niveauxConfig, niveauActuel }: {
   niveauxConfig: NiveauConfig[];
-  niveauActuel: NiveauFidelite;
+  niveauActuel: LegacyNiveau;
 }) {
   const currentIdx = NIVEAU_ORDER.indexOf(niveauActuel);
 
@@ -57,7 +57,7 @@ function NiveauxGuide({ niveauxConfig, niveauActuel }: {
                 <Lock size={12} />
               </span>
             )}
-            <ClientLevelBadge niveau={n} size="sm" />
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/70 text-primary-accent border border-primary-accent/30">{n}</span>
             {cfg && (
               <>
                 <p className="text-[11px] text-neutral-500 mt-1.5">
@@ -173,7 +173,7 @@ function ProgressBar({ pts, prochainNiveau, niveauxConfig, niveau }: {
   pts: number;
   prochainNiveau: { nom: string; seuilPts: number; pointsManquants: number } | null;
   niveauxConfig: NiveauConfig[];
-  niveau: NiveauFidelite;
+  niveau: LegacyNiveau;
 }) {
   const isPlatine = niveau === 'PLATINE';
   let pct = 100;
@@ -182,7 +182,7 @@ function ProgressBar({ pts, prochainNiveau, niveauxConfig, niveau }: {
     const span = prochainNiveau.seuilPts - base;
     pct = span > 0 ? Math.min(100, Math.round(((pts - base) / span) * 100)) : 0;
   }
-  const barColor: Record<NiveauFidelite, string> = {
+  const barColor: Record<LegacyNiveau, string> = {
     BRONZE:'bg-amber-500', ARGENT:'bg-gray-400', OR:'bg-yellow-500', PLATINE:'bg-violet-500',
   };
   return (
@@ -215,7 +215,7 @@ export default function PortalPointsPage() {
     isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = usePortalPoints();
 
-  const niveau = niveauFidelite ?? 'BRONZE';
+  const niveau = (niveauFidelite ?? 'BRONZE') as LegacyNiveau;
   const pts = pointsActuels ?? 0;
 
   return (
@@ -230,7 +230,7 @@ export default function PortalPointsPage() {
             NIVEAU_GRADIENT[niveau], NIVEAU_BORDER[niveau],
           )}>
             <div className="flex items-center gap-3 mb-3">
-              <ClientLevelBadge niveau={niveau} size="md" />
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/70 text-primary-accent border border-primary-accent/30">{niveau}</span>
               <span className="text-3xl font-bold text-[#1E3A5F]">
                 {pts.toLocaleString('fr')}
                 <span className="text-sm font-medium text-neutral-500 ml-1">pts</span>

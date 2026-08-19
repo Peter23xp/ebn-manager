@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { clientsApi } from '@/lib/clients.api';
 import { useDebounce } from '@/hooks/useDebounce';
-import type { StatutClient, NiveauFidelite } from '@/types';
+import type { StatutClient } from '@/types';
 
 export interface UseClientsParams {
   search?: string;
   siteId?: string | null;
   statut?: StatutClient | '';
-  niveau?: NiveauFidelite | '';
   page?: number;
   limit?: number;
 }
@@ -22,7 +21,6 @@ export function useClients(params: UseClientsParams) {
         search: debouncedSearch,
         siteId: params.siteId,
         statut: params.statut,
-        niveau: params.niveau,
         page: params.page ?? 1,
         limit: params.limit ?? 25,
       },
@@ -32,7 +30,6 @@ export function useClients(params: UseClientsParams) {
         search: debouncedSearch || undefined,
         siteId: params.siteId,
         statut: params.statut || undefined,
-        niveau: params.niveau || undefined,
         page: params.page ?? 1,
         limit: params.limit ?? 25,
       }),

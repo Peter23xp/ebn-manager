@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Copy, Check, Share2, Loader2, Gift, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import { PortalLayout } from '@/components/portal/PortalLayout';
 import { usePortalReferrals, type ReferralFilter } from '@/hooks/usePortalReferrals';
 import { cn } from '@/lib/utils';
-import type { TypeRecompense } from '@/types';
+
 
 // ── Share code card ───────────────────────────────────────────────────────────
 
@@ -23,10 +23,10 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
   }, [codeParrain]);
 
   const handleShare = useCallback(async () => {
-    const text = `Inscris-toi chez Progress Business avec mon code parrain : ${codeParrain}`;
+    const text = `Inscris-toi chez EBN Network avec mon code parrain : ${codeParrain}`;
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'Progress Business — Code Parrain', text });
+        await navigator.share({ title: 'EBN Network — Code Parrain', text });
       } catch { /* cancelled */ }
     } else {
       setShowDialog(true);
@@ -65,7 +65,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
       </div>
 
       <p className="text-xs text-white/60 text-center mt-3">
-        Donnez ce code à vos amis lors de leur inscription chez Progress Business.
+        Donnez ce code à vos amis lors de leur inscription chez EBN Network.
       </p>
 
       {/* Share fallback dialog */}
@@ -80,12 +80,12 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
           >
             <p className="font-bold text-[#1E3A5F] mb-3">Partager votre code</p>
             <p className="text-sm text-neutral-600 bg-neutral-50 rounded-xl p-3 mb-4">
-              Inscris-toi chez Progress Business avec mon code parrain : <strong>{codeParrain}</strong>
+              Inscris-toi chez EBN Network avec mon code parrain : <strong>{codeParrain}</strong>
             </p>
             <button
               type="button"
               onClick={async () => {
-                await navigator.clipboard.writeText(`Inscris-toi chez Progress Business avec mon code parrain : ${codeParrain}`);
+                await navigator.clipboard.writeText(`Inscris-toi chez EBN Network avec mon code parrain : ${codeParrain}`);
                 setShowDialog(false);
               }}
               className="w-full h-11 rounded-xl bg-[#1E3A5F] text-white font-semibold text-sm"
@@ -105,7 +105,7 @@ function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: 
   nbActifs: number;
   nbTotal: number;
   gainsTotaux: number;
-  typeRecompense?: TypeRecompense;
+  typeRecompense?: string;
 }) {
   const gainsLabel = typeRecompense === 'COMMISSION_CDF'
     ? `$${gainsTotaux.toLocaleString('en-US')}`
@@ -131,7 +131,7 @@ function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: 
 
 function HowReferralWorks({ recompenseValeur, typeRecompense }: {
   recompenseValeur: number;
-  typeRecompense?: TypeRecompense;
+  typeRecompense?: string;
 }) {
   const rewardText = typeRecompense === 'COMMISSION_CDF'
     ? `vous gagnez $${recompenseValeur.toLocaleString('en-US')} !`
@@ -139,7 +139,7 @@ function HowReferralWorks({ recompenseValeur, typeRecompense }: {
 
   const steps = [
     { icon: Share2, color: 'bg-blue-100 text-blue-600', title: 'Donnez votre code', desc: 'Partagez votre code TSG avec vos amis.' },
-    { icon: UserPlus, color: 'bg-green-100 text-green-600', title: 'Votre ami s\'inscrit', desc: 'Il utilise votre code lors de son inscription et suit la formation Progress Business.' },
+    { icon: UserPlus, color: 'bg-green-100 text-green-600', title: 'Votre ami s\'inscrit', desc: 'Il utilise votre code lors de son inscription et suit la formation EBN Network.' },
     { icon: Gift, color: 'bg-yellow-100 text-yellow-700', title: 'Vous recevez votre récompense', desc: `Dès que son compte est activé, ${rewardText}` },
   ];
 
@@ -173,7 +173,7 @@ function FilleulCard({ filleul, typeRecompense }: {
     statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';
     dateInscription: string; recompenseGeneree: number; etapeEnCours?: string;
   };
-  typeRecompense?: TypeRecompense;
+  typeRecompense?: string;
 }) {
   const initials = `${filleul.prenom[0] ?? ''}${filleul.nom[0] ?? ''}`.toUpperCase();
   const avatarColor = filleul.statut === 'ACTIF' ? 'bg-green-100 text-green-700'

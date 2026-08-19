@@ -1,5 +1,4 @@
 import { api } from '@/lib/api';
-import type { NiveauFidelite, TypeRecompense } from '@/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,12 +16,13 @@ export interface PortalHomeData {
     prenom: string;
     nom: string;
     telephone: string;
-    niveauFidelite: NiveauFidelite;
-    pointsFidelite: number;
-    pointsCumules: number;
-    remisePct: number;
     codeParrain?: string;
     statut: string;
+    /** Legacy loyalty — retained during MLM migration, portal still reads these */
+    niveauFidelite?: string;
+    pointsFidelite?: number;
+    pointsCumules?: number;
+    remisePct?: number;
   };
   prochainNiveau: {
     nom: string;
@@ -112,11 +112,11 @@ export interface PortalFilleul {
 
 export interface PortalReferralsResponse {
   codeParrain: string;
-  stats: {
+    stats: {
     nbFilleulsActifs: number;
     nbFilleulsTotal: number;
     gainsTotaux: number;
-    typeRecompense: TypeRecompense;
+    typeRecompense: string;
     recompenseValeur: number;
   };
   filleuls: PortalFilleul[];

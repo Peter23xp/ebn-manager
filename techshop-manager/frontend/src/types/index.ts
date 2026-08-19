@@ -6,7 +6,7 @@ export type Role = 'SUPER_ADMIN' | 'DIRECTEUR_REGIONAL' | 'GERANT' | 'AGENT' | '
 
 export type StatutClient = 'EN_COURS' | 'ACTIF' | 'SUSPENDU' | 'ARCHIVE';
 
-export type NiveauFidelite = 'BRONZE' | 'ARGENT' | 'OR' | 'PLATINE';
+
 
 export type EtapeOnboarding = 'RECIT' | 'FORMATION' | 'FICHE' | 'ACTIVATION';
 
@@ -20,9 +20,9 @@ export type TypeMouvement = 'ENTREE' | 'SORTIE_VENTE' | 'TRANSFERT_DEPART' | 'TR
 
 export type StatutTransfert = 'EN_TRANSIT' | 'RECU' | 'ANNULE';
 
-export type StatutParrainage = 'EN_ATTENTE' | 'VALIDE' | 'RECOMPENSE_VERSEE';
-
-export type TypeRecompense = 'POINTS' | 'REMISE_PROCHAINE_VENTE' | 'COMMISSION_CDF';
+export type MembreStatut = 'EN_ATTENTE' | 'ACTIF' | 'SUSPENDU' | 'ARCHIVE';
+export type BonusStatut = 'EN_ATTENTE' | 'EN_COURS' | 'LIVRE' | 'ANNULE';
+export type TransactionType = 'COMMISSION' | 'PROMOTION' | 'SALAIRE' | 'BONUS_RETRAITE' | 'DEBIT';
 
 export type StatutStock = 'OK' | 'ALERTE' | 'RUPTURE';
 
@@ -90,15 +90,11 @@ export interface Client {
   matriculeExterne?: string;
   codeParrain?: string;
   statut: StatutClient;
-  pointsFidelite: number;
-  pointsCumules: number;
-  niveauFidelite: NiveauFidelite;
   notes?: string;
   dateInscription: string;
   dateActivation?: string;
   siteInscriptionId: string;
   siteInscription?: Pick<Site, 'id' | 'nom'>;
-  parrainId?: string;
 }
 
 export interface OnboardingEtape {
@@ -193,49 +189,132 @@ export interface Vente {
   numeroVente: string;
   statut: StatutVente;
   montantBrut: number;
-  remiseFidelite: number;
-  remiseParrainage: number;
   montantNet: number;
   modePaiement: ModePaiement;
   referenceTransaction?: string;
   montantRecu?: number;
   monnaieRendue?: number;
-  pointsAttribues: number;
+
   createdAt: string;
-  client?: Pick<Client, 'id' | 'nom' | 'prenom' | 'telephone' | 'niveauFidelite'>;
+  client?: Pick<Client, 'id' | 'nom' | 'prenom' | 'telephone'>;
   site?: Pick<Site, 'id' | 'nom'>;
   agent?: Pick<Utilisateur, 'id' | 'nom'>;
   lignes?: LigneVente[];
 }
 
 // ============================================
-// PARRAINAGE
+// MLM
 // ============================================
 
-export interface Parrainage {
-  id: string;
-  niveau: number;
-  statut: StatutParrainage;
-  recompenseType?: TypeRecompense;
-  recompenseValeur?: number;
-  recompenseVerseAt?: string;
-  dateCreation: string;
-  parrain?: Pick<Client, 'id' | 'nom' | 'prenom' | 'codeParrain'>;
-  filleul?: Pick<Client, 'id' | 'nom' | 'prenom' | 'statut'>;
+export interface MlmLevel {
+  id: number;
+  ordre: number;
+  nom: string;
+  filleulsRequis: number;
+  commissionParFilleul: number;
+  commissionTotale: number;
+  bonusDescription: string;
+  salaireMensuel: number;
+  salaireActif: boolean;
+  isActive: boolean;
+  couleur: string;
+  icone: string;
 }
 
-// ============================================
-// FIDELITE
-// ============================================
-
-export interface MouvementPoints {
+export interface Membre {
   id: string;
-  type: string;
-  delta: number;
-  soldeApres: number;
-  description?: string;
+  clientId: string;
+  matricule: string;
+  parrainId?: string;
+  mlmLevelId: number;
+  statut: MembreStatut;
+  dateActivation: string;
+  dateInscription: string;
+  client?: Client;
+  level?: MlmLevel;
+  parrain?: Membre;
+  filleuls?: Membre[];
+}
+
+export interface Matrix {
+  id: string;
+  membreId: string;
+  mlmLevelId: number;
+  filleulsValides: number;
+  estComplete: boolean;
+  dateComplete?: string;
+  createdAt: string;
+  positions?: Position[];
+}
+
+export interface Position {
+  id: string;
+  matrixId: string;
+  numeroPosition: number;
+  filleulId?: string;
+  estValide: boolean;
+  dateValidation?: string;
+}
+
+export interface Portefeuille {
+  id: string;
+  membreId: string;
+  soldeDisponible: number;
+  totalGagne: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransactionPortefeuille {
+  id: string;
+  portefeuilleId: string;
+  type: TransactionType;
+  montant: number;
+  description: string;
+  referenceId?: string;
   createdAt: string;
 }
+
+export interface BonusAttribue {
+  id: string;
+  membreId: string;
+  mlmLevelId: number;
+  description: string;
+  statut: BonusStatut;
+  dateAttribution: string;
+  dateLivraison?: string;
+  notes?: string;
+}
+
+export interface Promotion {
+  id: string;
+  membreId: string;
+  niveauAvantId: number;
+  niveauApresId: number;
+  commissionVersee: number;
+  datePromotion: string;
+  declencheParId: string;
+}
+
+export interface SalaireVerse {
+  id: string;
+  membreId: string;
+  montant: number;
+  moisAnnee: string;
+  dateVersement: string;
+  statut: string;
+}
+
+export const MLM_LEVELS_REF = [
+  { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système', salaireMensuel: 0, salaireActif: false, couleur: '#cbd5e1', icone: 'star' },
+  { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Bonus niveau 2', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'award' },
+  { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Bonus niveau 3', salaireMensuel: 0, salaireActif: false, couleur: '#64748b', icone: 'shield' },
+  { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Bonus niveau 4', salaireMensuel: 0, salaireActif: false, couleur: '#334155', icone: 'zap' },
+  { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Bonus niveau 5', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
+  { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Bonus niveau 6', salaireMensuel: 250, salaireActif: true, couleur: '#d97706', icone: 'gem' },
+  { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Bonus niveau 7', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
+  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
+];
 
 // ============================================
 // PAGINATION

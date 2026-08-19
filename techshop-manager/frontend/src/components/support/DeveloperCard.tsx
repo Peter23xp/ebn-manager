@@ -12,7 +12,7 @@ export function DeveloperCard() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-bold text-primary">Peter AKILIMALI</p>
-          <p className="text-[12px] text-text-muted">Développeur Full-Stack — TechShop Manager</p>
+          <p className="text-[12px] text-text-muted">Développeur Full-Stack — EBN Manager</p>
           <div className="flex flex-wrap gap-3 mt-2">
             <a
               href="mailto:peter23xp@gmail.com"

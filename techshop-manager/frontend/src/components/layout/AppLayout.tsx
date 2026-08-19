@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -6,8 +6,8 @@ import {
   ShoppingCart,
   Receipt,
   Package,
-  GitBranch,
-  Star,
+  Network,
+  Wallet,
   BarChart2,
   Settings,
   User,
@@ -53,8 +53,8 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Ventes',               icon: <Receipt size={16} />,         to: '/sales',                  minRole: 'GERANT' },
   { label: 'Journal retours',      icon: <RotateCcw size={16} />,       to: '/sales/journal-retours',  minRole: 'GERANT' },
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
-  { label: 'Parrainage',           icon: <GitBranch size={16} />,       to: '/parrainage',         minRole: 'GERANT' },
-  { label: 'Fidélité',             icon: <Star size={16} />,            to: '/fidelite',           minRole: 'GERANT' },
+  { label: 'Réseau MLM',           icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
+  { label: 'Mon Portefeuille',     icon: <Wallet size={16} />,        to: '/mlm/wallet',         minRole: 'AGENT' },
   { label: 'Rapports',             icon: <BarChart2 size={16} />,       to: '/reports',            minRole: 'GERANT' },
 ];
 
@@ -100,15 +100,15 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   const mainItems     = visibleItems.filter(i => i.to === '/dashboard');
   const clientItems   = visibleItems.filter(i => i.to.startsWith('/clients'));
   const opItems       = visibleItems.filter(i => ['/sales/pos', '/sales', '/sales/journal-retours', '/stocks'].includes(i.to));
-  const businessItems = visibleItems.filter(i => ['/parrainage', '/fidelite', '/reports'].includes(i.to));
+  const businessItems = visibleItems.filter(i => ['/mlm', '/mlm/wallet', '/reports'].includes(i.to));
 
   return (
     <aside className="sidebar flex flex-col shadow-sidebar">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid #1e2d4a' }}>
-        <img src="/assets/Progress business logo.png" alt="Progress Business" className="h-14 w-14 rounded-md object-contain flex-shrink-0" />
+        <img src="/assets/Progress business logo.png" alt="EBN Network" className="h-14 w-14 rounded-md object-contain flex-shrink-0" />
         <div className="flex flex-col leading-none">
-          <span className="text-[13px] font-bold tracking-tight" style={{ color: '#e8edf5' }}>Progress Business</span>
+          <span className="text-[13px] font-bold tracking-tight" style={{ color: '#e8edf5' }}>EBN Network</span>
           <span className="text-[10px] font-medium" style={{ color: '#3d5478' }}>Manager v1.0</span>
         </div>
         {onClose && (

@@ -1,6 +1,6 @@
-﻿import { openDB, IDBPDatabase } from 'idb';
+import { openDB, IDBPDatabase } from 'idb';
 
-const DB_NAME = 'progress-business-offline';
+const DB_NAME = 'ebn-network-offline';
 const DB_VERSION = 2;
 
 let db: IDBPDatabase | null = null;

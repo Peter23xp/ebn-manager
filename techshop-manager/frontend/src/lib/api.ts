@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://progressbusiness.onrender.com/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];

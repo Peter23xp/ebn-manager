@@ -9,10 +9,23 @@ async function main() {
   const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
 
   try {
+    const requiredModels = [
+      'MlmLevel', 'Membre', 'Matrix', 'Position', 'Portefeuille',
+      'TransactionPortefeuille', 'Promotion', 'BonusAttribue',
+      'SalaireVerse', 'BonusRetraite',
+    ];
+
     const [sites, users] = await Promise.all([
       prisma.site.count(),
       prisma.utilisateur.count(),
     ]);
+
+    for (const model of requiredModels) {
+      if (!(model in prisma)) {
+        throw new Error(`Model ${model} is missing from Prisma Client`);
+      }
+    }
+
     console.log('✅ Connected to Prisma Postgres');
     console.log(`   Sites    : ${sites}`);
     console.log(`   Utilisateurs : ${users}`);

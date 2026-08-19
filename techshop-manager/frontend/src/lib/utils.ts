@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import type { NiveauFidelite, StatutClient, StatutStock } from '@/types';
+import type { StatutClient, StatutStock } from '@/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -16,10 +16,20 @@ export function formatCDF(amount: number): string {
 }
 
 export function formatUSD(amount: number): string {
-  return '$' + new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('fr-CD', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(amount) + ' USD';
+}
+
+export function formatUSDShort(amount: number): string {
+  if (amount >= 1000000) {
+    return (amount / 1000000).toLocaleString('fr-CD', { maximumFractionDigits: 1 }) + 'M USD';
+  }
+  if (amount >= 1000) {
+    return (amount / 1000).toLocaleString('fr-CD', { maximumFractionDigits: 1 }) + 'K USD';
+  }
+  return formatUSD(amount);
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
@@ -63,15 +73,7 @@ export function statutClientLabel(statut: StatutClient): string {
   return map[statut] ?? statut;
 }
 
-export function niveauColor(niveau: NiveauFidelite): string {
-  const map: Record<NiveauFidelite, string> = {
-    BRONZE: 'bg-amber-100 text-amber-800',
-    ARGENT: 'bg-gray-100 text-gray-700',
-    OR: 'bg-yellow-100 text-yellow-700',
-    PLATINE: 'badge-platine',
-  };
-  return map[niveau] ?? 'badge-gray';
-}
+
 
 export function statutStockColor(statut: StatutStock): string {
   const map: Record<StatutStock, string> = {

@@ -12,26 +12,21 @@ import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { useClientDetail } from '@/hooks/useClientDetail';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
-import { ClientLevelBadge } from '@/components/clients/ClientLevelBadge';
 import { EditClientModal } from '@/components/clients/EditClientModal';
 import { ClientInfoTab } from '@/components/clients/tabs/ClientInfoTab';
-import { ClientParrainageTab } from '@/components/clients/tabs/ClientParrainageTab';
 import { ClientAchatsTab } from '@/components/clients/tabs/ClientAchatsTab';
-import { ClientPointsTab } from '@/components/clients/tabs/ClientPointsTab';
 import { FicheAdhesionPDF, type FicheAdhesionData } from '@/components/clients/FicheAdhesionPDF';
 import type { UpdateClientDto } from '@/lib/clients.api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'infos' | 'parrainage' | 'achats' | 'points';
+type Tab = 'infos' | 'achats';
 
-const VALID_TABS: Tab[] = ['infos', 'parrainage', 'achats', 'points'];
+const VALID_TABS: Tab[] = ['infos', 'achats'];
 
 const TABS: { key: Tab; label: string; Icon: LucideIcon }[] = [
   { key: 'infos',      label: 'Informations', Icon: CreditCard  },
-  { key: 'parrainage', label: 'Parrainage',   Icon: Users       },
   { key: 'achats',     label: 'Achats',       Icon: ShoppingBag },
-  { key: 'points',     label: 'Points',       Icon: Star        },
 ];
 
 const ETAPE_LABEL: Record<string, string> = {
@@ -123,7 +118,7 @@ export default function ClientDetailPage() {
 
       // Récupère le produit depuis la première vente (vente d'activation)
       const premiereVente = client.ventes?.[0];
-      const produitNom = premiereVente?.lignes?.[0]?.produitNom ?? 'Produit Progress Business';
+      const produitNom = premiereVente?.lignes?.[0]?.produitNom ?? 'Produit EBN Network';
       const produitPrix = Number(activation?.montant ?? premiereVente?.montantNet ?? 0);
 
       const ficheData: FicheAdhesionData = {
@@ -141,7 +136,7 @@ export default function ClientDetailPage() {
         agentNom: activation?.agentNom ?? user?.nom ?? user?.name ?? 'Agent',
         produitNom,
         produitPrix,
-        pointsCumules: client.pointsCumules,
+        pointsCumules: 0,
       };
 
       const blob = await pdf(<FicheAdhesionPDF data={ficheData} />).toBlob();
@@ -288,12 +283,6 @@ export default function ClientDetailPage() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <ClientStatusBadge statut={client.statut} size="md" />
-                  <ClientLevelBadge
-                    niveau={client.niveauFidelite}
-                    size="md"
-                    showPoints
-                    points={client.pointsFidelite}
-                  />
                   {client.codeParrain && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-100 text-slate-600">
                       {client.codeParrain}
@@ -388,9 +377,7 @@ export default function ClientDetailPage() {
             aria-labelledby={`tab-${activeTab}`}
           >
             {activeTab === 'infos'      && <ClientInfoTab      client={client} />}
-            {activeTab === 'parrainage' && <ClientParrainageTab client={client} />}
             {activeTab === 'achats'     && <ClientAchatsTab     client={client} />}
-            {activeTab === 'points'     && <ClientPointsTab     client={client} />}
           </div>
         </div>
 

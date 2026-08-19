@@ -1,4 +1,4 @@
-﻿import { PrismaClient, Role, TypeRecompense, NiveauFidelite } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -16,7 +16,7 @@ async function main() {
     update: {},
     create: {
       id: 'site-goma-001',
-      nom: 'Progress Business Goma',
+      nom: 'EBN Network Goma',
       ville: 'Goma',
       adresse: 'Avenue du Commerce, Goma, Nord-Kivu',
       actif: true,
@@ -28,7 +28,7 @@ async function main() {
     update: {},
     create: {
       id: 'site-bukavu-001',
-      nom: 'Progress Business Bukavu',
+      nom: 'EBN Network Bukavu',
       ville: 'Bukavu',
       adresse: 'Boulevard Patrice Lumumba, Bukavu, Sud-Kivu',
       actif: true,
@@ -40,7 +40,7 @@ async function main() {
     update: {},
     create: {
       id: 'site-kinshasa-001',
-      nom: 'Progress Business Kinshasa',
+      nom: 'EBN Network Kinshasa',
       ville: 'Kinshasa',
       adresse: 'Avenue Kasa-Vubu, Gombe, Kinshasa',
       actif: true,
@@ -74,59 +74,32 @@ async function main() {
   console.log(`  ✓ Super Admin: ${superAdmin.nom} (${superAdmin.telephone})`);
 
   // ============================================
-  // 3. CONFIG FIDELITE
+  // 3. MLM LEVELS (8 niveaux)
   // ============================================
-  console.log('⭐ Création de la config fidélité...');
+  console.log('⭐ Création des niveaux MLM...');
 
-  const existingConfigFidelite = await prisma.configFidelite.findFirst();
+  const mlmLevels = [
+    { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système', salaireMensuel: 0, salaireActif: false, couleur: '#cbd5e1', icone: 'star' },
+    { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Bonus niveau 2', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'award' },
+    { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Bonus niveau 3', salaireMensuel: 0, salaireActif: false, couleur: '#64748b', icone: 'shield' },
+    { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Bonus niveau 4', salaireMensuel: 0, salaireActif: false, couleur: '#334155', icone: 'zap' },
+    { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Bonus niveau 5', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
+    { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Bonus niveau 6', salaireMensuel: 250, salaireActif: true, couleur: '#d97706', icone: 'gem' },
+    { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Bonus niveau 7', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
+    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
+  ];
 
-  if (!existingConfigFidelite) {
-    const configFidelite = await prisma.configFidelite.create({
-      data: {
-        ratioPtsCDF: 1000,
-        dureeValiditeMois: 0,
-        cumulRemises: false,
-        niveaux: {
-          create: [
-            { nom: 'Bronze', seuilPts: 0, remisePct: 0, couleur: '#CD7F32' },
-            { nom: 'Argent', seuilPts: 500, remisePct: 3, couleur: '#C0C0C0' },
-            { nom: 'Or', seuilPts: 2000, remisePct: 5, couleur: '#FFD700' },
-            { nom: 'Platine', seuilPts: 5000, remisePct: 8, couleur: '#E5E4E2' },
-          ],
-        },
-      },
-      include: { niveaux: true },
+  for (const level of mlmLevels) {
+    await prisma.mlmLevel.upsert({
+      where: { ordre: level.ordre },
+      update: level,
+      create: level,
     });
-    console.log(`  ✓ Config fidélité créée avec ${configFidelite.niveaux.length} niveaux`);
-  } else {
-    console.log('  ℹ Config fidélité déjà existante, ignorée');
   }
+  console.log(`  ✓ ${mlmLevels.length} niveaux MLM créés ou mis à jour`);
 
   // ============================================
-  // 4. REGLE PARRAINAGE
-  // ============================================
-  console.log('🤝 Création de la règle parrainage...');
-
-  const existingRegleParrainage = await prisma.regleParrainage.findFirst();
-
-  if (!existingRegleParrainage) {
-    const regleParrainage = await prisma.regleParrainage.create({
-      data: {
-        multiNiveaux: false,
-        typeRecompense: TypeRecompense.POINTS,
-        valeurNiveau1: 500,
-        valeurNiveau2: null,
-        conditionDeclenchement: 'ACTIVATION',
-        plafondMensuel: null,
-      },
-    });
-    console.log(`  ✓ Règle parrainage créée (type: ${regleParrainage.typeRecompense}, valeur N1: ${regleParrainage.valeurNiveau1})`);
-  } else {
-    console.log('  ℹ Règle parrainage déjà existante, ignorée');
-  }
-
-  // ============================================
-  // 5. CONFIG GENERALE
+  // 4. CONFIG GENERALE
   // ============================================
   console.log('⚙️  Création de la config générale...');
 
@@ -137,7 +110,7 @@ async function main() {
       data: {
         smsApiKey: null,
         smsUsername: null,
-        smsSenderId: 'Progress Business',
+        smsSenderId: 'EBN Network',
         matriculeExterneActif: false,
         matriculeRegex: null,
         dureeSectionHeures: 8,
@@ -157,8 +130,7 @@ async function main() {
   console.log('\n📊 Résumé:');
   console.log(`  - 3 sites créés: Goma, Bukavu, Kinshasa`);
   console.log(`  - 1 Super Admin: ${superAdmin.telephone}`);
-  console.log(`  - Config fidélité: Bronze, Argent, Or, Platine`);
-  console.log(`  - Règle parrainage par défaut (POINTS, 500 pts/filleul)`);
+  console.log(`  - 8 Niveaux MLM configurés`);
   console.log(`  - Config générale par défaut`);
 }
 

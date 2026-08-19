@@ -14,7 +14,7 @@ export default function SupportPage() {
         </div>
         <div>
           <h1 className="text-[20px] font-extrabold text-primary leading-tight">Support technique</h1>
-          <p className="text-[12px] text-text-muted">TechShop Manager — assistance et documentation</p>
+          <p className="text-[12px] text-text-muted">EBN Manager — assistance et documentation</p>
         </div>
       </div>
 

@@ -15,17 +15,12 @@ export class PortalService {
           where: { id: clientId },
           select: {
             id: true, prenom: true, nom: true, telephone: true,
-            statut: true, pointsFidelite: true, pointsCumules: true,
-            niveauFidelite: true, codeParrain: true,
+            statut: true, codeParrain: true,
           },
         }),
-        this.prisma.configFidelite.findFirst({
-          include: { niveaux: { orderBy: { seuilPts: 'asc' } } },
-        }),
-        this.prisma.parrainage.count({
-          where: { parrainId: clientId, filleul: { statut: 'ACTIF' } },
-        }),
-        this.prisma.parrainage.count({ where: { parrainId: clientId } }),
+        Promise.resolve(null),
+        Promise.resolve(0),
+        Promise.resolve(0),
         this.prisma.vente.findMany({
           where: { clientId },
           orderBy: { createdAt: 'desc' },
@@ -43,27 +38,8 @@ export class PortalService {
 
     // Prochain niveau
     let prochainNiveau = null;
-    const niveauxConfig = configFidelite?.niveaux ?? [];
-    if (niveauxConfig.length) {
-      const nextLevel = niveauxConfig.find((n) => n.seuilPts > client.pointsFidelite);
-      if (nextLevel) {
-        prochainNiveau = {
-          nom: nextLevel.nom,
-          seuilPts: nextLevel.seuilPts,
-          pointsManquants: nextLevel.seuilPts - client.pointsFidelite,
-        };
-      }
-    }
-
-    // remisePct from current niveau
-    const niveauMap: Record<string, string> = {
-      BRONZE: 'Bronze', ARGENT: 'Argent', OR: 'Or', PLATINE: 'Platine',
-    };
-    const currentNiveauNom = niveauMap[client.niveauFidelite];
-    const currentNiveauCfg = niveauxConfig.find(
-      (n) => n.nom === currentNiveauNom || n.nom.toUpperCase() === client.niveauFidelite,
-    );
-    const remisePct = currentNiveauCfg ? Number(currentNiveauCfg.remisePct) : 0;
+    const niveauxConfig: any[] = [];
+    const remisePct = 0;
 
     const dernierAchats = dernierVentes.map((v) => ({
       id: v.id,
@@ -115,7 +91,7 @@ export class PortalService {
       }),
       this.prisma.vente.aggregate({
         where,
-        _sum: { montantNet: true, pointsAttribues: true },
+        _sum: { montantNet: true },
         _count: { id: true },
       }),
     ]);
@@ -129,8 +105,7 @@ export class PortalService {
       produitPrincipal: v.lignes[0]?.produit?.nom ?? '—',
       nbArticles: v.lignes.length,
       montantTotal: Number(v.montantNet),
-      remiseAppliquee: Number(v.remiseFidelite ?? 0),
-      pointsAttribues: v.pointsAttribues ?? 0,
+
       modePaiement: v.modePaiement,
     }));
 
@@ -139,7 +114,7 @@ export class PortalService {
       stats: {
         totalDepense: Number(totaux._sum.montantNet ?? 0),
         nbAchats: totalCount,
-        totalPointsGagnes: totaux._sum.pointsAttribues ?? 0,
+
       },
       meta: {
         total: totalCount,
@@ -166,11 +141,7 @@ export class PortalService {
     if (!vente) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
     if (vente.clientId !== clientId) throw new ForbiddenException({ code: 'ACCESS_DENIED' });
 
-    // solde après cet achat — last MouvementPoints tied to this vente
-    const mouvement = await this.prisma.mouvementPoints.findFirst({
-      where: { venteId: vente.id },
-      orderBy: { createdAt: 'desc' },
-    });
+
 
     return {
       vente: {
@@ -186,10 +157,7 @@ export class PortalService {
           sousTotal: Number(l.quantite) * Number(l.prixUnitaire),
         })),
         montantBrut: Number(vente.montantBrut ?? vente.montantNet),
-        remiseFidelite: Number(vente.remiseFidelite ?? 0),
-        montantNet: Number(vente.montantNet),
-        pointsAttribues: vente.pointsAttribues ?? 0,
-        soldePointsApres: mouvement?.soldeApres ?? undefined,
+
       },
     };
   }
@@ -200,31 +168,9 @@ export class PortalService {
     clientId: string,
     query: { page?: number; limit?: number; typeFilter?: string },
   ) {
-    const { page = 1, limit = 20, typeFilter = 'all' } = query;
-
-    const where: any = { clientId };
-    if (typeFilter === 'gains') where.delta = { gt: 0 };
-    if (typeFilter === 'deductions') where.delta = { lt: 0 };
-
-    const [mouvements, total] = await Promise.all([
-      this.prisma.mouvementPoints.findMany({
-        where,
-        ...paginate(page, limit),
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.mouvementPoints.count({ where }),
-    ]);
-
     return {
-      mouvements: mouvements.map((m) => ({
-        id: m.id,
-        type: m.type,
-        delta: m.delta,
-        soldeApres: m.soldeApres,
-        description: m.description,
-        createdAt: m.createdAt.toISOString(),
-      })),
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      mouvements: [],
+      meta: { total: 0, page: query.page ?? 1, limit: query.limit ?? 20, totalPages: 0 },
     };
   }
 
@@ -234,86 +180,23 @@ export class PortalService {
     clientId: string,
     query: { filter?: string; page?: number; limit?: number },
   ) {
-    const { filter = 'actifs', page = 1, limit = 20 } = query;
-
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       select: { codeParrain: true },
     });
     if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
 
-    const statutFilter: any =
-      filter === 'actifs' ? { filleul: { statut: 'ACTIF' } }
-      : filter === 'en_attente' ? { filleul: { statut: { in: ['EN_COURS'] } } }
-      : {};
-
-    const [parrainages, total, reglePar, gainsTotal] = await Promise.all([
-      this.prisma.parrainage.findMany({
-        where: { parrainId: clientId, ...statutFilter },
-        ...paginate(page, limit),
-        orderBy: { dateCreation: 'desc' },
-        include: {
-          filleul: {
-            select: {
-              id: true, prenom: true, nom: true, statut: true,
-              dateActivation: true, createdAt: true,
-            },
-          },
-        },
-      }),
-      this.prisma.parrainage.count({ where: { parrainId: clientId, ...statutFilter } }),
-      this.prisma.regleParrainage.findFirst({ orderBy: { updatedAt: 'desc' } }),
-      this.prisma.mouvementPoints.aggregate({
-        where: { clientId, type: 'PARRAINAGE' },
-        _sum: { delta: true },
-      }),
-    ]);
-
-    const [nbActifs, nbTotal] = await Promise.all([
-      this.prisma.parrainage.count({ where: { parrainId: clientId, filleul: { statut: 'ACTIF' } } }),
-      this.prisma.parrainage.count({ where: { parrainId: clientId } }),
-    ]);
-
-    // Map etapeEnCours for EN_COURS filleuls
-    const filleulIds = parrainages
-      .filter((p) => p.filleul.statut === 'EN_COURS')
-      .map((p) => p.filleul.id);
-
-    const etapesMap: Record<string, string> = {};
-    if (filleulIds.length) {
-      const etapes = await this.prisma.onboardingEtape.findMany({
-        where: { clientId: { in: filleulIds }, statut: 'COMPLETE' },
-        orderBy: { completeeAt: 'desc' },
-      });
-      for (const id of filleulIds) {
-        const derniere = etapes.find((e) => e.clientId === id);
-        etapesMap[id] = derniere
-          ? this.getEtapeMessage(derniere.etape)
-          : 'Inscription en cours…';
-      }
-    }
-
-    const filleuls = parrainages.map((p) => ({
-      id: p.filleul.id,
-      prenom: p.filleul.prenom,
-      nom: p.filleul.nom,
-      statut: p.filleul.statut as 'ACTIF' | 'EN_COURS' | 'SUSPENDU',
-      dateInscription: (p.filleul.dateActivation ?? p.filleul.createdAt).toISOString(),
-      recompenseGeneree: Number(p.recompenseValeur ?? 0),
-      etapeEnCours: etapesMap[p.filleul.id],
-    }));
-
     return {
       codeParrain: client.codeParrain ?? '—',
       stats: {
-        nbFilleulsActifs: nbActifs,
-        nbFilleulsTotal: nbTotal,
-        gainsTotaux: gainsTotal._sum.delta ?? 0,
-        typeRecompense: reglePar?.typeRecompense ?? 'POINTS',
-        recompenseValeur: Number(reglePar?.valeurNiveau1 ?? 500),
+        nbFilleulsActifs: 0,
+        nbFilleulsTotal: 0,
+        gainsTotaux: 0,
+        typeRecompense: 'POINTS',
+        recompenseValeur: 500,
       },
-      filleuls,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      filleuls: [],
+      meta: { total: 0, page: query.page ?? 1, limit: query.limit ?? 20, totalPages: 0 },
     };
   }
 

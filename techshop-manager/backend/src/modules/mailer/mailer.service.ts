@@ -23,7 +23,7 @@ export class MailerService {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = config.get<string>('RESEND_API_KEY');
-    this.from = config.get<string>('MAIL_FROM') ?? 'Progress Business <onboarding@resend.dev>';
+    this.from = config.get<string>('MAIL_FROM') ?? 'EBN Network <onboarding@resend.dev>';
 
     if (apiKey) {
       this.resend = new Resend(apiKey);
@@ -60,7 +60,7 @@ export class MailerService {
       const { data, error } = await this.resend.emails.send({
         from: this.from,
         to,
-        subject: 'Test Resend — Progress Business',
+        subject: 'Test Resend — EBN Network',
         html: '<p>Test de configuration email. Si vous recevez cet email, la configuration est correcte.</p>',
       });
       if (error) return { ok: false, error: error.message, config: diagConfig };
@@ -75,14 +75,14 @@ export class MailerService {
     return `
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
   <div style="background:#1E3A5F;color:#fff;padding:20px 24px;border-radius:8px 8px 0 0">
-    <h2 style="margin:0;font-size:18px">Progress Business</h2>
+    <h2 style="margin:0;font-size:18px">EBN Network</h2>
     <p style="margin:4px 0 0;opacity:.7;font-size:13px">Système de Gestion Commercial — RDC</p>
   </div>
   <div style="background:#f8fafc;padding:28px 24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
     ${content}
   </div>
   <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px">
-    Progress Business · Goma · Bukavu · Kinshasa — RDC<br>
+    EBN Network · Goma · Bukavu · Kinshasa — RDC<br>
     Ce message est automatique, ne pas répondre.
   </p>
 </div>`;
@@ -106,7 +106,7 @@ export class MailerService {
         Si vous n'avez pas fait cette demande, ignorez cet email. Votre compte reste sécurisé.
       </p>
     `);
-    this.send(to, 'Votre code de réinitialisation — Progress Business', html);
+    this.send(to, 'Votre code de réinitialisation — EBN Network', html);
   }
 
   // ── 2. Mot de passe temporaire (reset admin) ──────────────────────
@@ -135,13 +135,13 @@ export class MailerService {
         Si vous n'attendiez pas cette action, contactez immédiatement votre responsable.
       </p>
     `);
-    this.send(to, 'Votre mot de passe a été réinitialisé — Progress Business', html);
+    this.send(to, 'Votre mot de passe a été réinitialisé — EBN Network', html);
   }
 
   // ── 3. Activation compte client (onboarding) ──────────────────────
   async sendActivationBienvenue(to: string, nomClient: string, codeParrain: string, siteNom: string): Promise<void> {
     const html = this.wrap(`
-      <h3 style="margin:0 0 8px;color:#1E3A5F;font-size:17px">Bienvenue chez Progress Business !</h3>
+      <h3 style="margin:0 0 8px;color:#1E3A5F;font-size:17px">Bienvenue chez EBN Network !</h3>
       <p style="color:#64748b;font-size:14px;margin:0 0 24px">
         Bonjour <strong>${nomClient}</strong>, votre compte client est maintenant <strong style="color:#1A6B3A">actif</strong>.
       </p>
@@ -161,12 +161,12 @@ export class MailerService {
         Chaque achat vous rapporte des points et des remises exclusives.
       </p>
     `);
-    this.send(to, 'Bienvenue — Votre compte Progress Business est actif', html);
+    this.send(to, 'Bienvenue — Votre compte EBN Network est actif', html);
   }
 
   // ── Support ticket ─────────────────────────────────────────────────
   async sendSupportTicket(data: SupportTicketMailData): Promise<void> {
-    const to = this.config.get<string>('MAIL_SUPPORT_TO') ?? 'support@progressbusiness.cd';
+    const to = this.config.get<string>('MAIL_SUPPORT_TO') ?? 'support@ebnnetwork.cd';
 
     const TYPE_LABELS: Record<string, string> = {
       BUG: 'Bug', SUGGESTION: 'Suggestion', QUESTION: 'Question',

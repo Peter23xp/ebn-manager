@@ -18,7 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
-import { useCartStore, NIVEAUX_REMISE } from '@/store/cart.store';
+import { useCartStore } from '@/store/cart.store';
 import { useProductSearch } from '@/hooks/useProductSearch';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSites } from '@/hooks/useSites';
@@ -30,7 +30,7 @@ import { cn, formatUSD } from '@/lib/utils';
 import type { CartClient } from '@/store/cart.store';
 import type { ProduitPOS } from '@/lib/ventes.api';
 import type { ClientSearchResult } from '@/lib/clients.api';
-import type { ModePaiement, NiveauFidelite } from '@/types';
+import type { ModePaiement } from '@/types';
 
 // ── Badge stock ───────────────────────────────────────────────────
 
@@ -46,22 +46,7 @@ function StockBadge({ statut, stock }: { statut: ProduitPOS['statut']; stock: nu
   );
 }
 
-// ── Badge niveau fidélité ─────────────────────────────────────────
 
-const NIVEAU_COLORS: Record<NiveauFidelite, string> = {
-  BRONZE: 'bg-amber-100 text-amber-700',
-  ARGENT: 'bg-slate-100 text-slate-600',
-  OR: 'bg-yellow-100 text-yellow-700',
-  PLATINE: 'bg-purple-100 text-platine',
-};
-
-function NiveauBadge({ niveau }: { niveau: NiveauFidelite }) {
-  return (
-    <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold', NIVEAU_COLORS[niveau])}>
-      {niveau}
-    </span>
-  );
-}
 
 // ── Skeleton produit ──────────────────────────────────────────────
 
@@ -139,8 +124,7 @@ function ClientSelector({ onSelect }: { onSelect: (client: CartClient) => void }
   }, []);
 
   function handleSelect(c: ClientSearchResult) {
-    const remisePct = NIVEAUX_REMISE[c.niveauFidelite] ?? 0;
-    onSelect({ id: c.id, prenom: c.prenom, nom: c.nom, telephone: c.telephone, niveauFidelite: c.niveauFidelite, pointsFidelite: 0, remisePct });
+    onSelect({ id: c.id, prenom: c.prenom, nom: c.nom, telephone: c.telephone });
     setQuery(''); setShowDropdown(false);
   }
 
@@ -168,7 +152,7 @@ function ClientSelector({ onSelect }: { onSelect: (client: CartClient) => void }
                 <p className="text-[13px] font-semibold text-text truncate">{c.prenom} {c.nom}</p>
                 <p className="text-[11px] text-text-muted font-mono">{c.telephone}</p>
               </div>
-              <NiveauBadge niveau={c.niveauFidelite} />
+
             </button>
           ))}
         </div>
@@ -203,9 +187,6 @@ function SuccessModal({ result, onPrint, onNewSale }: {
         <div className="w-full rounded-xl bg-bg border border-border px-4 py-3 text-center">
           <p className="text-[12px] text-text-muted uppercase tracking-wide font-semibold">Montant total</p>
           <p className="text-[22px] font-bold text-primary mt-0.5">{formatUSD(result.montantNet)}</p>
-          {result.pointsAttribues && result.pointsAttribues > 0 && (
-            <p className="mt-1 text-[12px] font-semibold text-primary-accent">+{result.pointsAttribues} points fidélité</p>
-          )}
         </div>
         <div className="w-full flex flex-col gap-2">
           <button type="button" onClick={onPrint} className="btn-secondary w-full">Imprimer le reçu</button>
@@ -272,10 +253,10 @@ export default function POSPage() {
   const agentName = user?.name ?? '';
 
   const {
-    items, client, modePaiement, montantRecu, appliquerRemise, isSubmitting,
-    montantBrut, remiseMontant, montantNet, monnaieARendre,
+    items, client, modePaiement, montantRecu, isSubmitting,
+    montantBrut, montantNet, monnaieARendre,
     addItem, removeItem, updateQuantite, setClient,
-    setModePaiement, setMontantRecu, toggleRemise,
+    setModePaiement, setMontantRecu,
     setIsSubmitting, resetAfterSale, clearCart,
   } = useCartStore();
 
@@ -316,7 +297,6 @@ export default function POSPage() {
   }, [setQuery]);
 
   const brutVal = montantBrut();
-  const remiseVal = remiseMontant();
   const netVal = montantNet();
   const monnaieVal = monnaieARendre();
   const cartCount = items.reduce((s, i) => s + i.quantite, 0);
@@ -353,7 +333,6 @@ export default function POSPage() {
       })),
       modePaiement: modePaiement!,
       montantRecu: modePaiement === 'CASH' ? montantRecu : undefined,
-      appliquerRemiseFidelite: appliquerRemise,
     };
 
     try {
@@ -362,7 +341,6 @@ export default function POSPage() {
         id: data.vente.id,
         numeroVente: data.vente.numeroVente,
         montantNet: data.vente.montantNet,
-        pointsAttribues: data.vente.pointsAttribues,
       };
       resetAfterSale(result);
       setSuccessModal({ open: true, venteResult: result });
@@ -528,12 +506,8 @@ export default function POSPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="text-[13px] font-semibold text-text">{client.prenom} {client.nom}</p>
-                  <NiveauBadge niveau={client.niveauFidelite} />
                 </div>
                 <p className="text-[11px] text-text-muted font-mono mt-0.5">{client.telephone}</p>
-                {client.remisePct > 0 && (
-                  <p className="text-[11px] text-success font-semibold mt-1">Remise fidélité : {client.remisePct}%</p>
-                )}
               </div>
               <button type="button" onClick={() => setClient(null)}
                 className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded text-text-subtle hover:text-danger transition-colors">
@@ -544,15 +518,6 @@ export default function POSPage() {
             <ClientSelector onSelect={setClient} />
           )}
 
-          {client && client.remisePct > 0 && items.length > 0 && (
-            <label className="mt-2 inline-flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" checked={appliquerRemise} onChange={toggleRemise}
-                className="w-auto min-h-0 h-3.5 w-3.5 rounded accent-primary-accent" />
-              <span className="text-[12px] text-text-muted">
-                Appliquer la remise fidélité ({client.remisePct}%)
-              </span>
-            </label>
-          )}
         </section>
 
         {/* Paiement */}
@@ -565,12 +530,7 @@ export default function POSPage() {
                 <span>Sous-total</span>
                 <span className="font-mono">{formatUSD(brutVal)}</span>
               </div>
-              {remiseVal > 0 && (
-                <div className="flex justify-between text-[12px] text-success">
-                  <span>Remise fidélité</span>
-                  <span className="font-mono">−{formatUSD(remiseVal)}</span>
-                </div>
-              )}
+
               <div className="flex justify-between text-[14px] font-bold text-primary border-t border-border pt-1.5">
                 <span>Total</span>
                 <span className="font-mono">{formatUSD(netVal)}</span>

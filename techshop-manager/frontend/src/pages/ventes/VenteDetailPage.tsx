@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
 import { SaleStatusBadge } from '@/components/sales/SaleStatusBadge';
-import type { StatutVente, ModePaiement, NiveauFidelite } from '@/types';
+import type { StatutVente, ModePaiement } from '@/types';
 
 // ── Types locaux étendus ──────────────────────────────────────────────────────
 
@@ -41,14 +41,9 @@ interface VenteDetail {
     nom: string;
     prenom: string;
     telephone: string;
-    niveauFidelite: NiveauFidelite;
-    pointsAvant?: number;
-    pointsApres?: number;
-    pointsAttribues?: number;
   };
   lignes: LigneVenteDetail[];
   montantBrut: number;
-  remiseFidelite: number;
   montantNet: number;
   modePaiement: ModePaiement;
   referenceTransaction?: string;
@@ -72,12 +67,7 @@ const PAYMENT_LABELS: Record<ModePaiement, string> = {
   VIREMENT: 'Virement bancaire',
 };
 
-const NIVEAU_COLORS: Record<NiveauFidelite, string> = {
-  BRONZE: 'bg-amber-100 text-amber-700',
-  ARGENT: 'bg-slate-100 text-slate-600',
-  OR: 'bg-yellow-100 text-yellow-700',
-  PLATINE: 'bg-purple-100 text-platine',
-};
+
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -309,35 +299,8 @@ export default function VenteDetailPage() {
                 {vente.client.prenom} {vente.client.nom}
               </Link>
               <p className="text-sm text-text-muted">{vente.client.telephone}</p>
-              <span
-                className={cn(
-                  'inline-block px-2 py-0.5 rounded-full text-xs font-semibold',
-                  NIVEAU_COLORS[vente.client.niveauFidelite],
-                )}
-              >
-                {vente.client.niveauFidelite}
-              </span>
             </div>
 
-            {/* Progression points */}
-            {vente.client.pointsAvant != null &&
-              vente.client.pointsApres != null && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-text-muted">
-                    {vente.client.pointsAvant} pts
-                  </span>
-                  <span className="text-text-subtle">→</span>
-                  <span className="font-semibold text-text">
-                    {vente.client.pointsApres} pts
-                  </span>
-                  {vente.client.pointsAttribues != null &&
-                    vente.client.pointsAttribues > 0 && (
-                      <span className="text-xs text-success font-medium">
-                        (+{vente.client.pointsAttribues} pts)
-                      </span>
-                    )}
-                </div>
-              )}
           </div>
         </div>
       )}
@@ -438,12 +401,7 @@ export default function VenteDetailPage() {
             <span>Sous-total</span>
             <span>{formatUSD(vente.montantBrut)}</span>
           </div>
-          {vente.remiseFidelite > 0 && (
-            <div className="flex justify-between text-success">
-              <span>Remise fidélité</span>
-              <span>-{formatUSD(vente.remiseFidelite)}</span>
-            </div>
-          )}
+
           <div className="flex justify-between items-center font-bold text-lg text-text border-t border-border pt-2">
             <span>Total</span>
             <span>{formatUSD(vente.montantNet)}</span>

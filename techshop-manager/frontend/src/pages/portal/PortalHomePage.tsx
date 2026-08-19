@@ -70,9 +70,9 @@ export default function PortalHomePage() {
           <Skeleton className="h-36" />
         ) : client ? (
           <PointsCard
-            niveauFidelite={client.niveauFidelite}
-            pointsActuels={client.pointsFidelite}
-            remisePct={client.remisePct}
+            niveauFidelite={(client.niveauFidelite ?? 'BRONZE') as 'BRONZE' | 'ARGENT' | 'OR' | 'PLATINE'}
+            pointsActuels={client.pointsFidelite ?? 0}
+            remisePct={client.remisePct ?? 0}
             prochainNiveau={prochainNiveau}
             niveauxConfig={niveauxConfig}
           />

@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
-const SITE_NAME = 'Progress Business';
-const SITE_URL  = 'https://progressbusiness.onrender.com';
+const SITE_NAME = 'EBN Network';
+const SITE_URL  = 'https://ebnnetwork.onrender.com';
 const OG_IMAGE  = `${SITE_URL}/og-image.svg`;
 
 interface PageSEOProps {
@@ -14,7 +14,7 @@ interface PageSEOProps {
 
 export function PageSEO({
   title,
-  description = 'Caisse POS, gestion des stocks, fidélité et parrainage pour commerçants à Goma, Bukavu et Kinshasa — RDC.',
+  description = 'Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa — RDC.',
   canonical,
   noindex = false,
   ogType = 'website',

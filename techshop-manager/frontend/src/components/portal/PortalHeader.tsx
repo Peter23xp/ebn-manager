@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi } from '@/lib/api';
@@ -10,7 +10,7 @@ interface PortalHeaderProps {
 }
 
 export function PortalHeader({
-  title = 'Progress Business',
+  title = 'EBN Network',
   showBack = false,
   onBack,
 }: PortalHeaderProps) {

@@ -294,7 +294,7 @@ function SmsSection({ config, onSaved }: { config: AppConfig; onSaved: (msg: str
             <label className="form-label" htmlFor="sms-sender">
               Sender ID <span className="text-text-subtle normal-case font-normal">(max 11 car.)</span>
             </label>
-            <input id="sms-sender" {...register('smsSenderId')} placeholder="PROGRESS" />
+            <input id="sms-sender" {...register('smsSenderId')} placeholder="EBN" />
           </div>
         </div>
 
@@ -741,7 +741,7 @@ export default function ConfigGeneralePage() {
           </div>
           <div>
             <h1 className="text-page-title text-primary">Panneau de configuration</h1>
-            <p className="text-xs text-text-muted mt-0.5">Contrôle complet du système — Progress Business</p>
+            <p className="text-xs text-text-muted mt-0.5">Contrôle complet du système — EBN Network</p>
           </div>
         </div>
         <button onClick={() => { refetch(); refetchStats(); }} disabled={isLoading}

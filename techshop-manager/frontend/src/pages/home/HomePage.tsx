@@ -88,10 +88,10 @@ export default function HomePage() {
         <script type="application/ld+json">{JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'Organization',
-          'name': 'Progress Business',
-          'url': 'https://progressbusiness.onrender.com',
-          'logo': 'https://progressbusiness.onrender.com/assets/Progress business logo.png',
-          'description': 'Système de gestion commerciale multi-sites pour Progress Business — Goma, Bukavu, Kinshasa (RDC).',
+          'name': 'EBN Network',
+          'url': 'https://ebnnetwork.onrender.com',
+          'logo': 'https://ebnnetwork.onrender.com/assets/Progress business logo.png',
+          'description': 'Système de gestion commerciale multi-sites pour EBN Network — Goma, Bukavu, Kinshasa (RDC).',
           'address': {
             '@type': 'PostalAddress',
             'addressCountry': 'CD',
@@ -486,8 +486,8 @@ export default function HomePage() {
         {/* ── NAV ── */}
         <nav className="lp-nav">
           <div className="lp-nav-brand">
-            <img src="/assets/Progress business logo.png" alt="Progress Business" />
-            <span className="lp-nav-name">Progress Manager</span>
+            <img src="/assets/Progress business logo.png" alt="EBN Network" />
+            <span className="lp-nav-name">EBN Network</span>
           </div>
           <button className="lp-nav-btn" onClick={() => navigate('/login')}>
             Se connecter
@@ -499,7 +499,7 @@ export default function HomePage() {
           <div className="lp-hero-inner">
             <p className="lp-eyebrow lp-a0">
               <span className="lp-eyebrow-dot" aria-hidden />
-              Progress Business · RDC
+              EBN Network · RDC
             </p>
             <h1 className="lp-h1 lp-a1">
               La gestion<br />
@@ -507,7 +507,7 @@ export default function HomePage() {
               <em>en ordre.</em>
             </h1>
             <p className="lp-hero-sub lp-a2">
-              Caisse POS, stocks multi-sites, fidélité et parrainage —
+              Caisse POS, stocks multi-sites et réseau MLM à 8 niveaux —
               centralisés, fiables et disponibles même sans réseau.
             </p>
             <div className="lp-actions lp-a3">
@@ -523,7 +523,7 @@ export default function HomePage() {
           <div className="lp-hero-img-wrap lp-a4">
             <img
               src="/assets/hero-banner.jpg"
-              alt="Progress Business — commerce en RDC"
+              alt="EBN Network — commerce en RDC"
               className="lp-hero-img"
             />
             <div className="lp-img-badge">
@@ -626,13 +626,13 @@ export default function HomePage() {
         <footer className="lp-footer">
           <div className="lp-footer-brand">
             <img src="/assets/Progress business logo.png" alt="" aria-hidden />
-            <span>Progress Manager</span>
+            <span>EBN Network</span>
           </div>
           <div className="lp-footer-mid">
             <span className="lp-badge-dot" style={{ width: 5, height: 5 }} aria-hidden />
             Hors-ligne natif · Sync automatique
           </div>
-          <span className="lp-footer-copy">v1.0 · Progress Business RDC © {new Date().getFullYear()}</span>
+          <span className="lp-footer-copy">v1.0 · EBN Network RDC © {new Date().getFullYear()}</span>
         </footer>
 
       </div>

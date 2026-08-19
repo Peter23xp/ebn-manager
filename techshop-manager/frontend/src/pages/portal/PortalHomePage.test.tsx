@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SCR-035 — PortalLoginPage (6 tests) + PortalHomePage (23 tests) = 29 tests
  */
 import { describe, test, expect, vi, beforeEach } from 'vitest';
@@ -226,10 +226,10 @@ describe('PortalLoginPage', () => {
 
 describe('PortalHomePage', () => {
   describe('Layout', () => {
-    test('7 — PortalHeader affiché avec titre Progress Business', async () => {
+    test('7 — PortalHeader affiché avec titre EBN Network', async () => {
       mockGetHomeData.mockResolvedValue(HOME_DATA);
       renderHome();
-      expect(screen.getByText('Progress Business')).toBeInTheDocument();
+      expect(screen.getByText('EBN Network')).toBeInTheDocument();
     });
 
     test('8 — PortalNav : 4 onglets Home, Achats, Points, Filleuls', async () => {

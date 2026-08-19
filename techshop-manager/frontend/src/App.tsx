@@ -47,21 +47,17 @@ const ReceptionTransfertPage  = lazy(() => import('@/pages/stocks/ReceptionTrans
 const AlertesStockPage        = lazy(() => import('@/pages/stocks/AlertesStockPage'));
 const InventairePhysiquePage  = lazy(() => import('@/pages/stocks/InventairePhysiquePage'));
 
-// Parrainage
-const ParrainageGlobalPage  = lazy(() => import('@/pages/parrainage/ParrainageGlobalPage'));
-const ArbreParrainagePage   = lazy(() => import('@/pages/parrainage/ArbreParrainagePage'));
-const ConfigRecompensesPage = lazy(() => import('@/pages/parrainage/ConfigRecompensesPage'));
-
-// Fidelite
-const FideliteProgrammePage = lazy(() => import('@/pages/fidelite/FideliteProgrammePage'));
-const ClientPointsPage      = lazy(() => import('@/pages/fidelite/ClientPointsPage'));
-const ConfigFidelitePage    = lazy(() => import('@/pages/fidelite/ConfigFidelitePage'));
+// MLM
+const MlmDashboardPage   = lazy(() => import('@/pages/mlm/MlmDashboardPage'));
+const MlmMembersPage     = lazy(() => import('@/pages/mlm/MlmMembersPage'));
+const MemberProgressPage = lazy(() => import('@/pages/mlm/MemberProgressPage'));
+const WalletPage         = lazy(() => import('@/pages/mlm/WalletPage'));
+const MlmConfigPage      = lazy(() => import('@/pages/mlm/MlmConfigPage'));
 
 // Rapports
 const RapportsDashboardPage  = lazy(() => import('@/pages/rapports/RapportsDashboardPage'));
 const RapportVentesPage      = lazy(() => import('@/pages/rapports/RapportVentesPage'));
 const RapportStocksPage      = lazy(() => import('@/pages/rapports/RapportStocksPage'));
-const RapportParrainagePage  = lazy(() => import('@/pages/rapports/RapportParrainagePage'));
 const ExportPage             = lazy(() => import('@/pages/rapports/ExportPage'));
 
 // Portal Client
@@ -160,21 +156,17 @@ export default function App() {
             <Route path="stocks/transfer/:id/receive" element={<RoleGuard minRole="GERANT"><ReceptionTransfertPage /></RoleGuard>} />
             <Route path="stocks/:produitId" element={<RoleGuard minRole="GERANT"><ProduitStockPage /></RoleGuard>} />
 
-            {/* Parrainage */}
-            <Route path="parrainage" element={<RoleGuard minRole="GERANT"><ParrainageGlobalPage /></RoleGuard>} />
-            <Route path="parrainage/tree/:clientId" element={<ArbreParrainagePage />} />
-            <Route path="parrainage/config" element={<RoleGuard minRole="SUPER_ADMIN"><ConfigRecompensesPage /></RoleGuard>} />
-
-            {/* Fidelite */}
-            <Route path="fidelite" element={<RoleGuard minRole="GERANT"><FideliteProgrammePage /></RoleGuard>} />
-            <Route path="fidelite/client/:id" element={<ClientPointsPage />} />
-            <Route path="fidelite/config" element={<RoleGuard minRole="SUPER_ADMIN"><ConfigFidelitePage /></RoleGuard>} />
+            {/* MLM */}
+            <Route path="mlm" element={<RoleGuard minRole="GERANT"><MlmDashboardPage /></RoleGuard>} />
+            <Route path="mlm/members" element={<RoleGuard minRole="GERANT"><MlmMembersPage /></RoleGuard>} />
+            <Route path="mlm/members/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
+            <Route path="mlm/wallet" element={<RoleGuard minRole="AGENT"><WalletPage /></RoleGuard>} />
+            <Route path="mlm/config" element={<RoleGuard minRole="SUPER_ADMIN"><MlmConfigPage /></RoleGuard>} />
 
             {/* Rapports */}
             <Route path="reports" element={<RoleGuard minRole="GERANT"><RapportsDashboardPage /></RoleGuard>} />
             <Route path="reports/sales" element={<RoleGuard minRole="DIRECTEUR_REGIONAL"><RapportVentesPage /></RoleGuard>} />
             <Route path="reports/stocks" element={<RoleGuard minRole="DIRECTEUR_REGIONAL"><RapportStocksPage /></RoleGuard>} />
-            <Route path="reports/parrainage" element={<RoleGuard minRole="GERANT"><RapportParrainagePage /></RoleGuard>} />
             <Route path="reports/export" element={<RoleGuard minRole="GERANT"><ExportPage /></RoleGuard>} />
 
             {/* Support */}

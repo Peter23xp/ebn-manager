@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -26,13 +27,6 @@ enum StatutClient {
   ACTIF
   SUSPENDU
   ARCHIVE
-}
-
-enum NiveauFidelite {
-  BRONZE
-  ARGENT
-  OR
-  PLATINE
 }
 
 enum EtapeOnboarding {
@@ -76,18 +70,6 @@ enum StatutTransfert {
   ANNULE
 }
 
-enum StatutParrainage {
-  EN_ATTENTE
-  VALIDE
-  RECOMPENSE_VERSEE
-}
-
-enum TypeRecompense {
-  POINTS
-  REMISE_PROCHAINE_VENTE
-  COMMISSION_CDF
-}
-
 enum StatutExport {
   PENDING
   READY
@@ -103,6 +85,35 @@ enum SyncStatus {
 enum StatutAlerte {
   ALERTE
   RUPTURE
+}
+
+// ── MLM enums ────────────────────────────────────────────────────────────────
+
+enum MembreStatut {
+  EN_ATTENTE
+  ACTIF
+  SUSPENDU
+  ARCHIVE
+}
+
+enum TransactionType {
+  COMMISSION
+  PROMOTION
+  SALAIRE
+  BONUS_RETRAITE
+  DEBIT
+}
+
+enum BonusStatut {
+  EN_ATTENTE
+  EN_COURS
+  LIVRE
+  ANNULE
+}
+
+enum RetirementBonusStatut {
+  EN_ATTENTE
+  PAYE
 }
 
 // ============================================
@@ -176,9 +187,6 @@ model Client {
   matriculeExterne  String?        @unique
   codeParrain       String?        @unique
   statut            StatutClient   @default(EN_COURS)
-  pointsFidelite    Int            @default(0)
-  pointsCumules     Int            @default(0)
-  niveauFidelite    NiveauFidelite @default(BRONZE)
   notes             String?
   dateActivation    DateTime?
   pinHash           String?
@@ -193,16 +201,10 @@ model Client {
   createdById String
   createdBy   Utilisateur @relation(fields: [createdById], references: [id])
 
-  parrainId String?
-  parrain   Client?  @relation("ParrainFilleuls", fields: [parrainId], references: [id])
-  filleuls  Client[] @relation("ParrainFilleuls")
-
   onboardingEtapes  OnboardingEtape[]
   ventes            Vente[]
-  mouvementsPoints  MouvementPoints[]
-  parrainagesDonnes     Parrainage[] @relation("ParrainageParrain")
-  parrainagesRecus      Parrainage[] @relation("ParrainageFilleul")
   portailToken      PortailToken?
+  membre            Membre?
 
   @@map("clients")
 }
@@ -431,93 +433,6 @@ model LigneRetour {
   @@map("lignes_retour")
 }
 
-// ============================================
-// PARRAINAGE
-// ============================================
-
-model Parrainage {
-  id                  String           @id @default(uuid())
-  niveau              Int              @default(1)
-  statut              StatutParrainage @default(EN_ATTENTE)
-  recompenseType      TypeRecompense?
-  recompenseValeur    Decimal?         @db.Decimal(12, 2)
-  recompenseVerseAt   DateTime?
-  dateCreation        DateTime         @default(now())
-
-  parrainId String
-  parrain   Client @relation("ParrainageParrain", fields: [parrainId], references: [id])
-
-  filleulId String @unique
-  filleul   Client @relation("ParrainageFilleul", fields: [filleulId], references: [id])
-
-  @@map("parrainages")
-}
-
-// ============================================
-// REGLE PARRAINAGE
-// ============================================
-
-model RegleParrainage {
-  id                      String         @id @default(uuid())
-  multiNiveaux            Boolean        @default(false)
-  typeRecompense          TypeRecompense @default(POINTS)
-  valeurNiveau1           Decimal        @db.Decimal(12, 2)
-  valeurNiveau2           Decimal?       @db.Decimal(12, 2)
-  conditionDeclenchement  String         @default("ACTIVATION")
-  plafondMensuel          Int?
-  updatedAt               DateTime       @updatedAt
-
-  @@map("regle_parrainage")
-}
-
-// ============================================
-// MOUVEMENT POINTS
-// ============================================
-
-model MouvementPoints {
-  id          String   @id @default(uuid())
-  type        String
-  delta       Int
-  soldeApres  Int
-  description String?
-  createdAt   DateTime @default(now())
-
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
-
-  venteId String?
-
-  @@map("mouvements_points")
-}
-
-// ============================================
-// CONFIG FIDELITE
-// ============================================
-
-model ConfigFidelite {
-  id                String   @id @default(uuid())
-  ratioPtsCDF       Int      @default(1000)
-  dureeValiditeMois Int      @default(0)
-  cumulRemises      Boolean  @default(false)
-  updatedAt         DateTime @updatedAt
-
-  niveaux NiveauConfig[]
-
-  @@map("config_fidelite")
-}
-
-model NiveauConfig {
-  id        String @id @default(uuid())
-  nom       String
-  seuilPts  Int
-  remisePct Decimal @db.Decimal(5, 2)
-  couleur   String?
-
-  configId String
-  config   ConfigFidelite @relation(fields: [configId], references: [id])
-
-  @@map("niveaux_config")
-}
 
 // ============================================
 // CONFIG GENERALE
@@ -599,4 +514,185 @@ model SupportTicket {
   createdAt     DateTime   @default(now())
 
   @@map("support_tickets")
+}
+
+// ============================================================
+// MLM — Plan de carrière à 8 niveaux
+// ============================================================
+
+// ── Niveaux de carrière ───────────────────────────────────────
+model MlmLevel {
+  id                   Int      @id @default(autoincrement())
+  ordre                Int      @unique
+  nom                  String
+  filleulsRequis       Int      @default(4)
+  commissionParFilleul Decimal  @db.Decimal(12, 2)
+  commissionTotale     Decimal  @db.Decimal(12, 2)
+  bonusDescription     String
+  salaireMensuel       Decimal  @default(0) @db.Decimal(12, 2)
+  salaireActif         Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  couleur              String
+  icone                String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  membres        Membre[]
+  matrices       Matrix[]
+  bonusAttribues BonusAttribue[]
+
+  @@map("mlm_levels")
+}
+
+// ── Profil MLM de chaque client activé ───────────────────────
+model Membre {
+  id              String       @id @default(uuid())
+  clientId        String       @unique
+  matricule       String       @unique
+  parrainId       String?
+  mlmLevelId      Int          @default(1)
+  statut          MembreStatut @default(ACTIF)
+  dateActivation  DateTime     @default(now())
+  dateInscription DateTime     @default(now())
+
+  client      Client    @relation(fields: [clientId], references: [id])
+  level       MlmLevel  @relation(fields: [mlmLevelId], references: [id])
+  parrain     Membre?   @relation("ParrainFilleul", fields: [parrainId], references: [id])
+  filleuls    Membre[]  @relation("ParrainFilleul")
+
+  portefeuille         Portefeuille?
+  matrices             Matrix[]
+  promotions           Promotion[]      @relation("MembrePromotion")
+  bonusAttribues       BonusAttribue[]
+  salairesVerses       SalaireVerse[]
+  bonusRetraites       BonusRetraite[]  @relation("MembreBonusRetraite")
+  bonusRetraitesDonnes BonusRetraite[]  @relation("FilleulCrownBonusRetraite")
+
+  @@map("membres")
+}
+
+// ── Matrice de 4 positions par membre et par niveau ──────────
+model Matrix {
+  id             String    @id @default(uuid())
+  membreId       String
+  mlmLevelId     Int
+  filleulsValides Int      @default(0)
+  estComplete    Boolean   @default(false)
+  dateComplete   DateTime?
+  createdAt      DateTime  @default(now())
+
+  membre    Membre    @relation(fields: [membreId], references: [id])
+  level     MlmLevel  @relation(fields: [mlmLevelId], references: [id])
+  positions Position[]
+
+  @@unique([membreId, mlmLevelId])
+  @@map("matrices")
+}
+
+// ── Position dans une matrice (1 à 4) ────────────────────────
+model Position {
+  id             String    @id @default(uuid())
+  matrixId       String
+  numeroPosition Int
+  filleulId      String?
+  estValide      Boolean   @default(false)
+  dateValidation DateTime?
+
+  matrix Matrix @relation(fields: [matrixId], references: [id])
+
+  @@unique([matrixId, numeroPosition])
+  @@map("positions")
+}
+
+// ── Portefeuille USD par membre ───────────────────────────────
+model Portefeuille {
+  id               String   @id @default(uuid())
+  membreId         String   @unique
+  soldeDisponible  Decimal  @default(0) @db.Decimal(12, 2)
+  totalGagne       Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  membre       Membre                    @relation(fields: [membreId], references: [id])
+  transactions TransactionPortefeuille[]
+
+  @@map("portefeuilles")
+}
+
+// ── Journal immuable des transactions USD ─────────────────────
+model TransactionPortefeuille {
+  id             String          @id @default(uuid())
+  portefeuilleId String
+  type           TransactionType
+  montant        Decimal         @db.Decimal(12, 2)
+  description    String
+  referenceId    String?
+  createdAt      DateTime        @default(now())
+
+  portefeuille Portefeuille @relation(fields: [portefeuilleId], references: [id])
+
+  @@map("transactions_portefeuille")
+}
+
+// ── Historique des promotions ─────────────────────────────────
+model Promotion {
+  id               String   @id @default(uuid())
+  membreId         String
+  niveauAvantId    Int
+  niveauApresId    Int
+  commissionVersee Decimal  @db.Decimal(12, 2)
+  datePromotion    DateTime @default(now())
+  declencheParId   String
+
+  membre Membre @relation("MembrePromotion", fields: [membreId], references: [id])
+
+  @@map("promotions")
+}
+
+// ── Bonus physiques attribués ─────────────────────────────────
+model BonusAttribue {
+  id              String      @id @default(uuid())
+  membreId        String
+  mlmLevelId      Int
+  description     String
+  statut          BonusStatut @default(EN_ATTENTE)
+  dateAttribution DateTime    @default(now())
+  dateLivraison   DateTime?
+  notes           String?
+
+  membre Membre   @relation(fields: [membreId], references: [id])
+  level  MlmLevel @relation(fields: [mlmLevelId], references: [id])
+
+  @@map("bonus_attribues")
+}
+
+// ── Salaires mensuels versés ──────────────────────────────────
+model SalaireVerse {
+  id            String   @id @default(uuid())
+  membreId      String
+  montant       Decimal  @db.Decimal(12, 2)
+  moisAnnee     String
+  dateVersement DateTime @default(now())
+  statut        String   @default("VERSE")
+
+  membre Membre @relation(fields: [membreId], references: [id])
+
+  @@unique([membreId, moisAnnee])
+  @@map("salaires_verses")
+}
+
+// ── Bonus retraite (parrain d'un Crown Ambassadeur) ───────────
+model BonusRetraite {
+  id             String                @id @default(uuid())
+  membreId       String
+  filleulCrownId String
+  montant        Decimal               @default(50000) @db.Decimal(12, 2)
+  statut         RetirementBonusStatut @default(EN_ATTENTE)
+  dateVersement  DateTime              @default(now())
+
+  membre       Membre @relation("MembreBonusRetraite", fields: [membreId], references: [id])
+  filleulCrown Membre @relation("FilleulCrownBonusRetraite", fields: [filleulCrownId], references: [id])
+
+  @@unique([membreId, filleulCrownId])
+  @@map("bonus_retraites")
 }

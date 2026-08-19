@@ -6,12 +6,8 @@ export class ConfigAppService {
   constructor(private prisma: PrismaService) {}
 
   async getConfig() {
-    const [configGenerale, configFidelite, regleParrainage] = await Promise.all([
+    const [configGenerale] = await Promise.all([
       this.prisma.configGenerale.findFirst(),
-      this.prisma.configFidelite.findFirst({
-        include: { niveaux: { orderBy: { seuilPts: 'asc' } } },
-      }),
-      this.prisma.regleParrainage.findFirst(),
     ]);
 
     return {
@@ -24,25 +20,6 @@ export class ConfigAppService {
         smsApiKey: null,
         smsUsername: null,
         smsSenderId: null,
-      },
-      fidelite: configFidelite ?? {
-        ratioPtsCDF: 1000,
-        dureeValiditeMois: 0,
-        cumulRemises: false,
-        niveaux: [
-          { nom: 'Bronze', seuilPts: 0, remisePct: 0 },
-          { nom: 'Argent', seuilPts: 500, remisePct: 3 },
-          { nom: 'Or', seuilPts: 2000, remisePct: 5 },
-          { nom: 'Platine', seuilPts: 5000, remisePct: 8 },
-        ],
-      },
-      parrainage: regleParrainage ?? {
-        multiNiveaux: false,
-        typeRecompense: 'POINTS',
-        valeurNiveau1: 500,
-        valeurNiveau2: null,
-        conditionDeclenchement: 'ACTIVATION',
-        plafondMensuel: null,
       },
     };
   }
@@ -88,53 +65,7 @@ export class ConfigAppService {
       }
     }
 
-    if (dto.fidelite) {
-      const existing = await this.prisma.configFidelite.findFirst();
-      if (existing) {
-        if (dto.fidelite.niveaux) {
-          await this.prisma.niveauConfig.deleteMany({ where: { configId: existing.id } });
-        }
-        results.fidelite = await this.prisma.configFidelite.update({
-          where: { id: existing.id },
-          data: {
-            ...(dto.fidelite.ratioPtsCDF !== undefined && { ratioPtsCDF: dto.fidelite.ratioPtsCDF }),
-            ...(dto.fidelite.dureeValiditeMois !== undefined && {
-              dureeValiditeMois: dto.fidelite.dureeValiditeMois,
-            }),
-            ...(dto.fidelite.cumulRemises !== undefined && { cumulRemises: dto.fidelite.cumulRemises }),
-            ...(dto.fidelite.niveaux && {
-              niveaux: {
-                create: dto.fidelite.niveaux.map((n: any) => ({
-                  nom: n.nom,
-                  seuilPts: n.seuilPts,
-                  remisePct: n.remisePct,
-                })),
-              },
-            }),
-          },
-          include: { niveaux: true },
-        });
-      }
-    }
 
-    if (dto.parrainage) {
-      const existing = await this.prisma.regleParrainage.findFirst();
-      if (existing) {
-        results.parrainage = await this.prisma.regleParrainage.update({
-          where: { id: existing.id },
-          data: {
-            ...(dto.parrainage.typeRecompense !== undefined && { typeRecompense: dto.parrainage.typeRecompense }),
-            ...(dto.parrainage.valeurNiveau1 !== undefined && { valeurNiveau1: dto.parrainage.valeurNiveau1 }),
-            ...(dto.parrainage.valeurNiveau2 !== undefined && { valeurNiveau2: dto.parrainage.valeurNiveau2 }),
-            ...(dto.parrainage.multiNiveaux !== undefined && { multiNiveaux: dto.parrainage.multiNiveaux }),
-            ...(dto.parrainage.conditionDeclenchement !== undefined && {
-              conditionDeclenchement: dto.parrainage.conditionDeclenchement,
-            }),
-            ...(dto.parrainage.plafondMensuel !== undefined && { plafondMensuel: dto.parrainage.plafondMensuel }),
-          },
-        });
-      }
-    }
 
     return { success: true, updated: results };
   }
@@ -144,7 +75,7 @@ export class ConfigAppService {
     if (!config?.smsApiKey || !config?.smsUsername) {
       return { success: false, message: 'SMS non configuré. Veuillez renseigner API Key et Username.' };
     }
-    console.log(`[TEST SMS] → ${phone}: "Test SMS depuis Progress Business Manager"`);
+    console.log(`[TEST SMS] → ${phone}: "Test SMS depuis EBN Network Manager"`);
     return { success: true, message: `SMS de test envoyé à ${phone}` };
   }
 
@@ -159,7 +90,6 @@ export class ConfigAppService {
       totalSites, sitesActifs,
       totalProduits, alertesStock, rupturesStock,
       ventesJour, ventesMois,
-      totalParrainages,
       configGenerale,
     ] = await Promise.all([
       this.prisma.client.count(),
@@ -174,7 +104,7 @@ export class ConfigAppService {
       this.prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM stock_sites WHERE quantite = 0`.then(r => Number(r[0]?.count ?? 0)),
       this.prisma.vente.aggregate({ where: { createdAt: { gte: debutJour } }, _sum: { montantNet: true }, _count: { id: true } }),
       this.prisma.vente.aggregate({ where: { createdAt: { gte: debutMois } }, _sum: { montantNet: true }, _count: { id: true } }),
-      this.prisma.parrainage.count(),
+
       this.prisma.configGenerale.findFirst(),
     ]);
 
@@ -187,7 +117,7 @@ export class ConfigAppService {
         aujourdhui: { count: ventesJour._count.id, montant: Number(ventesJour._sum.montantNet ?? 0) },
         mois: { count: ventesMois._count.id, montant: Number(ventesMois._sum.montantNet ?? 0) },
       },
-      parrainage: { total: totalParrainages },
+
       systeme: {
         nodeVersion: process.version,
         uptime: Math.floor(process.uptime()),

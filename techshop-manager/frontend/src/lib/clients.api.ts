@@ -2,7 +2,6 @@ import { api } from '@/lib/api';
 import type {
   Client,
   StatutClient,
-  NiveauFidelite,
   PaginatedResponse,
   ModePaiement,
   EtapeOnboarding,
@@ -41,31 +40,16 @@ export interface AchatRow {
   lignes: Array<{ produitNom: string; quantite: number }>;
   montantNet: number;
   montantBrut: number;
-  remiseFidelite: number;
   modePaiement: ModePaiement;
-  pointsAttribues: number;
   statut: string;
 }
 
-export interface MouvementPointsRow {
-  id: string;
-  createdAt: string;
-  type: 'ACHAT' | 'PARRAINAGE' | 'REMISE' | 'EXPIRATION';
-  description: string;
-  delta: number;
-  soldeApres: number;
-}
 
 export interface ClientDetail extends Client {
   site: { id: string; nom: string };
   parrain: { id: string; prenom: string; nom: string; codeParrain: string; siteNom?: string } | null;
   onboardingEtapes: OnboardingEtapeDetail[];
-  parrainage: {
-    filleuls: FilleulRow[];
-    totalGains: number;
-  };
   ventes: AchatRow[];
-  mouvementsPoints: MouvementPointsRow[];
   hasTransactions: boolean;
 }
 
@@ -75,7 +59,6 @@ export interface ClientQueryParams {
   search?: string;
   siteId?: string | null;
   statut?: StatutClient | '';
-  niveau?: NiveauFidelite | '';
   page?: number;
   limit?: number;
 }
@@ -85,13 +68,12 @@ export interface ClientRow {
   prenom: string;
   nom: string;
   telephone: string;
-  niveauFidelite: NiveauFidelite;
   statut: StatutClient;
   site: { id: string; nom: string };
   codeParrain: string | null;
   createdAt: string;
-  pointsFidelite: number;
 }
+
 
 export interface ClientSearchResult {
   id: string;
@@ -100,9 +82,7 @@ export interface ClientSearchResult {
   telephone: string;
   codeParrain: string | null;
   statut: StatutClient;
-  niveauFidelite: NiveauFidelite;
 }
-
 export interface OnboardingRecitDto {
   prenom: string;
   nom: string;

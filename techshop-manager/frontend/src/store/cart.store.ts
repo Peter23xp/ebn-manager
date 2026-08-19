@@ -1,13 +1,6 @@
 import { create } from 'zustand';
-import type { ModePaiement, NiveauFidelite } from '@/types';
+import type { ModePaiement } from '@/types';
 import type { ProduitPOS } from '@/lib/ventes.api';
-
-const NIVEAUX_REMISE: Record<NiveauFidelite, number> = {
-  BRONZE: 0,
-  ARGENT: 3,
-  OR: 5,
-  PLATINE: 8,
-};
 
 export interface CartItem {
   produitId: string;
@@ -24,9 +17,6 @@ export interface CartClient {
   nom: string;
   prenom: string;
   telephone: string;
-  niveauFidelite: NiveauFidelite;
-  pointsFidelite: number;
-  remisePct: number;
 }
 
 interface CartState {
@@ -77,10 +67,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 
   remiseMontant: () => {
-    const { client, appliquerRemise } = get();
-    if (!client || !appliquerRemise) return 0;
-    const montantBrut = get().montantBrut();
-    return Math.round((montantBrut * client.remisePct) / 100);
+    return 0; // Removed with MLM migration
   },
 
   montantNet: () => {
@@ -171,4 +158,4 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 }));
 
-export { NIVEAUX_REMISE };
+
