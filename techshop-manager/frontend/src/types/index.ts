@@ -254,6 +254,13 @@ export interface Position {
   filleulId?: string;
   estValide: boolean;
   dateValidation?: string;
+  filleul?: {
+    id: string;
+    matricule: string;
+    statut: string;
+    client?: { id: string; prenom: string; nom: string };
+    level?: { id: number; ordre: number; nom: string; couleur?: string };
+  } | null;
 }
 
 export interface Portefeuille {

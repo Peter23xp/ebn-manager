@@ -213,8 +213,10 @@ export class MlmService {
       where: { ordre: { gt: membre.level.ordre }, isActive: true },
       orderBy: { ordre: 'asc' },
     });
+    // Build a quick lookup map: filleulId -> filleul data
+    const filleulsMap = new Map(membre.filleuls.map((f) => [f.id, f]));
 
-    // Progress in current level matrix
+
     const currentMatrix = membre.matrices.find((m) => m.mlmLevelId === membre.mlmLevelId);
     const filleulsValides = currentMatrix?.filleulsValides ?? 0;
     const filleulsRequis = membre.level.filleulsRequis ?? 4;
@@ -309,7 +311,21 @@ export class MlmService {
         filleulsValides: m.filleulsValides,
         estComplete: m.estComplete,
         dateComplete: m.dateComplete,
-        positions: m.positions,
+        positions: m.positions.map((pos) => {
+          const filleulData = pos.filleulId ? filleulsMap.get(pos.filleulId) : null;
+          return {
+            ...pos,
+            filleul: filleulData
+              ? {
+                  id: filleulData.id,
+                  matricule: filleulData.matricule,
+                  statut: filleulData.statut,
+                  client: filleulData.client,
+                  level: filleulData.level,
+                }
+              : null,
+          };
+        }),
       })),
       commissions: membre.commissionsRecues.map((c) => ({
         ...c,
@@ -337,34 +353,50 @@ export class MlmService {
   async getMemberFilleuls(memberId: string) {
     const membre = await this.prisma.membre.findUnique({
       where: { id: memberId },
-      include: {
-        filleuls: {
-          include: {
-            client: { select: { id: true, prenom: true, nom: true, telephone: true } },
-            level: { select: { id: true, ordre: true, nom: true, couleur: true } },
-            matrices: {
-              select: { mlmLevelId: true, filleulsValides: true, estComplete: true },
-              orderBy: { level: { ordre: 'desc' } },
-              take: 1,
-            },
-            _count: { select: { filleuls: true } },
-          },
-          orderBy: { dateActivation: 'desc' },
-        },
-        _count: { select: { filleuls: true } },
-      },
+      include: { _count: { select: { filleuls: true } } }
     });
 
     if (!membre) throw new NotFoundException(`Membre ${memberId} introuvable`);
 
-    const filleulsActifs = membre.filleuls.filter((f) => f.statut === 'ACTIF').length;
-    const filleulsEnAttente = membre.filleuls.filter((f) => f.statut === 'EN_ATTENTE').length;
+    let currentGenerationIds = [membre.id];
+    let depth = 1;
+    const maxDepth = 10;
+    const allDescendants: any[] = [];
+
+    while (currentGenerationIds.length > 0 && depth <= maxDepth) {
+      const filleuls = await this.prisma.membre.findMany({
+        where: { parrainId: { in: currentGenerationIds } },
+        include: {
+          client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+          level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+          matrices: {
+            select: { mlmLevelId: true, filleulsValides: true, estComplete: true },
+            orderBy: { level: { ordre: 'desc' } },
+            take: 1,
+          },
+          _count: { select: { filleuls: true } },
+        },
+        orderBy: { dateActivation: 'desc' },
+      });
+
+      if (filleuls.length === 0) break;
+
+      for (const f of filleuls) {
+        allDescendants.push({ ...f, generation: depth });
+      }
+
+      currentGenerationIds = filleuls.map(f => f.id);
+      depth++;
+    }
+
+    const filleulsActifs = allDescendants.filter((f) => f.statut === 'ACTIF').length;
+    const filleulsEnAttente = allDescendants.filter((f) => f.statut === 'EN_ATTENTE').length;
 
     return {
-      totalFilleuls: membre._count.filleuls,
+      totalFilleuls: allDescendants.length,
       filleulsActifs,
       filleulsEnAttente,
-      filleuls: membre.filleuls.map((f) => {
+      filleuls: allDescendants.map((f) => {
         const fm = f.matrices[0];
         return {
           id: f.id,
@@ -375,6 +407,7 @@ export class MlmService {
           client: f.client,
           level: f.level,
           nbFilleuls: f._count.filleuls,
+          generation: f.generation,
           progression: fm
             ? {
                 filleulsValides: fm.filleulsValides,

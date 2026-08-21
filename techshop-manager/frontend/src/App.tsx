@@ -76,6 +76,9 @@ const SupportPage       = lazy(() => import('@/pages/support/SupportPage'));
 // Home
 const HomePage          = lazy(() => import('@/pages/home/HomePage'));
 
+// Marketing
+const AmbassadeurPage = lazy(() => import('@/pages/marketing/AmbassadeurPage'));
+
 // Parametres
 const UsersPage         = lazy(() => import('@/pages/parametres/UsersPage'));
 const SitesPage         = lazy(() => import('@/pages/parametres/SitesPage'));
@@ -112,6 +115,7 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/ambassadeur" element={<AmbassadeurPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/portal/login" element={<PortalLoginPage />} />

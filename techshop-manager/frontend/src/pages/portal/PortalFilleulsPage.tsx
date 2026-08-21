@@ -101,15 +101,12 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
 
 // ── Stats cards ───────────────────────────────────────────────────────────────
 
-function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: {
+function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux }: {
   nbActifs: number;
   nbTotal: number;
   gainsTotaux: number;
-  typeRecompense?: string;
 }) {
-  const gainsLabel = typeRecompense === 'COMMISSION_CDF'
-    ? `$${gainsTotaux.toLocaleString('en-US')}`
-    : `${gainsTotaux.toLocaleString('fr')} pts`;
+  const gainsLabel = `$${gainsTotaux.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -129,18 +126,11 @@ function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: 
 
 // ── How it works ──────────────────────────────────────────────────────────────
 
-function HowReferralWorks({ recompenseValeur, typeRecompense }: {
-  recompenseValeur: number;
-  typeRecompense?: string;
-}) {
-  const rewardText = typeRecompense === 'COMMISSION_CDF'
-    ? `vous gagnez $${recompenseValeur.toLocaleString('en-US')} !`
-    : `vous gagnez ${recompenseValeur.toLocaleString('fr')} pts !`;
-
+function HowReferralWorks() {
   const steps = [
-    { icon: Share2, color: 'bg-blue-100 text-blue-600', title: 'Donnez votre code', desc: 'Partagez votre code TSG avec vos amis.' },
-    { icon: UserPlus, color: 'bg-green-100 text-green-600', title: 'Votre ami s\'inscrit', desc: 'Il utilise votre code lors de son inscription et suit la formation EBN Network.' },
-    { icon: Gift, color: 'bg-yellow-100 text-yellow-700', title: 'Vous recevez votre récompense', desc: `Dès que son compte est activé, ${rewardText}` },
+    { icon: Share2, color: 'bg-blue-100 text-blue-600', title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
+    { icon: UserPlus, color: 'bg-green-100 text-green-600', title: 'Votre partenaire s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
+    { icon: Gift, color: 'bg-yellow-100 text-yellow-700', title: 'Vous gagnez vos commissions', desc: 'Dès que son compte est actif, vous gagnez des commissions MLM.' },
   ];
 
   return (
@@ -167,13 +157,13 @@ function HowReferralWorks({ recompenseValeur, typeRecompense }: {
 
 // ── Filleul card ──────────────────────────────────────────────────────────────
 
-function FilleulCard({ filleul, typeRecompense }: {
+function FilleulCard({ filleul }: {
   filleul: {
     id: string; prenom: string; nom: string;
     statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';
-    dateInscription: string; recompenseGeneree: number; etapeEnCours?: string;
+    dateInscription: string; etapeEnCours?: string;
+    generation?: number;
   };
-  typeRecompense?: string;
 }) {
   const initials = `${filleul.prenom[0] ?? ''}${filleul.nom[0] ?? ''}`.toUpperCase();
   const avatarColor = filleul.statut === 'ACTIF' ? 'bg-green-100 text-green-700'
@@ -201,15 +191,10 @@ function FilleulCard({ filleul, typeRecompense }: {
           </div>
           <p className="text-xs text-neutral-400">
             Inscrit le {format(new Date(filleul.dateInscription), 'd MMM yyyy', { locale: fr })}
+            {filleul.generation ? ` • Génération ${filleul.generation}` : ''}
           </p>
-          {filleul.statut === 'ACTIF' && filleul.recompenseGeneree > 0 && (
-            <p className="text-xs text-green-600 font-medium">
-              Vous a rapporté : +{typeRecompense === 'COMMISSION_CDF' ? '$' : ''}{filleul.recompenseGeneree.toLocaleString('en-US')}{' '}
-              {typeRecompense === 'COMMISSION_CDF' ? '' : 'pts'}
-            </p>
-          )}
           {filleul.statut === 'EN_COURS' && filleul.etapeEnCours && (
-            <p className="text-xs text-orange-500 italic">{filleul.etapeEnCours}</p>
+            <p className="text-xs text-orange-500 italic mt-1">{filleul.etapeEnCours}</p>
           )}
           {filleul.statut === 'SUSPENDU' && (
             <p className="text-xs text-red-500">Compte suspendu</p>
@@ -255,16 +240,12 @@ export default function PortalFilleulsPage() {
             nbActifs={stats.nbFilleulsActifs}
             nbTotal={stats.nbFilleulsTotal}
             gainsTotaux={stats.gainsTotaux}
-            typeRecompense={typeRecompense}
           />
         )}
 
         {/* How it works */}
         {!isLoading && (
-          <HowReferralWorks
-            recompenseValeur={recompenseValeur ?? 0}
-            typeRecompense={typeRecompense}
-          />
+          <HowReferralWorks />
         )}
 
         {/* Filleuls list */}
@@ -320,7 +301,7 @@ export default function PortalFilleulsPage() {
           )}
 
           {filleuls.map((f) => (
-            <FilleulCard key={f.id} filleul={f} typeRecompense={typeRecompense} />
+            <FilleulCard key={f.id} filleul={f} />
           ))}
 
           {hasNextPage && (

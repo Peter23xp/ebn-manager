@@ -91,9 +91,18 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
               {isFilled ? (
                 <>
                   <div className="w-10 h-10 rounded-full bg-green-200 text-success flex items-center justify-center font-bold text-sm mb-1.5">
-                    <User size={20} />
+                    {pos.filleul?.client
+                      ? `${pos.filleul.client.prenom?.[0] ?? ''}${pos.filleul.client.nom?.[0] ?? ''}`.toUpperCase()
+                      : <User size={20} />
+                    }
                   </div>
-                  <p className="text-xs font-bold text-text">Position validée</p>
+                  {pos.filleul?.client ? (
+                    <p className="text-xs font-bold text-text leading-tight text-center">
+                      {pos.filleul.client.prenom} {pos.filleul.client.nom}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-bold text-text">Position validée</p>
+                  )}
                   {pos.dateValidation && (
                     <p className="text-[10px] text-text-muted mt-0.5 font-mono">
                       {formatDate(pos.dateValidation)}

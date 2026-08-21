@@ -89,6 +89,18 @@ export default function MemberProgressPage() {
     matrices?.find((m: any) => m.niveau.id === (selectedMatrixLevelId ?? membre.level.id)) ??
     matrices?.[0];
 
+  // IDs of filleuls placed in the currently viewed matrix
+  const activeMatrixFilleulIds = new Set<string>(
+    (activeMatrix?.positions ?? [])
+      .filter((p: any) => p.estValide && p.filleulId)
+      .map((p: any) => p.filleulId as string)
+  );
+
+  // If a matrix level tab is selected, filter the filleuls list to that matrix's occupants
+  const displayedFilleuls = selectedMatrixLevelId !== null && activeMatrixFilleulIds.size > 0
+    ? filleuls.filter((f: any) => activeMatrixFilleulIds.has(f.id))
+    : filleuls;
+
   const prochainNiveau = progression?.prochainNiveau;
 
   return (
@@ -283,21 +295,39 @@ export default function MemberProgressPage() {
         <MatrixGrid matrix={activeMatrix} />
       </div>
 
-      {/* Filleuls Directs List */}
+      {/* Filleuls & Réseau List */}
       <div className="rounded-xl border border-border bg-bg-card shadow-card p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-section-title text-primary flex items-center gap-2">
             <Users size={18} className="text-platine" />
-            Filleuls directs ({filleuls.length})
+            Filleuls & Réseau
+            {selectedMatrixLevelId ? (
+              <span className="text-sm font-normal text-text-muted">
+                — filtrés par matrice {activeMatrix?.niveau?.nom}
+              </span>
+            ) : (
+              <span className="text-text-muted font-normal text-sm">({filleuls.length})</span>
+            )}
           </h2>
           <span className="text-xs text-text-muted">
-            {filleuls.filter((f: any) => f.statut === 'ACTIF').length} actifs
+            {displayedFilleuls.filter((f: any) => f.statut === 'ACTIF').length} actifs
+            {selectedMatrixLevelId && (
+              <button
+                type="button"
+                onClick={() => setSelectedMatrixLevelId(null)}
+                className="ml-2 underline text-primary-accent"
+              >
+                Voir tout
+              </button>
+            )}
           </span>
         </div>
 
-        {filleuls.length === 0 ? (
+        {displayedFilleuls.length === 0 ? (
           <p className="text-sm text-text-subtle italic py-6 text-center">
-            Aucun filleul direct enregistré pour ce membre.
+            {selectedMatrixLevelId
+              ? 'Aucun filleul n\'a encore été placé dans cette matrice.'
+              : 'Aucun membre dans le réseau pour l\'instant.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -306,6 +336,7 @@ export default function MemberProgressPage() {
                 <tr>
                   <th className="px-4 py-3">Filleul</th>
                   <th className="px-4 py-3">Matricule</th>
+                  <th className="px-4 py-3">Gén.</th>
                   <th className="px-4 py-3">Rang</th>
                   <th className="px-4 py-3">Progression</th>
                   <th className="px-4 py-3">Statut</th>
@@ -314,12 +345,15 @@ export default function MemberProgressPage() {
                 </tr>
               </thead>
               <tbody>
-                {filleuls.map((f: any) => (
+                {displayedFilleuls.map((f: any) => (
                   <tr key={f.id} className="hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-3 font-semibold text-text">
                       {f.client.prenom} {f.client.nom}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-text-muted">{f.matricule}</td>
+                    <td className="px-4 py-3">
+                      <span className="badge badge-info bg-blue-50 text-blue-700">Gen {f.generation ?? 1}</span>
+                    </td>
                     <td className="px-4 py-3">
                       <MlmLevelBadge level={f.level?.ordre ?? 1} size="sm" />
                     </td>

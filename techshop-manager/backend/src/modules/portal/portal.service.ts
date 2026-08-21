@@ -9,7 +9,7 @@ export class PortalService {
   // ── GET /portal/me ────────────────────────────────────────────────────────
 
   async getPortalData(clientId: string) {
-    const [client, configFidelite, nbFilleulsActifs, nbFilleulsTotal, dernierVentes] =
+    const [client, membre, dernierVentes] =
       await Promise.all([
         this.prisma.client.findUnique({
           where: { id: clientId },
@@ -18,9 +18,13 @@ export class PortalService {
             statut: true, codeParrain: true,
           },
         }),
-        Promise.resolve(null),
-        Promise.resolve(0),
-        Promise.resolve(0),
+        this.prisma.membre.findUnique({
+          where: { clientId },
+          include: {
+            filleuls: { select: { statut: true } },
+            portefeuille: true,
+          }
+        }),
         this.prisma.vente.findMany({
           where: { clientId },
           orderBy: { createdAt: 'desc' },
@@ -59,9 +63,32 @@ export class PortalService {
         remisePct: Number(n.remisePct),
         couleur: n.couleur,
       })),
-      nbFilleulsActifs,
-      nbFilleulsTotal,
+      nbFilleulsActifs: membre?.filleuls.filter(f => f.statut === 'ACTIF').length ?? 0,
+      nbFilleulsTotal: membre?.filleuls.length ?? 0,
       dernierAchats,
+    };
+  }
+
+  // ── GET /portal/wallet ────────────────────────────────────────────────────
+
+  async getWallet(clientId: string) {
+    const membre = await this.prisma.membre.findUnique({
+      where: { clientId },
+      include: { portefeuille: true }
+    });
+    
+    if (!membre || !membre.portefeuille) {
+      return { wallet: null, stats: null };
+    }
+
+    return {
+      wallet: {
+        soldeDisponible: Number(membre.portefeuille.soldeDisponible),
+        totalGagne: Number(membre.portefeuille.totalGagne),
+      },
+      stats: {
+        gainsTotaux: Number(membre.portefeuille.totalGagne),
+      }
     };
   }
 
@@ -162,15 +189,57 @@ export class PortalService {
     };
   }
 
-  // ── GET /portal/points ────────────────────────────────────────────────────
+  // ── GET /portal/wallet/transactions ───────────────────────────────────────
 
-  async getPoints(
+  async getWalletTransactions(
     clientId: string,
     query: { page?: number; limit?: number; typeFilter?: string },
   ) {
+    const membre = await this.prisma.membre.findUnique({
+      where: { clientId },
+      select: { portefeuille: { select: { id: true } } },
+    });
+
+    if (!membre?.portefeuille) {
+      return {
+        transactions: [],
+        meta: { total: 0, page: query.page ?? 1, limit: query.limit ?? 20, totalPages: 0 },
+      };
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = { portefeuilleId: membre.portefeuille.id };
+    if (query.typeFilter && query.typeFilter !== 'all') {
+      where.type = query.typeFilter === 'gains' ? { in: ['COMMISSION', 'BONUS'] } : 'RETRAIT';
+    }
+
+    const [transactions, total] = await Promise.all([
+      this.prisma.transactionPortefeuille.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.transactionPortefeuille.count({ where }),
+    ]);
+
     return {
-      mouvements: [],
-      meta: { total: 0, page: query.page ?? 1, limit: query.limit ?? 20, totalPages: 0 },
+      transactions: transactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        montant: Number(t.montant),
+        description: t.description,
+        createdAt: t.createdAt.toISOString(),
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -186,17 +255,73 @@ export class PortalService {
     });
     if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
 
+    const membre = await this.prisma.membre.findUnique({
+      where: { clientId },
+      include: { portefeuille: true }
+    });
+
+    if (!membre) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
+
+    // Fetch up to 10 generations using breadth-first search
+    let currentGenerationIds = [membre.id];
+    let depth = 1;
+    const maxDepth = 10;
+    const allDescendants: any[] = [];
+
+    while (currentGenerationIds.length > 0 && depth <= maxDepth) {
+      const filleuls = await this.prisma.membre.findMany({
+        where: { parrainId: { in: currentGenerationIds } },
+        include: { client: true }
+      });
+
+      if (filleuls.length === 0) break;
+
+      for (const f of filleuls) {
+        allDescendants.push({ ...f, generation: depth });
+      }
+
+      currentGenerationIds = filleuls.map(f => f.id);
+      depth++;
+    }
+
+    // Apply optional filter: 'actifs', 'en_attente', 'tous'
+    let filteredFilleuls = allDescendants;
+    if (query.filter === 'actifs') {
+      filteredFilleuls = filteredFilleuls.filter(f => f.statut === 'ACTIF');
+    } else if (query.filter === 'en_attente') {
+      filteredFilleuls = filteredFilleuls.filter(f => f.statut !== 'ACTIF');
+    }
+
+    const mappedFilleuls = filteredFilleuls.map(f => ({
+      id: f.id,
+      prenom: f.client?.prenom ?? '',
+      nom: f.client?.nom ?? '',
+      statut: f.statut,
+      dateInscription: f.dateInscription.toISOString(),
+      etapeEnCours: f.statut === 'ACTIF' ? undefined : 'En cours',
+      generation: f.generation,
+    }));
+
+    // Pagination
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const startIndex = (page - 1) * limit;
+    const paginatedFilleuls = mappedFilleuls.slice(startIndex, startIndex + limit);
+
     return {
       codeParrain: client.codeParrain ?? '—',
       stats: {
-        nbFilleulsActifs: 0,
-        nbFilleulsTotal: 0,
-        gainsTotaux: 0,
-        typeRecompense: 'POINTS',
-        recompenseValeur: 500,
+        nbFilleulsActifs: allDescendants.filter(f => f.statut === 'ACTIF').length,
+        nbFilleulsTotal: allDescendants.length,
+        gainsTotaux: membre?.portefeuille ? Number(membre.portefeuille.totalGagne) : 0,
       },
-      filleuls: [],
-      meta: { total: 0, page: query.page ?? 1, limit: query.limit ?? 20, totalPages: 0 },
+      filleuls: paginatedFilleuls,
+      meta: { 
+        total: mappedFilleuls.length, 
+        page, 
+        limit, 
+        totalPages: Math.ceil(mappedFilleuls.length / limit) 
+      },
     };
   }
 

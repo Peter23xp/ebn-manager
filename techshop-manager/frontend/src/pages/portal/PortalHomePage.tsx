@@ -1,50 +1,56 @@
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { PortalLayout } from '@/components/portal/PortalLayout';
-import { PointsCard } from '@/components/portal/PointsCard';
 import { ParrainCard } from '@/components/portal/ParrainCard';
+import { WalletCard } from '@/components/portal/WalletCard';
 import { QuickActionsGrid } from '@/components/portal/QuickActionsGrid';
 import { RecentPurchasesMini } from '@/components/portal/RecentPurchasesMini';
 import { usePortalHome } from '@/hooks/usePortalHome';
+import { usePortalMlm } from '@/hooks/usePortalMlm';
 import { useAuthStore } from '@/store/auth.store';
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-400 mb-3">
       {children}
     </p>
   );
 }
 
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-neutral-200 ${className ?? ''}`} />;
+  return <div className={`animate-pulse rounded-2xl bg-neutral-200 ${className ?? ''}`} />;
 }
 
 export default function PortalHomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  
+  // Données E-commerce & Fidélité classiques
   const {
     client, prochainNiveau, niveauxConfig,
     nbFilleulsActifs, nbFilleulsTotal,
-    dernierAchats, isLoading, error, refetch,
+    dernierAchats, isLoading: isHomeLoading, error, refetch,
   } = usePortalHome();
 
+  // Données MLM (Portefeuille et gains)
+  const { wallet, stats, isLoading: isMlmLoading } = usePortalMlm();
+
   const displayName = user
-    ? `${user.prenom ?? user.name?.split(' ')[0] ?? 'Client'}`
-    : 'Client';
+    ? `${user.prenom ?? user.name?.split(' ')[0] ?? 'Partenaire'}`
+    : 'Partenaire';
 
   if (error) {
     return (
       <PortalLayout>
         <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh] p-6">
           <AlertCircle size={36} className="text-red-500" />
-          <p className="text-sm font-semibold text-center text-[#1E3A5F]">
+          <p className="text-sm font-semibold text-center text-[#0A1628]">
             Impossible de charger vos données.
           </p>
           <button
             type="button"
             onClick={() => refetch()}
-            className="flex items-center gap-2 bg-[#1E3A5F] text-white rounded-xl px-4 h-10 text-sm font-semibold"
+            className="flex items-center gap-2 bg-[#0A1628] text-white rounded-xl px-4 h-10 text-sm font-semibold"
           >
             <RefreshCw size={14} /> Réessayer
           </button>
@@ -53,46 +59,51 @@ export default function PortalHomePage() {
     );
   }
 
+  const isLoading = isHomeLoading || isMlmLoading;
+
   return (
     <PortalLayout>
-      <div className="px-4 py-5 space-y-5">
+      <div className="px-4 py-6 space-y-6">
 
         {/* Greeting */}
         <div>
-          <h1 className="text-xl font-bold text-[#1E3A5F]">
+          <h1 className="text-2xl font-bold text-[#0A1628] tracking-tight">
             Bonjour, {client?.prenom ?? displayName} 👋
           </h1>
-          <p className="text-sm text-neutral-500">Bienvenue sur votre espace fidélité</p>
+          <p className="text-sm text-neutral-500 mt-1">Bienvenue sur votre espace partenaire EBN</p>
         </div>
 
-        {/* Points card */}
-        {isLoading ? (
-          <Skeleton className="h-36" />
-        ) : client ? (
-          <PointsCard
-            niveauFidelite={(client.niveauFidelite ?? 'BRONZE') as 'BRONZE' | 'ARGENT' | 'OR' | 'PLATINE'}
-            pointsActuels={client.pointsFidelite ?? 0}
-            remisePct={client.remisePct ?? 0}
-            prochainNiveau={prochainNiveau}
-            niveauxConfig={niveauxConfig}
-          />
-        ) : null}
+        {/* Wallet MLM (Primary Focus) */}
+        <div>
+          {isMlmLoading ? (
+            <Skeleton className="h-40" />
+          ) : (
+            <WalletCard 
+              solde={wallet?.soldeDisponible ?? 0} 
+              gainsTotaux={stats?.gainsTotaux ?? 0} 
+            />
+          )}
+        </div>
 
-        {/* Code parrain */}
-        {isLoading ? (
-          <Skeleton className="h-28" />
-        ) : client?.codeParrain ? (
-          <ParrainCard
-            codeParrain={client.codeParrain}
-            nbFilleulsActifs={nbFilleulsActifs}
-            nbFilleulsTotal={nbFilleulsTotal}
-          />
-        ) : null}
+
+
+        {/* Code parrain & Réseau */}
+        <div>
+          {isHomeLoading ? (
+            <Skeleton className="h-28" />
+          ) : client?.codeParrain ? (
+            <ParrainCard
+              codeParrain={client.codeParrain}
+              nbFilleulsActifs={nbFilleulsActifs}
+              nbFilleulsTotal={nbFilleulsTotal}
+            />
+          ) : null}
+        </div>
 
         {/* Quick actions */}
         <div>
           <SectionTitle>Accès rapide</SectionTitle>
-          {isLoading ? (
+          {isHomeLoading ? (
             <div className="grid grid-cols-2 gap-3">
               <Skeleton className="h-[72px]" />
               <Skeleton className="h-[72px]" />
@@ -109,10 +120,10 @@ export default function PortalHomePage() {
         {/* Recent purchases */}
         <div>
           <SectionTitle>Derniers achats</SectionTitle>
-          {isLoading ? (
+          {isHomeLoading ? (
             <div className="space-y-3">
-              <Skeleton className="h-5" />
-              <Skeleton className="h-5" />
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
             </div>
           ) : (
             <RecentPurchasesMini

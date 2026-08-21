@@ -16,6 +16,11 @@ export class PortalController {
     return this.portalService.getPortalData(user.id);
   }
 
+  @Get('wallet')
+  getWallet(@CurrentUser() user: any) {
+    return this.portalService.getWallet(user.id);
+  }
+
   @Get('purchases')
   getPurchases(
     @CurrentUser() user: any,
@@ -34,14 +39,14 @@ export class PortalController {
     return this.portalService.getPurchaseDetail(user.id, venteId);
   }
 
-  @Get('points')
-  getPoints(
+  @Get('wallet/transactions')
+  getWalletTransactions(
     @CurrentUser() user: any,
     @Query('typeFilter') typeFilter?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.portalService.getPoints(user.id, { page, limit, typeFilter });
+    return this.portalService.getWalletTransactions(user.id, { page, limit, typeFilter });
   }
 
   @Get('referrals')

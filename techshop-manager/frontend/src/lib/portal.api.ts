@@ -86,17 +86,16 @@ export interface PortalPurchaseDetail {
   };
 }
 
-export interface PortalMouvement {
+export interface PortalWalletTransaction {
   id: string;
   type: string;
-  delta: number;
-  soldeApres: number;
+  montant: number;
   description?: string;
   createdAt: string;
 }
 
-export interface PortalMovementsResponse {
-  mouvements: PortalMouvement[];
+export interface PortalWalletTransactionsResponse {
+  transactions: PortalWalletTransaction[];
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
@@ -106,8 +105,8 @@ export interface PortalFilleul {
   nom: string;
   statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';
   dateInscription: string;
-  recompenseGeneree: number;
   etapeEnCours?: string;
+  generation?: number;
 }
 
 export interface PortalReferralsResponse {
@@ -139,12 +138,12 @@ export const portalApi = {
   getPurchaseDetail: (venteId: string): Promise<PortalPurchaseDetail> =>
     api.get(`/portal/purchases/${venteId}`).then((r) => r.data),
 
-  getPointsMouvements: (params: {
-    typeFilter: 'all' | 'gains' | 'deductions';
+  getWalletTransactions: (params: {
+    typeFilter: 'all' | 'gains' | 'retraits';
     page: number;
     limit?: number;
-  }): Promise<PortalMovementsResponse> =>
-    api.get('/portal/points', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
+  }): Promise<PortalWalletTransactionsResponse> =>
+    api.get('/portal/wallet/transactions', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
 
   getReferrals: (params: {
     filter: 'actifs' | 'en_attente' | 'tous';
@@ -152,4 +151,7 @@ export const portalApi = {
     limit?: number;
   }): Promise<PortalReferralsResponse> =>
     api.get('/portal/referrals', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
+
+  getWallet: () =>
+    api.get('/portal/wallet').then((r) => r.data),
 };
