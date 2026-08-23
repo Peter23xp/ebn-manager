@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { CodeParrainInput } from '@/components/clients/CodeParrainInput';
+import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
+import { kpayApi } from '@/lib/kpay.api';
 
 // ── Schema Zod ────────────────────────────────────────────────────────────────
 
@@ -24,11 +26,11 @@ const schema = z
     siteId:           z.string().min(1, 'Site requis'),
     codeParrain:      z.string().optional(),
     montantRecit:     z.number({ invalid_type_error: 'Montant requis' }).positive('Montant requis'),
-    modePaiement:     z.enum(['CASH', 'MPESA', 'AIRTEL_MONEY', 'VIREMENT']),
+    modePaiement:     z.enum(['CASH', 'MPESA', 'AIRTEL_MONEY', 'VIREMENT', 'KPAY']),
     numeroRecu:       z.string().optional(),
   })
   .refine(
-    (d) => d.modePaiement === 'CASH' || !!d.numeroRecu,
+    (d) => d.modePaiement === 'CASH' || d.modePaiement === 'KPAY' || !!d.numeroRecu,
     { message: 'Numéro de transaction requis pour ce mode', path: ['numeroRecu'] },
   );
 
@@ -39,6 +41,7 @@ const MODES = [
   { value: 'MPESA',        label: 'M-Pesa' },
   { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
   { value: 'VIREMENT',     label: 'Virement' },
+  { value: 'KPAY',         label: 'KPay' },
 ] as const;
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -54,6 +57,7 @@ export default function OnboardingRecitPage() {
   const navigate   = useNavigate();
   const { user, hasRole } = useAuthStore();
   const [sessionClients, setSessionClients] = useState<RecitSuccess[]>([]);
+  const [kpaySubmitting, setKpaySubmitting] = useState(false);
 
   const isAgent = user?.role === 'AGENT';
 
@@ -98,7 +102,21 @@ export default function OnboardingRecitPage() {
 
   const modePaiement = watch('modePaiement');
   const telephone    = watch('telephone') ?? '';
-  const needsRef     = modePaiement !== 'CASH';
+  const needsRef     = modePaiement !== 'CASH' && modePaiement !== 'KPAY';
+
+  const handleKpaySubmit = (payment: { provider: string; phoneNumber: string }) => {
+    handleSubmit(async (data) => {
+      setKpaySubmitting(true);
+      try {
+        const result = await kpayApi.initRecit({ ...data, modePaiement: 'KPAY', provider: payment.provider, phoneNumber: payment.phoneNumber, email: data.email || undefined, codeParrain: data.codeParrain || undefined });
+        const c = result.client;
+        setSessionClients((prev) => [{ id: c.id, prenom: c.prenom, nom: c.nom, telephone: c.telephone }, ...prev]);
+        toast.success(`Paiement KPay initié pour ${c.prenom} ${c.nom}.`);
+        reset({ prenom: '', nom: '', telephone: '', email: '', codeParrain: '', siteId: getValues('siteId'), modePaiement: 'KPAY', montantRecit: getValues('montantRecit'), numeroRecu: '' });
+      } catch (error) { toast.error(`${getErrorMessage(error)} Vos données sont conservées, réessayez.`); }
+      finally { setKpaySubmitting(false); }
+    })();
+  };
 
   const mutation = useMutation({
     mutationFn: (data: FormValues) =>
@@ -150,7 +168,7 @@ export default function OnboardingRecitPage() {
     hasErr && 'border-danger focus:ring-danger/30 focus:border-danger',
   );
 
-  const disabled = isSubmitting || mutation.isPending;
+  const disabled = isSubmitting || mutation.isPending || kpaySubmitting;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -361,6 +379,9 @@ export default function OnboardingRecitPage() {
                 {errors.numeroRecu && <p className="form-error">{errors.numeroRecu.message}</p>}
               </div>
             )}
+            {modePaiement === 'KPAY' && (
+              <MobileMoneyPaymentForm amount={Number(watch('montantRecit') || 0)} submitting={kpaySubmitting} onSubmit={handleKpaySubmit} />
+            )}
           </div>
 
           {/* Actions */}
@@ -372,14 +393,14 @@ export default function OnboardingRecitPage() {
             >
               Terminer
             </Link>
-            <button
+            {modePaiement !== 'KPAY' && <button
               type="submit"
               disabled={disabled}
               className="btn-primary text-[13px] flex items-center gap-2"
             >
               {disabled && <Loader2 size={14} className="animate-spin" aria-hidden />}
               {disabled ? 'Enregistrement…' : '+ Enregistrer ce client'}
-            </button>
+            </button>}
           </div>
         </form>
       </div>

@@ -50,10 +50,17 @@ enum ModePaiement {
 }
 
 enum StatutVente {
+  EN_ATTENTE_PAIEMENT
   VALIDE
   RETOURNEE_PARTIELLE
   RETOURNEE
   ANNULEE
+}
+
+enum StatutRetour {
+  EN_ATTENTE_REMBOURSEMENT
+  COMPLETE
+  ECHEC_REMBOURSEMENT
 }
 
 enum TypeMouvement {
@@ -121,6 +128,31 @@ enum CommissionStatut {
   VALIDEE
   PAYEE
   ANNULEE
+}
+
+enum KpayOperationType {
+  ONBOARDING_PAYMENT
+  SALE_PAYMENT
+  SALE_REFUND
+  MLM_PAYOUT
+  AUTO_PAYOUT
+}
+
+enum KpayTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum MlmPayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 // ============================================
@@ -239,6 +271,8 @@ model OnboardingEtape {
 
   siteId    String
   site      Site        @relation(fields: [siteId], references: [id])
+
+  kpayTransactions KpayTransaction[] @relation("OnboardingEtapeKpayTransactions")
 
   @@unique([clientId, etape])
   @@map("onboarding_etapes")
@@ -376,6 +410,7 @@ model Vente {
 
   lignes  LigneVente[]
   retours Retour[]
+  kpayTransactions KpayTransaction[] @relation("VenteKpayTransactions")
 
   @@map("ventes")
 }
@@ -405,6 +440,7 @@ model LigneVente {
 
 model Retour {
   id                   String   @id @default(uuid())
+  statut               StatutRetour @default(COMPLETE)
   numeroAvoir          String?  @unique
   motif                String
   motifDescription     String?
@@ -419,6 +455,7 @@ model Retour {
   vente   Vente  @relation(fields: [venteId], references: [id])
 
   lignes LigneRetour[]
+  kpayTransactions KpayTransaction[] @relation("RetourKpayTransactions")
 
   @@map("retours")
 }
@@ -455,6 +492,12 @@ model ConfigGenerale {
   dureeSectionHeures    Int      @default(8)
   delaiRetourJours      Int      @default(7)
   fraisRetourPct        Decimal  @default(0) @db.Decimal(5, 2)
+  kpayAutoPayoutActif  Boolean  @default(false)
+  kpayAutoPayoutProvider String?
+  kpayAutoPayoutPhone  String?
+  kpayAdminMpesaPhone String?
+  kpayAdminAirtelPhone String?
+  kpayAdminOrangePhone String?
   updatedAt             DateTime @updatedAt
 
   @@map("config_generale")
@@ -606,6 +649,7 @@ model Membre {
   bonusRetraitesDonnes BonusRetraite[]  @relation("FilleulCrownBonusRetraite")
   commissionsRecues    Commission[]     @relation("CommissionBeneficiaire")
   commissionsGenerees  Commission[]     @relation("CommissionFilleul")
+  payouts              MlmPayout[]
 
   @@map("membres")
 }
@@ -648,6 +692,7 @@ model Portefeuille {
   id               String   @id @default(uuid())
   membreId         String   @unique
   soldeDisponible  Decimal  @default(0) @db.Decimal(12, 2)
+  soldeReserve     Decimal  @default(0) @db.Decimal(12, 2)
   totalGagne       Decimal  @default(0) @db.Decimal(12, 2)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -671,6 +716,58 @@ model TransactionPortefeuille {
   portefeuille Portefeuille @relation(fields: [portefeuilleId], references: [id])
 
   @@map("transactions_portefeuille")
+}
+
+model MlmPayout {
+  id          String          @id @default(uuid())
+  montant     Decimal         @db.Decimal(12, 2)
+  provider    String
+  phoneNumber String
+  statut      MlmPayoutStatus @default(PENDING)
+  failureReason String?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  membreId String
+  membre   Membre @relation(fields: [membreId], references: [id])
+  kpayTransaction KpayTransaction?
+
+  @@index([membreId, statut])
+  @@map("mlm_payouts")
+}
+
+model KpayTransaction {
+  id                       String                @id @default(uuid())
+  operationType            KpayOperationType
+  status                   KpayTransactionStatus @default(PENDING)
+  amount                   Decimal               @db.Decimal(12, 2)
+  currency                 String                @default("USD")
+  externalId               String                @unique
+  kpayPaymentId            String?               @unique
+  kpayReference            String?
+  provider                 String?
+  phoneNumber              String?
+  failureReason            String?
+  metadata                 Json?
+  terminalEventProcessedAt DateTime?
+  completedAt              DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  venteId String?
+  vente   Vente? @relation("VenteKpayTransactions", fields: [venteId], references: [id])
+  onboardingEtapeId String?
+  onboardingEtape   OnboardingEtape? @relation("OnboardingEtapeKpayTransactions", fields: [onboardingEtapeId], references: [id])
+  retourId String?
+  retour   Retour? @relation("RetourKpayTransactions", fields: [retourId], references: [id])
+  payoutId String? @unique
+  payout   MlmPayout? @relation(fields: [payoutId], references: [id])
+
+  @@index([venteId])
+  @@index([onboardingEtapeId])
+  @@index([retourId])
+  @@map("kpay_transactions")
 }
 
 // ── Historique des promotions ─────────────────────────────────

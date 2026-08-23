@@ -75,6 +75,18 @@ export const MlmApi = {
     const { data } = await api.patch(`/mlm/commissions/${commissionId}/cancel`, { notes });
     return data;
   },
+  listPayouts: async (params: { page?: number; limit?: number; statut?: string } = {}) => {
+    const { data } = await api.get('/mlm/payouts', { params });
+    return data;
+  },
+  approvePayout: async (payoutId: string) => {
+    const { data } = await api.put(`/mlm/payouts/${payoutId}/approve`);
+    return data;
+  },
+  cancelPayout: async (payoutId: string) => {
+    const { data } = await api.patch(`/mlm/payouts/${payoutId}/cancel`);
+    return data;
+  },
 
   // ── Wallet ──────────────────────────────────────────────────────────────────
   getWallet: async (memberId?: string) => {

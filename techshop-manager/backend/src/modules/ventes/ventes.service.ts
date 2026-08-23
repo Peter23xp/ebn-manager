@@ -3,15 +3,246 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginate } from '../../common/dto/pagination.dto';
-import { CreateVenteDto, RetourDto } from './dto/vente.dto';
-import { TypeMouvement } from '@prisma/client';
+import { CreateVenteDto, InitKpayVenteDto, RetourDto } from './dto/vente.dto';
+import { KpayOperationType, KpayTransactionStatus, TypeMouvement } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { KpayService } from '../kpay/kpay.service';
+import { KpayWebhookService } from '../kpay/kpay-webhook.service';
+import { KpayProvider } from '../kpay/kpay.types';
 
 @Injectable()
-export class VentesService {
-  constructor(private prisma: PrismaService) {}
+export class VentesService implements OnModuleInit {
+  constructor(
+    private prisma: PrismaService,
+    private readonly kpay: KpayService,
+    private readonly kpayWebhooks: KpayWebhookService,
+  ) {}
+
+  onModuleInit() {
+    this.kpayWebhooks.registerFinalizer(KpayOperationType.SALE_PAYMENT, async (transactionId, event) => {
+      if (event.status !== 'COMPLETED') return;
+      await this.finalizeKpayVente(transactionId);
+    });
+    this.kpayWebhooks.registerFinalizer(KpayOperationType.SALE_REFUND, async (transactionId, event) => {
+      await this.finalizeKpayRefund(transactionId, event.status);
+    });
+  }
+
+  private async finalizeKpayRefund(transactionId: string, status: KpayTransactionStatus) {
+    const transaction = await this.prisma.kpayTransaction.findUnique({
+      where: { id: transactionId },
+      include: { retour: { include: { vente: { include: { lignes: true } } } } },
+    });
+    if (!transaction?.retour || transaction.retour.statut !== 'EN_ATTENTE_REMBOURSEMENT') return;
+    await this.prisma.$transaction(async (tx) => {
+      const retour = await tx.retour.findUnique({ where: { id: transaction.retour!.id }, include: { vente: true, lignes: true } });
+      if (!retour || retour.statut !== 'EN_ATTENTE_REMBOURSEMENT') return;
+      if (status === 'COMPLETED') {
+        for (const ligne of retour.lignes) {
+          const stock = await tx.stockSite.findUnique({ where: { produitId_siteId: { produitId: ligne.produitId, siteId: retour.vente.siteId } } });
+          if (stock) {
+            await tx.stockSite.update({ where: { produitId_siteId: { produitId: ligne.produitId, siteId: retour.vente.siteId } }, data: { quantite: { increment: ligne.quantite } } });
+            await tx.mouvementStock.create({ data: { type: TypeMouvement.AJUSTEMENT_INVENTAIRE, quantite: ligne.quantite, quantiteAvant: stock.quantite, quantiteApres: stock.quantite + ligne.quantite, reference: retour.numeroAvoir, produitId: ligne.produitId, siteId: retour.vente.siteId, agentId: retour.agentId } });
+          }
+        }
+        await tx.retour.update({ where: { id: retour.id }, data: { statut: 'COMPLETE', stockRemis: true } });
+        await tx.vente.update({ where: { id: retour.venteId }, data: { statut: 'RETOURNEE' } });
+      } else {
+        await tx.retour.update({ where: { id: retour.id }, data: { statut: 'ECHEC_REMBOURSEMENT' } });
+      }
+    });
+  }
+
+  private async finalizeKpayVente(transactionId: string) {
+    const transaction = await this.prisma.kpayTransaction.findUnique({
+      where: { id: transactionId },
+      include: { vente: { include: { lignes: true } } },
+    });
+    if (!transaction?.vente || transaction.vente.statut !== 'EN_ATTENTE_PAIEMENT') return;
+
+    await this.prisma.$transaction(async (tx) => {
+      const vente = await tx.vente.findUnique({
+        where: { id: transaction.venteId! },
+        include: { lignes: true },
+      });
+      if (!vente || vente.statut !== 'EN_ATTENTE_PAIEMENT') return;
+      for (const ligne of vente.lignes) {
+        const stock = await tx.stockSite.findUnique({
+          where: { produitId_siteId: { produitId: ligne.produitId, siteId: vente.siteId } },
+        });
+        if (!stock || stock.quantite < ligne.quantite) {
+          throw new ConflictException({ code: 'ERR_STOCK_INSUFFISANT', message: 'Stock insuffisant à la confirmation KPay' });
+        }
+        await tx.stockSite.update({
+          where: { produitId_siteId: { produitId: ligne.produitId, siteId: vente.siteId } },
+          data: { quantite: { decrement: ligne.quantite } },
+        });
+        await tx.mouvementStock.create({
+          data: {
+            type: TypeMouvement.SORTIE_VENTE,
+            quantite: ligne.quantite,
+            quantiteAvant: stock.quantite,
+            quantiteApres: stock.quantite - ligne.quantite,
+            reference: vente.numeroVente,
+            produitId: ligne.produitId,
+            siteId: vente.siteId,
+            agentId: vente.agentId,
+          },
+        });
+      }
+      await tx.vente.update({ where: { id: vente.id }, data: { statut: 'VALIDE' } });
+    });
+    await this.initiateConfiguredAutoPayout(transactionId);
+  }
+
+  private async initiateConfiguredAutoPayout(sourceTransactionId: string) {
+    const config = await this.prisma.configGenerale.findFirst();
+    if (!config) return;
+    const source = await this.prisma.kpayTransaction.findUnique({ where: { id: sourceTransactionId } });
+    if (!source || source.status !== KpayTransactionStatus.COMPLETED) return;
+    const provider = (source.provider ?? config.kpayAutoPayoutProvider) as KpayProvider | null;
+    const phoneByProvider: Record<string, string | null | undefined> = {
+      VODACOM_MPESA_COD: config.kpayAdminMpesaPhone,
+      AIRTEL_COD: config.kpayAdminAirtelPhone,
+      ORANGE_COD: config.kpayAdminOrangePhone,
+    };
+    const phoneNumber = (provider && phoneByProvider[provider]) || (provider === config.kpayAutoPayoutProvider ? config.kpayAutoPayoutPhone : null);
+    if (!provider || !phoneNumber) return;
+    const externalId = `AUTO-PAYOUT-${source.externalId}`;
+    const existing = await this.prisma.kpayTransaction.findUnique({ where: { externalId }, select: { id: true } });
+    if (existing) return;
+    const payout = await this.prisma.kpayTransaction.create({ data: { operationType: KpayOperationType.AUTO_PAYOUT, status: KpayTransactionStatus.PENDING, amount: source.amount, currency: source.currency, externalId, provider, phoneNumber, metadata: { sourceTransactionId, venteId: source.venteId, purpose: 'ADMIN_AUTO_PAYOUT' } } });
+    try {
+      const remote = await this.kpay.initPayout({ amount: Number(source.amount), provider, phoneNumber, externalId, description: `Transfert automatique vente ${source.externalId}` });
+      await this.prisma.kpayTransaction.update({ where: { id: payout.id }, data: { kpayPaymentId: remote.id, kpayReference: remote.reference, status: remote.status as KpayTransactionStatus } });
+    } catch (error) {
+      await this.prisma.kpayTransaction.update({ where: { id: payout.id }, data: { status: KpayTransactionStatus.FAILED, failureReason: error instanceof Error ? error.message : 'Payout automatique échoué' } });
+    }
+  }
+
+  async initKpayVente(dto: InitKpayVenteDto, agentId: string) {
+    await this.requireConfiguredAdminPhone(dto.provider);
+    const site = await this.prisma.site.findUnique({ where: { id: dto.siteId }, select: { id: true } });
+    if (!site) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Site introuvable' });
+
+    const produits = await this.prisma.produit.findMany({
+      where: { id: { in: dto.lignes.map((ligne) => ligne.produitId) }, actif: true },
+      select: { id: true, prixVente: true },
+    });
+    if (produits.length !== dto.lignes.length) {
+      throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Produit introuvable ou inactif' });
+    }
+    const montantNet = dto.lignes.reduce((total, ligne) => {
+      const produit = produits.find((item) => item.id === ligne.produitId)!;
+      return total + Number(produit.prixVente) * ligne.quantite;
+    }, 0);
+    const externalId = `SALE-${randomUUID()}`;
+    const numeroVente = await this.generateNumeroVente(dto.siteId);
+    const pending = await this.prisma.$transaction(async (tx) => {
+      const vente = await tx.vente.create({
+        data: {
+          numeroVente,
+          statut: 'EN_ATTENTE_PAIEMENT',
+          siteId: dto.siteId,
+          agentId,
+          clientId: dto.clientId,
+          modePaiement: dto.modePaiement,
+          montantBrut: montantNet,
+          remiseFidelite: 0,
+          montantNet,
+          pointsAttribues: 0,
+          lignes: { create: dto.lignes.map((ligne) => {
+            const produit = produits.find((item) => item.id === ligne.produitId)!;
+            return { produitId: ligne.produitId, quantite: ligne.quantite, prixUnitaire: Number(produit.prixVente), sousTotal: Number(produit.prixVente) * ligne.quantite };
+          }) },
+        },
+      });
+      return tx.kpayTransaction.create({
+        data: {
+          operationType: KpayOperationType.SALE_PAYMENT,
+          status: KpayTransactionStatus.PENDING,
+          amount: montantNet,
+          currency: 'USD',
+          externalId,
+          provider: dto.provider,
+          phoneNumber: dto.phoneNumber,
+          venteId: vente.id,
+          metadata: { numeroVente },
+        },
+      });
+    });
+
+    let payment;
+    try {
+      payment = await this.kpay.initDeposit({
+        amount: montantNet,
+        currency: 'USD',
+        provider: dto.provider,
+        phoneNumber: dto.phoneNumber,
+        externalId,
+        description: `Vente ${numeroVente}`,
+        metadata: { venteId: pending.venteId, numeroVente },
+      });
+    } catch (error) {
+      await this.prisma.$transaction([
+        this.prisma.kpayTransaction.update({ where: { id: pending.id }, data: { status: KpayTransactionStatus.FAILED, failureReason: error instanceof Error ? error.message : 'KPay a refusé la requête' } }),
+        this.prisma.vente.update({ where: { id: pending.venteId! }, data: { statut: 'ANNULEE' } }),
+      ]);
+      throw error;
+    }
+    await this.prisma.kpayTransaction.update({
+      where: { id: pending.id },
+      data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus },
+    });
+    return { transactionId: pending.id, status: payment.status, reference: payment.reference };
+  }
+
+  private async requireConfiguredAdminPhone(provider: string): Promise<string> {
+    const config = await this.prisma.configGenerale.findFirst();
+    if (!config) throw new BadRequestException('Configurez les numéros administrateur KPay dans Paramètres > Opérations avant un paiement Mobile Money.');
+    const destinations: Record<string, { label: string; phone?: string | null }> = {
+      VODACOM_MPESA_COD: { label: 'M-Pesa', phone: config.kpayAdminMpesaPhone },
+      AIRTEL_COD: { label: 'Airtel Money', phone: config.kpayAdminAirtelPhone },
+      ORANGE_COD: { label: 'Orange Money', phone: config.kpayAdminOrangePhone },
+    };
+    const destination = destinations[provider];
+    if (!destination?.phone) {
+      throw new BadRequestException(`Le numéro administrateur ${destination?.label ?? provider} n'est pas configuré dans Paramètres > Opérations.`);
+    }
+    return destination.phone;
+  }
+
+  async getKpayVenteStatus(transactionId: string) {
+    const transaction = await this.prisma.kpayTransaction.findFirst({
+      where: { id: transactionId, operationType: KpayOperationType.SALE_PAYMENT },
+      select: {
+        id: true,
+        status: true,
+        kpayReference: true,
+        failureReason: true,
+        completedAt: true,
+        kpayPaymentId: true,
+        amount: true,
+        vente: { select: { id: true, numeroVente: true, statut: true } },
+      },
+    });
+    if (!transaction) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Transaction KPay introuvable' });
+    if (transaction.kpayPaymentId && ['PENDING', 'PROCESSING'].includes(transaction.status)) {
+      const remote = await this.kpay.getDeposit(transaction.kpayPaymentId);
+      const status = remote.status as KpayTransactionStatus;
+      await this.prisma.kpayTransaction.update({ where: { id: transaction.id }, data: { status, kpayReference: remote.reference, failureReason: remote.failureReason ?? null, completedAt: status === KpayTransactionStatus.COMPLETED ? new Date() : null } });
+      if (status === KpayTransactionStatus.COMPLETED) await this.finalizeKpayVente(transaction.id);
+      if (status === KpayTransactionStatus.FAILED || status === KpayTransactionStatus.CANCELLED) {
+        await this.prisma.vente.updateMany({ where: { id: transaction.vente?.id, statut: 'EN_ATTENTE_PAIEMENT' }, data: { statut: 'ANNULEE' } });
+      }
+      return { ...transaction, status, kpayReference: remote.reference, failureReason: remote.failureReason ?? null, completedAt: status === KpayTransactionStatus.COMPLETED ? new Date() : null, vente: transaction.vente ? { ...transaction.vente, statut: status === KpayTransactionStatus.COMPLETED ? 'VALIDE' : transaction.vente.statut } : transaction.vente };
+    }
+    return transaction;
+  }
 
 
 
@@ -244,6 +475,7 @@ export class VentesService {
               produit: { select: { id: true, nom: true, sku: true } },
             },
           },
+          kpayTransactions: { where: { operationType: KpayOperationType.SALE_PAYMENT }, select: { id: true, venteId: true, status: true, kpayPaymentId: true } },
         },
       }),
       this.prisma.vente.count({ where }),
@@ -253,6 +485,13 @@ export class VentesService {
         _count: { id: true },
       }),
     ]);
+
+    const pendingPayments = data.flatMap((vente) => vente.kpayTransactions.filter((transaction) => transaction.kpayPaymentId && ['PENDING', 'PROCESSING'].includes(transaction.status)));
+    const reconciledStatuses = new Map<string, string>();
+    if (pendingPayments.length > 0) {
+      const results = await Promise.all(pendingPayments.map((transaction) => this.syncPendingSalePayment(transaction)));
+      for (const result of results) if (result) reconciledStatuses.set(result.venteId, result.saleStatus);
+    }
 
     const totalCA = Number(kpisAgg._sum.montantNet ?? 0);
     const nbVentes = kpisAgg._count.id;
@@ -266,7 +505,7 @@ export class VentesService {
       client: v.client,
       montantNet: Number(v.montantNet),
       modePaiement: v.modePaiement,
-      statut: v.statut,
+      statut: (reconciledStatuses.get(v.id) ?? v.statut) as typeof v.statut,
     }));
 
     return {
@@ -550,6 +789,57 @@ export class VentesService {
         createdAt: vente.createdAt,
       },
     };
+  }
+
+  private async syncPendingSalePayment(transaction: { id: string; venteId: string | null; status: KpayTransactionStatus; kpayPaymentId: string | null }) {
+    if (!transaction.kpayPaymentId || !transaction.venteId || !['PENDING', 'PROCESSING'].includes(transaction.status)) return null;
+    try {
+      const remote = await this.kpay.getDeposit(transaction.kpayPaymentId);
+      const status = remote.status as KpayTransactionStatus;
+      await this.prisma.kpayTransaction.update({
+        where: { id: transaction.id },
+        data: { status, kpayReference: remote.reference, failureReason: remote.failureReason ?? null, completedAt: remote.completedAt ? new Date(remote.completedAt) : null },
+      });
+      if (status === KpayTransactionStatus.COMPLETED) {
+        await this.finalizeKpayVente(transaction.id);
+        return { venteId: transaction.venteId, saleStatus: 'VALIDE' as const };
+      }
+      if (status === KpayTransactionStatus.FAILED || status === KpayTransactionStatus.CANCELLED) {
+        await this.prisma.vente.updateMany({ where: { id: transaction.venteId, statut: 'EN_ATTENTE_PAIEMENT' }, data: { statut: 'ANNULEE' } });
+        return { venteId: transaction.venteId, saleStatus: 'ANNULEE' as const };
+      }
+    } catch {
+      // KPay peut être temporairement indisponible; la vente reste en attente.
+    }
+    return null;
+  }
+
+  async initKpayRefund(venteId: string, dto: RetourDto, agentId: string) {
+    const vente = await this.prisma.vente.findUnique({
+      where: { id: venteId },
+      include: { lignes: true, retours: { include: { lignes: true } }, kpayTransactions: true },
+    });
+    if (!vente) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Vente introuvable' });
+    const payment = vente.kpayTransactions.find((t) => t.operationType === KpayOperationType.SALE_PAYMENT && t.status === KpayTransactionStatus.COMPLETED && t.kpayPaymentId);
+    if (!payment?.kpayPaymentId) throw new BadRequestException('Cette vente ne possède pas de paiement KPay complété');
+    if (vente.kpayTransactions.some((t) => t.operationType === KpayOperationType.SALE_REFUND && ['PENDING', 'PROCESSING', 'COMPLETED'].includes(t.status))) {
+      throw new ConflictException('Un remboursement KPay existe déjà pour cette vente');
+    }
+    const expected = new Map(vente.lignes.map((l) => [l.produitId, l.quantite]));
+    const requested = new Map(dto.lignes.map((l) => [l.produitId, l.quantite]));
+    if (expected.size !== requested.size || [...expected].some(([id, qty]) => requested.get(id) !== qty)) {
+      throw new BadRequestException('KPay ne supporte que le remboursement intégral de la vente');
+    }
+    const numeroAvoir = await this.generateNumeroAvoir(vente.siteId);
+    const externalId = `REFUND-${randomUUID()}`;
+    const pending = await this.prisma.$transaction(async (tx) => {
+      const retour = await tx.retour.create({ data: { venteId, numeroAvoir, motif: dto.motif, motifDescription: dto.motifDescription, modeRemboursement: 'KPAY', montantRembourse: vente.montantNet, stockRemis: false, statut: 'EN_ATTENTE_REMBOURSEMENT', agentId, lignes: { create: dto.lignes } } });
+      await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.SALE_REFUND, status: KpayTransactionStatus.PENDING, amount: vente.montantNet, currency: 'USD', externalId, retourId: retour.id, metadata: { venteId, retourId: retour.id, originalPaymentId: payment.kpayPaymentId } } });
+      return { retour, externalId };
+    });
+    const refund = await this.kpay.refundDeposit(payment.kpayPaymentId, { reason: dto.motif, externalId });
+    await this.prisma.kpayTransaction.update({ where: { externalId }, data: { status: (refund.status ?? 'PENDING') as KpayTransactionStatus, kpayReference: refund.id ?? undefined } });
+    return { retourId: pending.retour.id, transactionId: (await this.prisma.kpayTransaction.findUnique({ where: { externalId }, select: { id: true } }))?.id, status: refund.status };
   }
 
   async getAvoir(retourId: string) {

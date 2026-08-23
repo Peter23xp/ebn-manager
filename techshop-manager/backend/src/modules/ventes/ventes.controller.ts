@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { VentesService } from './ventes.service';
-import { CreateVenteDto, RetourDto } from './dto/vente.dto';
+import { CreateVenteDto, InitKpayVenteDto, RetourDto } from './dto/vente.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -24,6 +24,16 @@ export class VentesController {
   @Post()
   createVente(@Body() dto: CreateVenteDto, @CurrentUser() user: any) {
     return this.ventesService.createVente(dto, user.id);
+  }
+
+  @Post('kpay/init')
+  initKpayVente(@Body() dto: InitKpayVenteDto, @CurrentUser() user: any) {
+    return this.ventesService.initKpayVente(dto, user.id);
+  }
+
+  @Get('kpay/:transactionId')
+  getKpayVenteStatus(@Param('transactionId') transactionId: string) {
+    return this.ventesService.getKpayVenteStatus(transactionId);
   }
 
   @Get()
@@ -103,5 +113,14 @@ export class VentesController {
     @CurrentUser() user: any,
   ) {
     return this.ventesService.createRetour(venteId, dto, user.id);
+  }
+
+  @Post(':id/retour/kpay-refund')
+  initKpayRefund(
+    @Param('id') venteId: string,
+    @Body() dto: RetourDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.ventesService.initKpayRefund(venteId, dto, user.id);
   }
 }

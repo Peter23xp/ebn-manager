@@ -26,7 +26,7 @@ type ReturnMotif =
   | 'CHANGE_AVIS'
   | 'AUTRE';
 
-type ReturnMode = 'CASH' | 'MOBILE_MONEY';
+type ReturnMode = 'CASH' | 'MOBILE_MONEY' | 'KPAY';
 
 interface LigneRetour {
   id: string;
@@ -73,6 +73,7 @@ const MOTIF_LABELS: Record<ReturnMotif, string> = {
 const MODE_REMBOURSEMENT_LABELS: Record<ReturnMode, string> = {
   CASH: 'Espèces',
   MOBILE_MONEY: 'Mobile Money',
+  KPAY: 'KPay Mobile Money',
 };
 
 // ── Modal confirmation ────────────────────────────────────────────────────────
@@ -185,13 +186,14 @@ export default function RetoursPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (payload: object) => api.post(`/ventes/${venteId}/retour`, payload),
+    mutationFn: (payload: object) => api.post(returnMode === 'KPAY' ? `/ventes/${venteId}/retour/kpay-refund` : `/ventes/${venteId}/retour`, payload),
     onSuccess: (res) => {
       const r = res.data?.retour;
       if (r) {
         setAvoirCreated(r);
         toast.success(`Avoir ${r.numeroAvoir} créé. Stock réapprovisionné.`);
       }
+      else toast.success('Remboursement KPay initié. Le stock sera réintégré après confirmation.');
     },
     onError: (error: unknown) => {
       const axiosError = error as { response?: { data?: { error?: { code?: string }; code?: string } } };
@@ -320,6 +322,7 @@ export default function RetoursPage() {
   };
 
   const needsRef = returnMode === 'MOBILE_MONEY';
+  const fullSelected = vente.lignes.every((l) => selectedLines.get(l.produit.id) === l.quantite);
   const formValid =
     selectedLines.size > 0 &&
     motif !== '' &&
@@ -513,6 +516,13 @@ export default function RetoursPage() {
                     )}
                   </div>
                 </label>
+
+                {fullSelected && (vente.modePaiement === 'MPESA' || vente.modePaiement === 'AIRTEL_MONEY') && (
+                  <label className={cn('flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors', returnMode === 'KPAY' ? 'border-primary-accent bg-blue-50' : 'border-border hover:border-border-strong')}>
+                    <input type="radio" name="returnMode" value="KPAY" checked={returnMode === 'KPAY'} onChange={() => setReturnMode('KPAY')} className="mt-1 accent-primary-accent" />
+                    <div><p className="font-medium text-text text-sm">Rembourser via KPay</p><p className="text-xs text-text-muted mt-1">Remboursement intégral sur le Mobile Money d'origine.</p></div>
+                  </label>
+                )}
 
               </div>
             </div>

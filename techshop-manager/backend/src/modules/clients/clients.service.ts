@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginate } from '../../common/dto/pagination.dto';
@@ -12,19 +13,145 @@ import {
   OnboardingFicheDto,
   OnboardingActivateDto,
 } from './dto/client.dto';
-import { EtapeOnboarding, ModePaiement, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
+import { EtapeOnboarding, KpayOperationType, KpayTransactionStatus, ModePaiement, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { KpayService } from '../kpay/kpay.service';
+import { KpayWebhookService } from '../kpay/kpay-webhook.service';
+import { InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { PortalAuthService } from '../portal/portal-auth.service';
 import { MailerService } from '../mailer/mailer.service';
 import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 
 @Injectable()
-export class ClientsService {
+export class ClientsService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private portalAuthService: PortalAuthService,
     private mailer: MailerService,
     private mlmMatrixService: MlmMatrixService,
+    private readonly kpay: KpayService,
+    private readonly kpayWebhooks: KpayWebhookService,
   ) {}
+
+  onModuleInit() {
+    this.kpayWebhooks.registerFinalizer(KpayOperationType.ONBOARDING_PAYMENT, async (transactionId, event) => {
+      if (event.status !== 'COMPLETED') return;
+      await this.finalizeKpayOnboarding(transactionId);
+    });
+  }
+
+  async initKpayFiche(clientId: string, dto: InitKpayOnboardingDto, agentId: string) {
+    await this.requireConfiguredAdminPhone(dto.provider);
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      include: { onboardingEtapes: true },
+    });
+    if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
+    if (!client.onboardingEtapes.some((step) => step.etape === EtapeOnboarding.RECIT && step.statut === StatutEtape.COMPLETE)) {
+      throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: "L'étape RECIT doit être complétée avant la fiche" });
+    }
+    const existing = client.onboardingEtapes.find((step) => step.etape === EtapeOnboarding.FICHE);
+    if (existing?.statut === StatutEtape.COMPLETE) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'La fiche a déjà été complétée' });
+    if (existing) {
+      const activePayment = await this.prisma.kpayTransaction.findFirst({
+        where: { onboardingEtapeId: existing.id, status: { in: [KpayTransactionStatus.PENDING, KpayTransactionStatus.PROCESSING] } },
+        select: { id: true, status: true, kpayReference: true },
+      });
+      if (activePayment) return { transactionId: activePayment.id, status: activePayment.status, reference: activePayment.kpayReference };
+    }
+    const externalId = `ONB-FICHE-${randomUUID()}`;
+    const step = existing ?? await this.prisma.onboardingEtape.create({
+      data: { etape: EtapeOnboarding.FICHE, statut: StatutEtape.EN_COURS, montant: dto.amount, modePaiement: ModePaiement.MPESA, clientId, agentId, siteId: client.siteInscriptionId },
+    });
+    const transaction = await this.prisma.kpayTransaction.create({
+      data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.amount, currency: 'USD', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: step.id, metadata: { clientId, etape: EtapeOnboarding.FICHE } },
+    });
+    const payment = await this.kpay.initDeposit({ amount: dto.amount, currency: 'USD', provider: dto.provider, phoneNumber: dto.phoneNumber, externalId, description: `Fiche onboarding ${client.prenom} ${client.nom}`, metadata: { clientId, onboardingEtapeId: step.id } });
+    await this.prisma.kpayTransaction.update({ where: { id: transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
+    return { transactionId: transaction.id, status: payment.status, reference: payment.reference };
+  }
+
+  async initKpayActivation(clientId: string, dto: InitKpayActivationDto, agentId: string) {
+    await this.requireConfiguredAdminPhone(dto.provider);
+    const client = await this.prisma.client.findUnique({ where: { id: clientId }, include: { onboardingEtapes: true } });
+    if (!client) throw new NotFoundException('Client introuvable');
+    if (!client.onboardingEtapes.some((s) => s.etape === EtapeOnboarding.FICHE && s.statut === StatutEtape.COMPLETE)) throw new BadRequestException("La fiche doit être complétée avant l'activation");
+    const product = await this.prisma.produit.findUnique({ where: { id: dto.produitId, actif: true } });
+    if (!product) throw new NotFoundException('Produit introuvable ou inactif');
+    const externalId = `ONB-ACT-${randomUUID()}`;
+    const transaction = await this.prisma.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.amount, currency: 'USD', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, metadata: { activation: true, clientId, agentId, produitId: dto.produitId } } });
+    const payment = await this.kpay.initDeposit({ amount: dto.amount, currency: 'USD', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Activation ${client.prenom} ${client.nom}` });
+    await this.prisma.kpayTransaction.update({ where: { id: transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
+    return { transactionId: transaction.id, status: payment.status, reference: payment.reference };
+  }
+
+  private async finalizeKpayOnboarding(transactionId: string) {
+    const transaction = await this.prisma.kpayTransaction.findUnique({ where: { id: transactionId }, select: { onboardingEtapeId: true, metadata: true } });
+    const metadata = (transaction?.metadata ?? {}) as Record<string, unknown>;
+    if (metadata.activation && metadata.clientId && metadata.produitId && metadata.agentId) {
+      await this.onboardingActivate(String(metadata.clientId), { produitId: String(metadata.produitId), modePaiement: ModePaiement.MPESA, referenceTransaction: transactionId }, String(metadata.agentId));
+      await this.initiateConfiguredAutoPayout(transactionId);
+      return;
+    }
+    if (transaction?.onboardingEtapeId) {
+      await this.prisma.onboardingEtape.updateMany({
+        where: { id: transaction.onboardingEtapeId, statut: { not: StatutEtape.COMPLETE } },
+        data: { statut: StatutEtape.COMPLETE, completeeAt: new Date() },
+      });
+    }
+    await this.initiateConfiguredAutoPayout(transactionId);
+  }
+
+  private async initiateConfiguredAutoPayout(sourceTransactionId: string) {
+    const config = await this.prisma.configGenerale.findFirst();
+    if (!config) return;
+    const source = await this.prisma.kpayTransaction.findUnique({ where: { id: sourceTransactionId } });
+    if (!source || source.status !== KpayTransactionStatus.COMPLETED) return;
+    const provider = source.provider as string | null;
+    const phoneByProvider: Record<string, string | null | undefined> = {
+      VODACOM_MPESA_COD: config.kpayAdminMpesaPhone,
+      AIRTEL_COD: config.kpayAdminAirtelPhone,
+      ORANGE_COD: config.kpayAdminOrangePhone,
+    };
+    const phoneNumber = provider ? phoneByProvider[provider] : null;
+    if (!provider || !phoneNumber) return;
+    const externalId = `AUTO-PAYOUT-${source.externalId}`;
+    const existing = await this.prisma.kpayTransaction.findUnique({ where: { externalId }, select: { id: true } });
+    if (existing) return;
+    const payout = await this.prisma.kpayTransaction.create({
+      data: {
+        operationType: KpayOperationType.AUTO_PAYOUT,
+        status: KpayTransactionStatus.PENDING,
+        amount: source.amount,
+        currency: source.currency,
+        externalId,
+        provider,
+        phoneNumber,
+        metadata: { sourceTransactionId, clientId: (source.metadata as any)?.clientId, purpose: 'ADMIN_AUTO_PAYOUT' },
+      },
+    });
+    try {
+      const remote = await this.kpay.initPayout({ amount: Number(source.amount), provider: provider as any, phoneNumber, externalId, description: `Transfert automatique onboarding ${source.externalId}` });
+      await this.prisma.kpayTransaction.update({ where: { id: payout.id }, data: { kpayPaymentId: remote.id, kpayReference: remote.reference, status: remote.status as KpayTransactionStatus } });
+    } catch (error) {
+      await this.prisma.kpayTransaction.update({ where: { id: payout.id }, data: { status: KpayTransactionStatus.FAILED, failureReason: error instanceof Error ? error.message : 'Payout automatique échoué' } });
+    }
+  }
+
+  private async requireConfiguredAdminPhone(provider: string): Promise<string> {
+    const config = await this.prisma.configGenerale.findFirst();
+    if (!config) throw new BadRequestException('Configurez les numéros administrateur KPay dans Paramètres > Opérations avant un paiement Mobile Money.');
+    const destinations: Record<string, { label: string; phone?: string | null }> = {
+      VODACOM_MPESA_COD: { label: 'M-Pesa', phone: config.kpayAdminMpesaPhone },
+      AIRTEL_COD: { label: 'Airtel Money', phone: config.kpayAdminAirtelPhone },
+      ORANGE_COD: { label: 'Orange Money', phone: config.kpayAdminOrangePhone },
+    };
+    const destination = destinations[provider];
+    if (!destination?.phone) {
+      throw new BadRequestException(`Le numéro administrateur ${destination?.label ?? provider} n'est pas configuré dans Paramètres > Opérations.`);
+    }
+    return destination.phone;
+  }
 
   async findAll(
     query: {
@@ -395,6 +522,31 @@ export class ClientsService {
 
     const client = await this.findOne(newClient.id);
     return { client, etapeId: etape.id };
+  }
+
+  async initKpayRecit(dto: {
+    prenom: string; nom: string; telephone: string; email?: string; siteId: string;
+    codeParrain?: string; montantRecit: number; provider: string; phoneNumber: string; agentId: string;
+  }) {
+    await this.requireConfiguredAdminPhone(dto.provider);
+    const existingPhone = await this.prisma.client.findUnique({ where: { telephone: dto.telephone } });
+    if (existingPhone) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Un client avec ce numéro existe déjà' });
+    const site = await this.prisma.site.findUnique({ where: { id: dto.siteId }, select: { id: true } });
+    if (!site) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Site introuvable' });
+    if (dto.codeParrain) {
+      const parrain = await this.prisma.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true, statut: true } });
+      if (!parrain || parrain.statut !== StatutClient.ACTIF) throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Parrain introuvable ou inactif' });
+    }
+    const externalId = `ONB-RECIT-${randomUUID()}`;
+    const pending = await this.prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      const etape = await tx.onboardingEtape.create({ data: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId } });
+      const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'USD', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
+      return { client, transaction };
+    });
+    const payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'USD', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });
+    await this.prisma.kpayTransaction.update({ where: { id: pending.transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
+    return { client: pending.client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
   }
 
   async onboardingFormation(

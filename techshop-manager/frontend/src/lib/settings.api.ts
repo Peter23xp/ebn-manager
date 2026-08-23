@@ -103,6 +103,12 @@ export interface AppConfig {
     smsApiKey: string | null;
     smsUsername: string | null;
     smsSenderId: string | null;
+    kpayAutoPayoutActif: boolean;
+    kpayAutoPayoutProvider: 'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD' | null;
+    kpayAutoPayoutPhone: string | null;
+    kpayAdminMpesaPhone: string | null;
+    kpayAdminAirtelPhone: string | null;
+    kpayAdminOrangePhone: string | null;
   };
   fidelite: {
     ratioPtsCDF: number;

@@ -19,6 +19,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { MlmService, UpdateMlmConfigDto } from './mlm.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 import { MlmWalletService } from './mlm-wallet.service';
+import { KpayProvider } from '../kpay/kpay.types';
+import { MlmPayoutStatus } from '@prisma/client';
 
 @Controller('mlm')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -184,6 +186,36 @@ export class MlmController {
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
   getWallet(@Param('memberId') memberId: string) {
     return this.walletService.getWallet(memberId);
+  }
+
+  @Post('wallet/:memberId/payouts')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  initPayout(@Param('memberId') memberId: string, @Body() body: { amount: number; provider: KpayProvider; phoneNumber: string }) {
+    return this.walletService.initPayout(memberId, body);
+  }
+
+  @Get('payouts')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  listPayouts(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('statut') statut?: MlmPayoutStatus,
+  ) {
+    return this.walletService.listPayouts({ page, limit, statut });
+  }
+
+  @Put('payouts/:payoutId/approve')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  approvePayout(@Param('payoutId') payoutId: string) {
+    return this.walletService.approvePayout(payoutId);
+  }
+
+  @Patch('payouts/:payoutId/cancel')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  cancelPayout(@Param('payoutId') payoutId: string) {
+    return this.walletService.cancelPayout(payoutId);
   }
 
   @Get('wallet')

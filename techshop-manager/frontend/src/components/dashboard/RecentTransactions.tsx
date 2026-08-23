@@ -9,7 +9,7 @@ interface RecentTransactionsProps {
   isLoading: boolean;
 }
 
-const statutStyle: Record<Transaction['statut'], { cls: string; label: string }> = {
+const statutStyle: Record<string, { cls: string; label: string }> = {
   VALIDE:              { cls: 'bg-green-100 text-success',   label: 'Validée' },
   RETOURNEE_PARTIELLE: { cls: 'bg-orange-100 text-warning',  label: 'Ret. partiel' },
   RETOURNEE:           { cls: 'bg-red-100 text-danger',      label: 'Retournée' },
@@ -73,7 +73,10 @@ export function RecentTransactions({ data, isLoading }: RecentTransactionsProps)
       ) : (
         <ol className="space-y-0.5">
           {data.slice(0, 5).map((tx) => {
-            const { cls, label } = statutStyle[tx.statut];
+            const { cls, label } = statutStyle[tx.statut] ?? {
+              cls: 'bg-gray-100 text-text-muted',
+              label: tx.statut === 'EN_ATTENTE_PAIEMENT' ? 'Paiement en attente' : (tx.statut || 'Statut inconnu'),
+            };
             return (
               <li key={tx.id}>
                 <button

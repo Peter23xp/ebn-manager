@@ -14,7 +14,7 @@ export type StatutEtape = 'EN_ATTENTE' | 'EN_COURS' | 'COMPLETE';
 
 export type ModePaiement = 'CASH' | 'MPESA' | 'AIRTEL_MONEY' | 'VIREMENT';
 
-export type StatutVente = 'VALIDE' | 'RETOURNEE_PARTIELLE' | 'RETOURNEE' | 'ANNULEE';
+export type StatutVente = 'VALIDE' | 'RETOURNEE_PARTIELLE' | 'RETOURNEE' | 'ANNULEE' | 'EN_ATTENTE_PAIEMENT' | (string & {});
 
 export type TypeMouvement = 'ENTREE' | 'SORTIE_VENTE' | 'TRANSFERT_DEPART' | 'TRANSFERT_ARRIVEE' | 'AJUSTEMENT_INVENTAIRE';
 

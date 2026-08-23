@@ -18,10 +18,17 @@ const CONFIG: Record<StatutVente, { label: string; className: string }> = {
     label: '✗ Annulée',
     className: 'bg-slate-100 text-text-muted',
   },
+  EN_ATTENTE_PAIEMENT: {
+    label: 'Paiement en attente',
+    className: 'bg-amber-100 text-amber-700',
+  },
 };
 
 export function SaleStatusBadge({ statut }: { statut: StatutVente }) {
-  const config = CONFIG[statut];
+  const config = CONFIG[statut] ?? {
+    label: statut || 'Statut inconnu',
+    className: 'bg-slate-100 text-text-muted',
+  };
   return (
     <span
       className={cn(

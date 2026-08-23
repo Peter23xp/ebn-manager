@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -7,6 +9,7 @@ import { usePortalWalletHistory, type WalletTxFilter } from '@/hooks/usePortalPo
 import { usePortalMlm } from '@/hooks/usePortalMlm';
 import { cn } from '@/lib/utils';
 import type { PortalWalletTransaction } from '@/lib/portal.api';
+import { portalApi } from '@/lib/portal.api';
 
 // ── Transaction Card ──────────────────────────────────────────────────────────
 
@@ -53,7 +56,13 @@ const FILTERS: { value: WalletTxFilter; label: string }[] = [
 
 export default function PortalPointsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { wallet } = usePortalMlm();
+  const [amount, setAmount] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('243');
+  const [provider, setProvider] = useState<'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD'>('VODACOM_MPESA_COD');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState('');
   const {
     transactions, typeFilter, setTypeFilter,
     isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
@@ -90,6 +99,33 @@ export default function PortalPointsPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm">
+          <p className="text-sm font-bold text-[#0A1628] mb-1">Retirer mes gains</p>
+          <p className="text-xs text-neutral-500 mb-4">Le montant est en USD. KPay envoie les fonds sur votre Mobile Money.</p>
+          <form className="space-y-3" onSubmit={async (event) => {
+            event.preventDefault();
+            setIsSubmitting(true); setPayoutMessage('');
+            try {
+              const result = await portalApi.initPayout({ amount: Number(amount), provider, phoneNumber });
+              setPayoutMessage(`Retrait initié (${result.status ?? 'PENDING'}).`);
+              setAmount('');
+              await queryClient.invalidateQueries({ queryKey: ['portal', 'wallet'] });
+            } catch (error: any) {
+              setPayoutMessage(error?.response?.data?.message ?? 'Impossible d’initier le retrait.');
+            } finally { setIsSubmitting(false); }
+          }}>
+            <div className="grid grid-cols-2 gap-2">
+              <input aria-label="Montant en USD" type="number" min="1" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant USD" className="h-11 rounded-xl border border-neutral-200 px-3 text-sm" />
+              <select aria-label="Opérateur" value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)} className="h-11 rounded-xl border border-neutral-200 px-3 text-sm">
+                <option value="VODACOM_MPESA_COD">M-Pesa</option><option value="AIRTEL_COD">Airtel Money</option><option value="ORANGE_COD">Orange Money</option>
+              </select>
+            </div>
+            <input aria-label="Numéro Mobile Money" required pattern="^243[0-9]{9}$" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="243XXXXXXXXX" className="h-11 w-full rounded-xl border border-neutral-200 px-3 text-sm" />
+            <button disabled={isSubmitting} className="h-11 w-full rounded-xl bg-[#b45309] text-sm font-bold text-white disabled:opacity-50">{isSubmitting ? 'Envoi…' : 'Demander le retrait'}</button>
+            {payoutMessage && <p className="text-xs text-neutral-600">{payoutMessage}</p>}
+          </form>
         </div>
 
         {/* Transactions list */}

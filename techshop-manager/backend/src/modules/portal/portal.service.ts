@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginate } from '../../common/dto/pagination.dto';
+import { MlmWalletService } from '../mlm/mlm-wallet.service';
+import { KpayProvider } from '../kpay/kpay.types';
 
 @Injectable()
 export class PortalService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private readonly mlmWallet: MlmWalletService) {}
 
   // ── GET /portal/me ────────────────────────────────────────────────────────
 
@@ -84,12 +86,20 @@ export class PortalService {
     return {
       wallet: {
         soldeDisponible: Number(membre.portefeuille.soldeDisponible),
+        soldeReserve: Number(membre.portefeuille.soldeReserve),
+        soldeDisponibleRetrait: Number(membre.portefeuille.soldeDisponible) - Number(membre.portefeuille.soldeReserve),
         totalGagne: Number(membre.portefeuille.totalGagne),
       },
       stats: {
         gainsTotaux: Number(membre.portefeuille.totalGagne),
       }
     };
+  }
+
+  async initPayout(clientId: string, input: { amount: number; provider: KpayProvider; phoneNumber: string }) {
+    const membre = await this.prisma.membre.findUnique({ where: { clientId }, select: { id: true } });
+    if (!membre) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Compte MLM introuvable' });
+    return this.mlmWallet.initPayout(membre.id, input);
   }
 
   // ── GET /portal/purchases ─────────────────────────────────────────────────

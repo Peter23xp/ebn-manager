@@ -1,10 +1,11 @@
 import {
   Controller, Get, Param, Query, UseGuards,
-  ParseIntPipe, DefaultValuePipe,
+  ParseIntPipe, DefaultValuePipe, Post, Body,
 } from '@nestjs/common';
 import { PortalService } from './portal.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { KpayProvider } from '../kpay/kpay.types';
 
 @Controller('portal')
 @UseGuards(JwtAuthGuard)
@@ -19,6 +20,11 @@ export class PortalController {
   @Get('wallet')
   getWallet(@CurrentUser() user: any) {
     return this.portalService.getWallet(user.id);
+  }
+
+  @Post('wallet/payouts')
+  initPayout(@CurrentUser() user: any, @Body() body: { amount: number; provider: KpayProvider; phoneNumber: string }) {
+    return this.portalService.initPayout(user.id, body);
   }
 
   @Get('purchases')

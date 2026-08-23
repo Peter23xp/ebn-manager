@@ -20,6 +20,12 @@ export class ConfigAppService {
         smsApiKey: null,
         smsUsername: null,
         smsSenderId: null,
+        kpayAutoPayoutActif: false,
+        kpayAutoPayoutProvider: null,
+        kpayAutoPayoutPhone: null,
+        kpayAdminMpesaPhone: null,
+        kpayAdminAirtelPhone: null,
+        kpayAdminOrangePhone: null,
       },
     };
   }
@@ -47,6 +53,12 @@ export class ConfigAppService {
               delaiRetourJours: dto.generale.delaiRetourJours,
             }),
             ...(dto.generale.fraisRetourPct !== undefined && { fraisRetourPct: dto.generale.fraisRetourPct }),
+            ...(dto.generale.kpayAutoPayoutActif !== undefined && { kpayAutoPayoutActif: dto.generale.kpayAutoPayoutActif }),
+            ...(dto.generale.kpayAutoPayoutProvider !== undefined && { kpayAutoPayoutProvider: dto.generale.kpayAutoPayoutProvider }),
+            ...(dto.generale.kpayAutoPayoutPhone !== undefined && { kpayAutoPayoutPhone: dto.generale.kpayAutoPayoutPhone }),
+            ...(dto.generale.kpayAdminMpesaPhone !== undefined && { kpayAdminMpesaPhone: dto.generale.kpayAdminMpesaPhone }),
+            ...(dto.generale.kpayAdminAirtelPhone !== undefined && { kpayAdminAirtelPhone: dto.generale.kpayAdminAirtelPhone }),
+            ...(dto.generale.kpayAdminOrangePhone !== undefined && { kpayAdminOrangePhone: dto.generale.kpayAdminOrangePhone }),
           },
         });
       } else {
@@ -60,6 +72,12 @@ export class ConfigAppService {
             dureeSectionHeures: dto.generale.dureeSectionHeures ?? 8,
             delaiRetourJours: dto.generale.delaiRetourJours ?? 7,
             fraisRetourPct: dto.generale.fraisRetourPct ?? 0,
+            kpayAutoPayoutActif: dto.generale.kpayAutoPayoutActif ?? false,
+            kpayAutoPayoutProvider: dto.generale.kpayAutoPayoutProvider ?? null,
+            kpayAutoPayoutPhone: dto.generale.kpayAutoPayoutPhone ?? null,
+            kpayAdminMpesaPhone: dto.generale.kpayAdminMpesaPhone ?? null,
+            kpayAdminAirtelPhone: dto.generale.kpayAdminAirtelPhone ?? null,
+            kpayAdminOrangePhone: dto.generale.kpayAdminOrangePhone ?? null,
           },
         });
       }
@@ -89,6 +107,7 @@ export class ConfigAppService {
       totalUtilisateurs, usersActifs,
       totalSites, sitesActifs,
       totalProduits, alertesStock, rupturesStock,
+      totalParrainages,
       ventesJour, ventesMois,
       configGenerale,
     ] = await Promise.all([
@@ -102,6 +121,7 @@ export class ConfigAppService {
       this.prisma.produit.count(),
       this.prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM stock_sites WHERE quantite > 0 AND "seuilAlerte" > 0 AND quantite <= "seuilAlerte"`.then(r => Number(r[0]?.count ?? 0)),
       this.prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM stock_sites WHERE quantite = 0`.then(r => Number(r[0]?.count ?? 0)),
+      this.prisma.membre.count(),
       this.prisma.vente.aggregate({ where: { createdAt: { gte: debutJour } }, _sum: { montantNet: true }, _count: { id: true } }),
       this.prisma.vente.aggregate({ where: { createdAt: { gte: debutMois } }, _sum: { montantNet: true }, _count: { id: true } }),
 
@@ -117,6 +137,7 @@ export class ConfigAppService {
         aujourdhui: { count: ventesJour._count.id, montant: Number(ventesJour._sum.montantNet ?? 0) },
         mois: { count: ventesMois._count.id, montant: Number(ventesMois._sum.montantNet ?? 0) },
       },
+      parrainage: { total: totalParrainages },
 
       systeme: {
         nodeVersion: process.version,

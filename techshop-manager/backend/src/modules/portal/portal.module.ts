@@ -5,9 +5,11 @@ import { PortalController } from './portal.controller';
 import { PortalService } from './portal.service';
 import { PortalAuthController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
+import { MlmModule } from '../mlm/mlm.module';
 
 @Module({
   imports: [
+    MlmModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

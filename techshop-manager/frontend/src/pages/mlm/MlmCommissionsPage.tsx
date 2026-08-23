@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, DollarSign, XCircle, Clock, Filter } from 'lucide-react';
+import { ArrowLeft, CheckCircle, DollarSign, XCircle, Clock, Filter, Smartphone } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MlmApi } from '@/lib/mlm.api';
 import { formatDate, formatUSD } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
 import { Modal } from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
+import { getCommissionStatusLabel, getPayoutStatusLabel } from '@/lib/mlm-status';
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
   EN_ATTENTE: {
@@ -42,6 +43,7 @@ export default function MlmCommissionsPage() {
   const [dateTo, setDateTo] = useState('');
   const [cancelNotes, setCancelNotes] = useState('');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [trackingPayout, setTrackingPayout] = useState<{ id: string; status: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['mlm-commissions', { page, statut, levelId, dateFrom, dateTo }],
@@ -61,17 +63,39 @@ export default function MlmCommissionsPage() {
     queryFn: () => MlmApi.getConfig(),
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['mlm-commissions'] });
+  const { data: payoutsData, isLoading: payoutsLoading } = useQuery({
+    queryKey: ['mlm-payouts'],
+    queryFn: () => MlmApi.listPayouts({ page: 1, limit: 50 }),
+    refetchInterval: trackingPayout ? 3000 : false,
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['mlm-commissions'] });
+    queryClient.invalidateQueries({ queryKey: ['mlm-payouts'] });
+  };
+
+  const approvePayoutMut = useMutation({
+    mutationFn: (id: string) => MlmApi.approvePayout(id),
+    onMutate: (id: string) => setTrackingPayout({ id, status: 'VALIDATING' }),
+    onSuccess: () => { toast.success('Retrait validé. Paiement KPay en cours.'); invalidate(); },
+    onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Erreur lors de la validation du retrait'),
+  });
+
+  const cancelPayoutMut = useMutation({
+    mutationFn: (id: string) => MlmApi.cancelPayout(id),
+    onSuccess: () => { toast.success('Demande de retrait annulée'); invalidate(); },
+    onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Erreur lors de l’annulation'),
+  });
 
   const validateMut = useMutation({
     mutationFn: (id: string) => MlmApi.validateCommission(id),
-    onSuccess: () => { toast.success('Commission validée et créditée au portefeuille'); invalidate(); },
+    onSuccess: () => { toast.success('Commission validée et créditée. Statut : Validée — à payer.'); invalidate(); },
     onError: () => toast.error('Erreur lors de la validation'),
   });
 
   const payMut = useMutation({
     mutationFn: (id: string) => MlmApi.payCommission(id),
-    onSuccess: () => { toast.success('Commission marquée comme payée'); invalidate(); },
+    onSuccess: () => { toast.success('Commission marquée comme déjà payée.'); invalidate(); },
     onError: () => toast.error('Erreur lors du marquage'),
   });
 
@@ -88,6 +112,14 @@ export default function MlmCommissionsPage() {
 
   const commissions = data?.commissions ?? [];
   const meta = data?.meta;
+  const payouts = payoutsData?.payouts ?? [];
+  const pendingPayouts = payouts.filter((p: any) => p.statut === 'PENDING');
+
+  useEffect(() => {
+    if (!trackingPayout) return;
+    const current = payouts.find((p: any) => p.id === trackingPayout.id);
+    if (current && current.statut !== trackingPayout.status) setTrackingPayout({ id: current.id, status: current.statut });
+  }, [payouts, trackingPayout]);
 
   // Summary by statut
   const summary = commissions.reduce(
@@ -227,7 +259,7 @@ export default function MlmCommissionsPage() {
                         </td>
                         <td className="px-5 py-3">
                           <span className={`badge ${cfg.badge}`}>
-                            {cfg.icon} {cfg.label}
+                            {cfg.icon} {getCommissionStatusLabel(c.statut)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-xs text-text-muted">
@@ -283,6 +315,51 @@ export default function MlmCommissionsPage() {
           </div>
         )}
       </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50/40 shadow-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-amber-200 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-text flex items-center gap-2"><Smartphone size={17} className="text-amber-600" /> Retraits à valider</h2>
+            <p className="text-xs text-text-muted mt-1">Le solde est débité uniquement après validation. Le paiement est ensuite envoyé via l’opérateur choisi.</p>
+          </div>
+            <span className="badge badge-warning">{pendingPayouts.length} en attente</span>
+        </div>
+        {payoutsLoading ? <div className="p-5 text-sm text-text-muted">Chargement…</div> : payouts.length === 0 ? (
+          <div className="p-8 text-center text-sm text-text-muted">Aucune demande de retrait.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr><th className="px-5 py-3 text-left">Bénéficiaire</th><th className="px-5 py-3 text-left">Montant</th><th className="px-5 py-3 text-left">Opérateur / numéro</th><th className="px-5 py-3 text-left">Statut</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
+              <tbody>{payouts.map((p: any) => (
+                <tr key={p.id} className="border-t border-amber-100">
+                  <td className="px-5 py-3 font-semibold">{p.membre?.client?.prenom} {p.membre?.client?.nom}</td>
+                  <td className="px-5 py-3 font-mono font-bold">{formatUSD(p.montant)}</td>
+                  <td className="px-5 py-3"><span className="font-semibold">{p.provider}</span><br /><span className="text-xs text-text-muted font-mono">{p.phoneNumber}</span></td>
+                  <td className="px-5 py-3"><span className={`badge ${p.statut === 'PENDING' ? 'badge-warning' : p.statut === 'COMPLETED' ? 'badge-success' : p.statut === 'FAILED' ? 'badge-danger' : 'badge-info'}`}>{getPayoutStatusLabel(p.statut)}</span></td>
+                  <td className="px-5 py-3 text-right">{p.statut === 'PENDING' && <div className="flex justify-end gap-2"><button onClick={() => approvePayoutMut.mutate(p.id)} disabled={approvePayoutMut.isPending} className="btn-primary text-[13px] flex items-center gap-1"><CheckCircle size={12} /> Valider et payer</button><button onClick={() => cancelPayoutMut.mutate(p.id)} disabled={cancelPayoutMut.isPending} className="btn-secondary text-[13px] text-danger border-red-200 hover:bg-red-50"><XCircle size={12} /></button></div>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal open={!!trackingPayout} onClose={() => setTrackingPayout(null)} title="Suivi du retrait" size="sm">
+        {trackingPayout && (() => {
+          const completed = trackingPayout.status === 'COMPLETED';
+          const failed = trackingPayout.status === 'FAILED' || trackingPayout.status === 'CANCELLED';
+          return <div className="space-y-4">
+            <p className="text-sm text-text-muted">Suivi de la demande <span className="font-mono text-text">{trackingPayout.id.slice(0, 8)}…</span></p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3"><span className="h-7 w-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span><span className="text-sm">Validation administrative</span></div>
+              <div className="flex items-center gap-3"><span className={`h-7 w-7 rounded-full flex items-center justify-center ${failed ? 'bg-red-100 text-red-700' : completed ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700 animate-pulse'}`}>{failed ? '!' : completed ? '✓' : '2'}</span><span className="text-sm">Paiement KPay vers l’opérateur</span></div>
+              <div className="flex items-center gap-3"><span className={`h-7 w-7 rounded-full flex items-center justify-center ${completed ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-400'}`}>{completed ? '✓' : '3'}</span><span className="text-sm font-semibold">{completed ? 'Déjà payé' : failed ? 'Paiement échoué' : 'Confirmation de l’opérateur…'}</span></div>
+            </div>
+            <p className={`text-xs ${failed ? 'text-red-600' : completed ? 'text-green-700' : 'text-text-muted'}`}>{completed ? 'Le bénéficiaire a été payé.' : failed ? 'Le montant sera rétabli automatiquement.' : 'Cette fenêtre se met à jour automatiquement.'}</p>
+            <div className="flex justify-end"><button onClick={() => setTrackingPayout(null)} className="btn-secondary text-sm">Fermer</button></div>
+          </div>;
+        })()}
+      </Modal>
 
       {/* Cancel modal */}
       <Modal

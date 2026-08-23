@@ -27,7 +27,7 @@ function formatUptime(seconds: number) {
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
   return (
     <div role="alert" className={cn(
-      'fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white max-w-sm',
+      'fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[60] flex items-center gap-3 rounded-xl px-4 sm:px-5 py-3 text-sm font-semibold shadow-xl text-white sm:max-w-sm',
       ok ? 'bg-success' : 'bg-danger',
     )}>
       {ok ? <CheckCircle size={16} className="flex-shrink-0" /> : <AlertCircle size={16} className="flex-shrink-0" />}
@@ -114,13 +114,12 @@ function MiniStat({ icon: Icon, label, value, sub, color }: {
 }
 
 // ── Panneau de navigation latérale ─────────────────────────────────
-type Section_ID = 'systeme' | 'sms' | 'operations' | 'fidelite' | 'parrainage';
+type Section_ID = 'systeme' | 'sms' | 'operations' | 'parrainage';
 
 const NAV: { id: Section_ID; label: string; icon: React.ElementType; badge?: string }[] = [
   { id: 'systeme',    label: 'Vue système',      icon: Activity },
   { id: 'sms',        label: 'SMS & Notifs',     icon: MessageSquare },
   { id: 'operations', label: 'Opérations',       icon: Settings },
-  { id: 'fidelite',   label: 'Fidélité',         icon: Star },
   { id: 'parrainage', label: 'Parrainage',        icon: GitBranch },
 ];
 
@@ -159,7 +158,7 @@ function SystemeSection({ stats, loadingStats, refetchStats }: {
           <MiniStat icon={Building2}   label="Sites actifs"     value={stats.sites.actifs}               sub={`${stats.sites.total} total`}          color="bg-violet-100 text-violet-700" />
           <MiniStat icon={Package}     label="Produits"         value={stats.stocks.totalProduits}       sub={`${stats.stocks.alertes} alertes`}     color="bg-amber-100 text-amber-700" />
           <MiniStat icon={ShoppingCart} label="Ventes aujourd'hui" value={stats.ventes.aujourdhui.count}  sub={formatUSD(stats.ventes.aujourdhui.montant)} color="bg-green-100 text-green-700" />
-          <MiniStat icon={GitBranch}   label="Parrainages"      value={stats.parrainage.total}           sub={`${stats.ventes.mois.count} ventes/mois`} color="bg-rose-100 text-rose-700" />
+          <MiniStat icon={GitBranch}   label="Parrainages"      value={stats.parrainage?.total ?? 0}     sub={`${stats.ventes?.mois?.count ?? 0} ventes/mois`} color="bg-rose-100 text-rose-700" />
         </div>
 
         {stats.stocks.ruptures > 0 && (
@@ -306,10 +305,10 @@ function SmsSection({ config, onSaved }: { config: AppConfig; onSaved: (msg: str
       {/* Test SMS */}
       <div className="mt-2 space-y-2 pt-4 border-t border-border">
         <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle">Tester l'envoi</p>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input type="tel" placeholder="+243900000001" value={testPhone} onChange={(e) => setTestPhone(e.target.value)}
             className="flex-1 text-[13px]" aria-label="Numéro pour test SMS" />
-          <button type="button" className="btn-secondary whitespace-nowrap flex-shrink-0"
+          <button type="button" className="btn-secondary w-full sm:w-auto whitespace-nowrap flex-shrink-0"
             onClick={() => testMut.mutate()} disabled={!testPhone || testMut.isPending || !isConfigured}
             title={!isConfigured ? 'Configurez et sauvegardez le SMS d\'abord' : ''}>
             {testMut.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Send size={13} />}
@@ -336,6 +335,12 @@ const opsSchema = z.object({
   fraisRetourPct: z.number().min(0).max(100),
   matriculeExterneActif: z.boolean(),
   matriculeRegex: z.string().optional(),
+  kpayAutoPayoutActif: z.boolean(),
+  kpayAutoPayoutProvider: z.enum(['VODACOM_MPESA_COD', 'AIRTEL_COD', 'ORANGE_COD']).nullable(),
+  kpayAutoPayoutPhone: z.string().regex(/^243[0-9]{9}$/, 'Format 243XXXXXXXXX').or(z.literal('')),
+  kpayAdminMpesaPhone: z.string().regex(/^243[0-9]{9}$/, 'Format 243XXXXXXXXX').or(z.literal('')),
+  kpayAdminAirtelPhone: z.string().regex(/^243[0-9]{9}$/, 'Format 243XXXXXXXXX').or(z.literal('')),
+  kpayAdminOrangePhone: z.string().regex(/^243[0-9]{9}$/, 'Format 243XXXXXXXXX').or(z.literal('')),
 });
 type OpsForm = z.infer<typeof opsSchema>;
 
@@ -349,9 +354,16 @@ function OperationsSection({ config, onSaved }: { config: AppConfig; onSaved: (m
       fraisRetourPct: config.generale.fraisRetourPct,
       matriculeExterneActif: config.generale.matriculeExterneActif,
       matriculeRegex: config.generale.matriculeRegex ?? '',
+      kpayAutoPayoutActif: config.generale.kpayAutoPayoutActif ?? false,
+      kpayAutoPayoutProvider: config.generale.kpayAutoPayoutProvider ?? 'VODACOM_MPESA_COD',
+      kpayAutoPayoutPhone: config.generale.kpayAutoPayoutPhone ?? '',
+      kpayAdminMpesaPhone: config.generale.kpayAdminMpesaPhone ?? '',
+      kpayAdminAirtelPhone: config.generale.kpayAdminAirtelPhone ?? '',
+      kpayAdminOrangePhone: config.generale.kpayAdminOrangePhone ?? '',
     },
   });
   const matActif = watch('matriculeExterneActif');
+  const autoPayoutActif = watch('kpayAutoPayoutActif');
   const saveMut = useMutation({
     mutationFn: (data: OpsForm) => configApi.updateConfig({ generale: data } satisfies UpdateConfigPayload),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['config'] }); onSaved('Paramètres opérationnels sauvegardés', true); },
@@ -368,7 +380,7 @@ function OperationsSection({ config, onSaved }: { config: AppConfig; onSaved: (m
         {/* Sessions & Retours */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Sessions & Retours</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="form-group">
               <label className="form-label" htmlFor="ops-session">Durée session</label>
               <div className="relative">
@@ -431,6 +443,25 @@ function OperationsSection({ config, onSaved }: { config: AppConfig; onSaved: (m
               <p className="text-[11px] text-text-subtle mt-1">{"Vide = tout format accepté. Ex: ^[A-Z]{2}\\d{4}$ pour AB1234"}</p>
             </div>
           )}
+        </div>
+
+        <div className="border-t border-border pt-5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Transfert automatique KPay</p>
+          <Toggle checked={autoPayoutActif} onChange={(v) => setValue('kpayAutoPayoutActif', v, { shouldDirty: true })} label="Transférer automatiquement les encaissements" description="Après confirmation d'une vente KPay, effectuer un payout vers le numéro administrateur configuré." />
+          {autoPayoutActif && <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+            <div className="form-group"><label className="form-label" htmlFor="kpay-auto-provider">Opérateur administrateur</label><select id="kpay-auto-provider" {...register('kpayAutoPayoutProvider')}><option value="VODACOM_MPESA_COD">M-Pesa</option><option value="AIRTEL_COD">Airtel Money</option><option value="ORANGE_COD">Orange Money</option></select></div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-auto-phone">Numéro administrateur</label><input id="kpay-auto-phone" placeholder="243XXXXXXXXX" {...register('kpayAutoPayoutPhone')} />{errors.kpayAutoPayoutPhone && <p className="form-error">{errors.kpayAutoPayoutPhone.message}</p>}</div>
+          </div>}
+        </div>
+
+        <div className="border-t border-border pt-5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">KPay — numéros administrateur</p>
+          <p className="text-[11px] text-text-muted mb-3">Un numéro par opérateur. Ces destinations servent à la réception et aux payouts automatiques ; les retraits clients utilisent leur numéro de demande.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-mpesa">M-Pesa</label><input id="kpay-admin-mpesa" placeholder="243XXXXXXXXX" {...register('kpayAdminMpesaPhone')} />{errors.kpayAdminMpesaPhone && <p className="form-error">{errors.kpayAdminMpesaPhone.message}</p>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-airtel">Airtel Money</label><input id="kpay-admin-airtel" placeholder="243XXXXXXXXX" {...register('kpayAdminAirtelPhone')} />{errors.kpayAdminAirtelPhone && <p className="form-error">{errors.kpayAdminAirtelPhone.message}</p>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-orange">Orange Money</label><input id="kpay-admin-orange" placeholder="243XXXXXXXXX" {...register('kpayAdminOrangePhone')} />{errors.kpayAdminOrangePhone && <p className="form-error">{errors.kpayAdminOrangePhone.message}</p>}</div>
+          </div>
         </div>
 
         <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
@@ -735,12 +766,12 @@ export default function ConfigGeneralePage() {
     <div className="animate-fade-up">
       {/* En-tête */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-light" aria-hidden>
             <Settings size={20} className="text-primary-accent" />
           </div>
           <div>
-            <h1 className="text-page-title text-primary">Panneau de configuration</h1>
+            <h1 className="text-page-title text-primary break-words">Panneau de configuration</h1>
             <p className="text-xs text-text-muted mt-0.5">Contrôle complet du système — EBN Network</p>
           </div>
         </div>
@@ -751,7 +782,7 @@ export default function ConfigGeneralePage() {
         </button>
       </div>
 
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch lg:items-start min-w-0">
         {/* Navigation latérale */}
         <nav className="hidden lg:flex flex-col w-48 flex-shrink-0 space-y-1 sticky top-4" aria-label="Sections configuration">
           {NAV.map(({ id, label, icon: Icon }) => (
@@ -760,7 +791,7 @@ export default function ConfigGeneralePage() {
               type="button"
               onClick={() => setActiveSection(id)}
               className={cn(
-                'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left w-full',
+                'flex items-center gap-2.5 px-3 py-2.5 min-h-11 rounded-xl text-[13px] font-medium transition-all text-left w-full',
                 activeSection === id
                   ? 'bg-primary-accent text-white shadow-sm'
                   : 'text-text-muted hover:bg-bg-inset hover:text-text',
@@ -773,14 +804,14 @@ export default function ConfigGeneralePage() {
         </nav>
 
         {/* Navigation mobile */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar mb-4 w-full" style={{ scrollbarWidth: 'none' }}>
+        <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar mb-0 w-full max-w-full pb-1" style={{ scrollbarWidth: 'none' }}>
           {NAV.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveSection(id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all flex-shrink-0',
+                'flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all flex-shrink-0',
                 activeSection === id ? 'bg-primary-accent text-white' : 'bg-white border border-border text-text-muted',
               )}
             >
@@ -822,7 +853,6 @@ export default function ConfigGeneralePage() {
               {activeSection === 'systeme'    && <SystemeSection    stats={stats} loadingStats={loadingStats} refetchStats={refetchStats} />}
               {activeSection === 'sms'        && <SmsSection        config={config} onSaved={showToast} />}
               {activeSection === 'operations' && <OperationsSection config={config} onSaved={showToast} />}
-              {activeSection === 'fidelite'   && <FideliteSection   config={config} onSaved={showToast} />}
               {activeSection === 'parrainage' && <ParrainageSection config={config} onSaved={showToast} />}
             </>
           ) : null}

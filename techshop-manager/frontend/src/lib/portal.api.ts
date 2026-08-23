@@ -99,6 +99,12 @@ export interface PortalWalletTransactionsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+export interface PortalPayoutInput {
+  amount: number;
+  provider: 'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD';
+  phoneNumber: string;
+}
+
 export interface PortalFilleul {
   id: string;
   prenom: string;
@@ -154,4 +160,7 @@ export const portalApi = {
 
   getWallet: () =>
     api.get('/portal/wallet').then((r) => r.data),
+
+  initPayout: (input: PortalPayoutInput) =>
+    api.post('/portal/wallet/payouts', input).then((r) => r.data),
 };

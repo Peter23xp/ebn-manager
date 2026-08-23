@@ -31,6 +31,8 @@ import type { CartClient } from '@/store/cart.store';
 import type { ProduitPOS } from '@/lib/ventes.api';
 import type { ClientSearchResult } from '@/lib/clients.api';
 import type { ModePaiement } from '@/types';
+import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
+import { kpayApi } from '@/lib/kpay.api';
 
 // ── Badge stock ───────────────────────────────────────────────────
 
@@ -283,6 +285,8 @@ export default function POSPage() {
     open: boolean;
     produits: Array<{ nom: string; stockActuel: number; quantiteDemandee: number }>;
   }>({ open: false, produits: [] });
+  const [kpaySubmitting, setKpaySubmitting] = useState(false);
+  const [kpayPolling, setKpayPolling] = useState(false);
 
   useEffect(() => {
     if (mobileView === 'products') searchRef.current?.focus();
@@ -305,7 +309,50 @@ export default function POSPage() {
     items.length > 0 &&
     client !== null &&
     modePaiement !== null &&
-    !(modePaiement === 'CASH' && montantRecu < netVal);
+    !(modePaiement === 'CASH' && montantRecu < netVal) &&
+    !(['MPESA', 'AIRTEL_MONEY'] as string[]).includes(modePaiement ?? '');
+
+  async function handleKpayPayment(input: { provider: import('@/lib/kpay.api').KpayProvider; phoneNumber: string }) {
+    if (!siteId || !client || !items.length) return;
+    setKpaySubmitting(true);
+    try {
+      const result = await kpayApi.initSale({
+        clientId: client.id,
+        siteId,
+        lignes: items.map((item) => ({ produitId: item.produitId, quantite: item.quantite })),
+        modePaiement: modePaiement ?? 'MPESA',
+        ...input,
+      });
+      toast.success(`Paiement initié${result.reference ? ` — ${result.reference}` : ''}. Confirmez sur le téléphone du client.`);
+      setKpayPolling(true);
+      const startedAt = Date.now();
+      const poll = window.setInterval(async () => {
+        try {
+          const status = await kpayApi.saleStatus(result.transactionId);
+          if (status.status === 'COMPLETED' || status.status === 'FAILED' || status.status === 'CANCELLED') {
+            window.clearInterval(poll);
+            setKpayPolling(false);
+            if (status.status === 'COMPLETED' && status.vente) {
+              const saleResult = { id: status.vente.id, numeroVente: status.vente.numeroVente, montantNet: Number(status.amount ?? netVal) };
+              resetAfterSale(saleResult);
+              setSuccessModal({ open: true, venteResult: saleResult });
+              toast.success('Paiement confirmé et vente validée.');
+            } else if (status.status !== 'COMPLETED') {
+              toast.error(status.failureReason ?? 'Le paiement Mobile Money a échoué.');
+            }
+          } else if (Date.now() - startedAt > 120000) {
+            window.clearInterval(poll);
+            setKpayPolling(false);
+            toast('Paiement toujours en attente. Vérifiez son statut dans l’historique.', { icon: 'ℹ️' });
+          }
+        } catch { /* le prochain cycle réessaie */ }
+      }, 3000);
+    } catch (error) {
+      toast.error((error as any)?.response?.data?.message ?? 'Impossible d’initier le paiement Mobile Money.');
+    } finally {
+      setKpaySubmitting(false);
+    }
+  }
 
   const MODES: { value: ModePaiement; label: string }[] = [
     { value: 'CASH', label: 'Espèces' },
@@ -551,6 +598,10 @@ export default function POSPage() {
               </button>
             ))}
           </div>
+
+          {(modePaiement === 'MPESA' || modePaiement === 'AIRTEL_MONEY') && (
+            <MobileMoneyPaymentForm amount={netVal} submitting={kpaySubmitting} onSubmit={handleKpayPayment} />
+          )}
 
           {modePaiement === 'CASH' && (
             <div className="flex flex-col gap-1.5 mb-3">

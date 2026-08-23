@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientsService } from './clients.service';
-import { UpdateClientDto, OnboardingFormationDto, OnboardingFicheDto, OnboardingActivateDto } from './dto/client.dto';
+import { UpdateClientDto, OnboardingFormationDto, OnboardingFicheDto, OnboardingActivateDto, InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -174,6 +174,20 @@ export class ClientsController {
     return this.clientsService.onboardingFiche(clientId, dto, user.id);
   }
 
+  @Post('onboarding/recit/kpay/init')
+  onboardingRecitKpay(@Body() body: any, @CurrentUser() user: any) {
+    return this.clientsService.initKpayRecit({ ...body, agentId: user.id });
+  }
+
+  @Post(':id/onboarding/fiche/kpay/init')
+  onboardingFicheKpay(
+    @Param('id') clientId: string,
+    @Body() dto: InitKpayOnboardingDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.clientsService.initKpayFiche(clientId, dto, user.id);
+  }
+
   @Post(':id/onboarding/activate')
   onboardingActivate(
     @Param('id') clientId: string,
@@ -182,4 +196,7 @@ export class ClientsController {
   ) {
     return this.clientsService.onboardingActivate(clientId, dto, user.id);
   }
+
+  @Post(':id/onboarding/activate/kpay/init')
+  onboardingActivateKpay(@Param('id') clientId: string, @Body() dto: InitKpayActivationDto, @CurrentUser() user: any) { return this.clientsService.initKpayActivation(clientId, dto, user.id); }
 }

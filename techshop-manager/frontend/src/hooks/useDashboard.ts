@@ -36,7 +36,7 @@ export interface Transaction {
   produit: string;
   montant: number;
   site: string;
-  statut: 'VALIDE' | 'RETOURNEE_PARTIELLE' | 'RETOURNEE' | 'ANNULEE';
+  statut: string;
   createdAt: string;
 }
 

@@ -14,6 +14,7 @@ import {
 import { Type } from 'class-transformer';
 import { ModePaiement } from '@prisma/client';
 import { PartialType } from '@nestjs/mapped-types';
+import { KpayProvider } from '../../kpay/kpay.types';
 
 export class CreateClientDto {
   @IsString()
@@ -119,6 +120,21 @@ export class OnboardingFicheDto {
   numeroTransaction?: string;
 }
 
+export class InitKpayOnboardingDto {
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  provider: KpayProvider;
+
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
+}
+
 export class OnboardingActivateDto {
   @IsString()
   @IsNotEmpty()
@@ -130,4 +146,11 @@ export class OnboardingActivateDto {
   @IsOptional()
   @IsString()
   referenceTransaction?: string;
+}
+
+export class InitKpayActivationDto {
+  @IsString() @IsNotEmpty() produitId: string;
+  @IsNumber() @IsPositive() @Type(() => Number) amount: number;
+  @IsString() @IsNotEmpty() provider: string;
+  @IsString() @IsNotEmpty() phoneNumber: string;
 }

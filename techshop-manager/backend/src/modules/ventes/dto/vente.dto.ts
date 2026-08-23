@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ModePaiement } from '@prisma/client';
+import { KpayProvider } from '../../kpay/kpay.types';
 
 export class LigneVenteDto {
   @IsString()
@@ -59,6 +60,16 @@ export class CreateVenteDto {
   @Min(0)
   @Type(() => Number)
   montantRecu?: number;
+}
+
+export class InitKpayVenteDto extends CreateVenteDto {
+  @IsString()
+  @IsNotEmpty()
+  provider: KpayProvider;
+
+  @IsString()
+  @IsNotEmpty()
+  phoneNumber: string;
 }
 
 export class LigneRetourDto {

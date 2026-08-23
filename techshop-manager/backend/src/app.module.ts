@@ -17,6 +17,7 @@ import { SupportModule } from './modules/support/support.module';
 import { MlmModule } from './modules/mlm/mlm.module';
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
+import { KpayModule } from './modules/kpay/kpay.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { HealthModule } from './health/health.module';
     MlmModule,
     PublicModule,
     HealthModule,
+    KpayModule,
   ],
 })
 export class AppModule {}
