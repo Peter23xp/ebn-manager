@@ -85,7 +85,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         useAuthStore.getState().logout();
-        const publicPaths = ['/', '/login', '/portal/login', '/reset-password', '/ambassadeur'];
+        const publicPaths = ['/', '/login', '/portal/login', '/reset-password'];
         if (!publicPaths.includes(window.location.pathname)) {
           window.location.href = '/login';
         }

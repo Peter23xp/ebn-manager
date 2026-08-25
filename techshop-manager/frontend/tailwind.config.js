@@ -4,14 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Sidebar / Brand ─────────────────────────────────────
+        // ── Sidebar (light, alignée sur le header) ──────────────
         sidebar: {
-          bg:      '#0A1628',   // near-black navy
-          hover:   '#111f3a',
-          active:  '#1a3260',
-          border:  '#1e2d4a',
-          text:    '#94a8c7',
-          textHi:  '#e8edf5',
+          bg:      '#ffffff',
+          hover:   '#f1f5f9',
+          active:  '#dbeafe',
+          border:  '#e2e8f0',
+          text:    '#64748b',
+          textHi:  '#0f172a',
         },
         // ── Primary palette ──────────────────────────────────────
         primary: {
@@ -61,7 +61,7 @@ export default {
       boxShadow: {
         card:        '0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06)',
         'card-hover':'0 4px 16px rgba(15,23,42,0.10), 0 2px 6px rgba(15,23,42,0.06)',
-        sidebar:     '4px 0 24px rgba(0,0,0,0.25)',
+        sidebar:     '4px 0 24px rgba(15,23,42,0.06)',
         glow:        '0 0 0 3px rgba(37,99,235,0.18)',
         'kpi-blue':  '0 4px 20px rgba(37,99,235,0.15)',
         'kpi-green': '0 4px 20px rgba(21,128,61,0.15)',

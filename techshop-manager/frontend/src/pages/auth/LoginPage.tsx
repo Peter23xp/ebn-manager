@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageSEO } from '@/components/seo/PageSEO';
-import { Eye, EyeOff, Loader2, Wifi, WifiOff, ShoppingCart, Users, BarChart3 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Wifi, WifiOff, ShieldCheck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { authApi, getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -121,10 +121,16 @@ export default function LoginPage() {
   const identifierHasErr = identifier.length > 3 && identifierFormat === 'unknown';
 
   return (
-    <div className="min-h-screen flex bg-bg safe-page">
+    <div className="min-h-screen flex bg-white safe-page">
       {/* Étend la couleur du panneau gauche derrière l'encoche et la barre home */}
       <div className="safe-top-bar" style={{ background: '#0A1628' }} />
       <PageSEO title="Connexion" noindex />
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
+
+        .lg-serif { font-family: 'Playfair Display', Georgia, serif; }
+      `}} />
 
       {/* ── Bandeau hors-ligne ── */}
       {!isOnline && (
@@ -136,63 +142,62 @@ export default function LoginPage() {
 
       <div className="flex flex-col lg:flex-row w-full">
 
-        {/* ── Colonne gauche : identité ── */}
-        <div className="hidden lg:flex flex-col justify-between w-[400px] xl:w-[460px] flex-shrink-0 px-12 py-14 bg-white border-r border-border">
-
-          {/* Logo + nom */}
-          <div>
-            <div className="flex items-center gap-3 mb-14">
-              <img
-                src="/assets/Progress business logo.png"
-                alt="EBN Network"
-                className="h-16 w-16 rounded-xl object-contain flex-shrink-0"
-              />
-              <div>
-                <p className="text-[9px] font-bold tracking-[0.25em] text-text-subtle uppercase">
-                  EBN Network
-                </p>
-                <p className="text-[16px] font-black text-primary tracking-tight leading-none mt-0.5">
-                  MANAGER
-                </p>
-              </div>
+        {/* ── Panneau gauche : identité EBN ── */}
+        <div
+          className="lg-brand hidden lg:flex flex-col justify-between w-[420px] xl:w-[480px] flex-shrink-0 px-12 xl:px-14 py-14 text-white"
+          style={{ background: 'linear-gradient(160deg, #0A1628 0%, #122540 55%, #16305a 100%)' }}
+        >
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <img
+              src="/assets/Progress business logo.png"
+              alt="EBN Network"
+              className="h-16 w-16 rounded-xl object-contain flex-shrink-0"
+            />
+            <div>
+              <p className="text-[9px] font-bold tracking-[0.28em] uppercase" style={{ color: '#93c5fd' }}>
+                Entreprise Benie Network
+              </p>
+              <p className="lg-serif text-[19px] font-bold tracking-tight leading-none mt-1">
+                EBN <em style={{ color: '#60a5fa', fontStyle: 'italic' }}>Network</em>
+              </p>
             </div>
-
-            {/* Accroche */}
-            <h2 className="text-[38px] xl:text-[44px] font-black text-primary leading-[1.05] tracking-[-0.03em]">
-              Gestion<br />commerciale<br />
-              <span className="text-primary-accent">centralisée.</span>
-            </h2>
-            <p className="mt-4 text-[13px] text-text-muted leading-relaxed max-w-[280px]">
-              Caisse, clients, stocks et réseau MLM —
-              en un seul outil, même sans réseau.
-            </p>
           </div>
 
-          {/* Capacités */}
-          <div className="space-y-2">
-            {([
-              { Icon: ShoppingCart, label: 'Caisse POS offline-first',       sub: 'Vente en < 90 secondes' },
-              { Icon: Users,        label: 'Onboarding clients en 4 étapes', sub: 'Récit · Formation · Fiche · Activation' },
-              { Icon: BarChart3,    label: 'Rapports multi-sites',            sub: 'Goma · Bukavu · Kinshasa' },
-            ] as const).map(({ Icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3.5 rounded-xl border border-border bg-bg px-4 py-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-accent/10">
-                  <Icon size={14} className="text-primary-accent" aria-hidden />
-                </div>
-                <div>
-                  <p className="text-[12px] font-semibold text-text">{label}</p>
-                  <p className="text-[11px] text-text-subtle">{sub}</p>
-                </div>
-              </div>
-            ))}
+          {/* Accroche */}
+          <div>
+            <p
+              className="text-[10px] font-bold tracking-[0.22em] uppercase mb-5"
+              style={{ color: '#7d95b8' }}
+            >
+              Espace collaborateur · Accès sécurisé
+            </p>
+            <h2 className="lg-serif text-[36px] xl:text-[42px] font-black leading-[1.08] tracking-[-0.02em] text-white">
+              Le professionnalisme,<br />
+              notre <em style={{ color: '#60a5fa' }}>signature.</em>
+            </h2>
+            <p className="mt-5 text-[13.5px] leading-relaxed max-w-[300px]" style={{ color: '#aebdd4' }}>
+              Entreprise Benie Network sarl — réseau de marketing relationnel fondé à Goma.
+              Un cadre légal rigoureux, des produits réels, une équipe engagée.
+            </p>
+
+            {/* Villes */}
+            <div className="flex items-center gap-2 mt-8" style={{ color: '#7d95b8' }}>
+              <MapPin size={13} aria-hidden />
+              <span className="text-[11.5px] font-semibold tracking-[0.08em] uppercase">
+                Goma · Bukavu · Kinshasa
+              </span>
+            </div>
           </div>
 
           {/* Pied */}
-          <p className="text-[11px] text-text-subtle">v1.0 · EBN Network RDC © 2025</p>
+          <p className="text-[11px]" style={{ color: '#5b7096' }}>
+            RCCM Goma · EBN Network RDC © 2025
+          </p>
         </div>
 
         {/* ── Colonne droite : formulaire ── */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-14 lg:px-16 xl:px-24 bg-bg">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-14 lg:px-16 xl:px-24 bg-white">
 
           {/* Logo mobile */}
           <div className="lg:hidden flex items-center gap-3 mb-10 self-start">
@@ -201,7 +206,10 @@ export default function LoginPage() {
               alt="EBN Network"
               className="h-14 w-14 rounded-xl object-contain flex-shrink-0"
             />
-            <p className="text-[14px] font-black text-primary tracking-tight">EBN NETWORK</p>
+            <div>
+              <p className="lg-serif text-[15px] font-bold text-primary tracking-tight leading-none">EBN <span style={{ color: '#2563eb', fontStyle: 'italic' }}>Network</span></p>
+              <p className="text-[9px] font-bold tracking-[0.22em] text-text-subtle uppercase mt-1">Espace collaborateur</p>
+            </div>
           </div>
 
           <div className="w-full max-w-[400px]">
@@ -209,11 +217,14 @@ export default function LoginPage() {
             {/* Titre */}
             <div className="flex items-start justify-between mb-8">
               <div>
+                <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-text-subtle mb-2">
+                  Connexion staff
+                </p>
                 <h1 className="text-[28px] font-black text-primary tracking-tight leading-tight">
-                  Connexion
+                  Bienvenue de retour
                 </h1>
                 <p className="text-[13px] text-text-muted mt-1">
-                  Entrez vos identifiants pour continuer.
+                  Accédez à votre espace professionnel.
                 </p>
               </div>
               <span className={cn(
@@ -237,7 +248,7 @@ export default function LoginPage() {
                   htmlFor="identifier"
                   className="block text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted"
                 >
-                  Téléphone ou Email
+                  Téléphone ou Email professionnel
                 </label>
                 <input
                   id="identifier"
@@ -389,9 +400,17 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* Note sécurité */}
+            <div className="flex items-center justify-center gap-1.5 mt-6 pt-5 border-t border-border" style={{ color: '#94a3b8' }}>
+              <ShieldCheck size={13} aria-hidden />
+              <p className="text-[11.5px]">
+                Connexion chiffrée — accès réservé au personnel EBN.
+              </p>
+            </div>
+
             {/* Continuer hors-ligne */}
             {!isOnline && (
-              <div className="mt-6 pt-5 border-t border-border text-center">
+              <div className="mt-5 text-center">
                 <button
                   type="button"
                   className="text-[12px] font-semibold text-primary-accent hover:text-blue-700 transition-colors"

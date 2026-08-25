@@ -261,16 +261,16 @@ export default function HomePage() {
         .lp-nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
         .lp-nav-brand img { height: 44px; width: 44px; object-fit: contain; }
         .lp-nav-name { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 700; color: #0A1628; letter-spacing: -0.01em; }
-        .lp-nav-name span { color: #b45309; font-style: italic; }
+        .lp-nav-name span { color: #2563eb; font-style: italic; }
         .lp-nav-links { display: flex; align-items: center; gap: 18px; }
         @media (max-width: 820px) { .lp-nav-links { display: none; } }
         .lp-nav-link { font-size: 13px; font-weight: 600; color: #334155; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0; }
         .lp-nav-link:hover { color: #0A1628; }
-        .lp-nav-btn { font-size: 13px; font-weight: 700; color: #fff; background: #b45309; border: none; border-radius: 7px; padding: 0 18px; height: 36px; cursor: pointer; transition: background .18s; }
-        .lp-nav-btn:hover { background: #92400e; }
-        .lp-nav-btn.dark { background: #0A1628; }
-        .lp-nav-btn.dark:hover { background: #1a3260; }
-        .lp-nav-btn:focus-visible { outline: 2px solid #b45309; outline-offset: 3px; }
+        .lp-nav-btn { font-size: 13px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 7px; padding: 0 18px; height: 36px; cursor: pointer; transition: background .18s; }
+        .lp-nav-btn:hover { background: #1d4ed8; }
+        .lp-nav-btn.dark { background: #fff; color: #0A1628; border: 1.5px solid #e2e8f0; }
+        .lp-nav-btn.dark:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .lp-nav-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 
         /* HERO */
         .lp-hero { min-height: 100vh; padding-top: 60px; display: flex; flex-direction: column; background: #ffffff; }
@@ -278,18 +278,18 @@ export default function HomePage() {
         @media (max-width: 640px) { .lp-hero-inner { padding: 60px 20px 56px; } }
 
         .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b; margin-bottom: 28px; }
-        .lp-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #b45309; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
+        .lp-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #2563eb; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
         @keyframes lp-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         .lp-h1 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(44px, 7.5vw, 84px); font-weight: 900; line-height: 0.97; letter-spacing: -0.03em; color: #0A1628; margin: 0 0 32px; }
-        .lp-h1 em { font-style: italic; color: #b45309; }
+        .lp-h1 em { font-style: italic; color: #2563eb; }
 
         .lp-hero-sub { font-size: clamp(15px, 1.6vw, 18px); font-weight: 400; line-height: 1.65; color: #64748b; max-width: 560px; margin: 0 0 48px; }
 
         .lp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-        .lp-btn-primary { font-size: 14px; font-weight: 700; background: #b45309; color: #fff; border: none; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, box-shadow .18s; }
-        .lp-btn-primary:hover { background: #92400e; box-shadow: 0 8px 24px rgba(180,83,9,0.25); }
-        .lp-btn-primary:focus-visible { outline: 2px solid #b45309; outline-offset: 3px; }
+        .lp-btn-primary { font-size: 14px; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, box-shadow .18s; }
+        .lp-btn-primary:hover { background: #1d4ed8; box-shadow: 0 8px 24px rgba(37,99,235,0.25); }
+        .lp-btn-primary:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
         .lp-btn-secondary { font-size: 14px; font-weight: 600; background: #f8fafc; color: #0A1628; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, border-color .18s; }
         .lp-btn-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .lp-btn-secondary:focus-visible { outline: 2px solid #0A1628; outline-offset: 3px; }
@@ -297,34 +297,33 @@ export default function HomePage() {
         .lp-hero-img-wrap { margin: 0 6vw 0; height: 380px; border-radius: 12px; overflow: hidden; background: #0A1628; border: 1px solid #e2e8f0; position: relative; display: flex; align-items: center; justify-content: center; }
         @media (max-width: 640px) { .lp-hero-img-wrap { height: 220px; margin: 0 20px; } }
         .lp-hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-        .lp-hero-placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, #0A1628 0%, #1a3260 50%, #451a03 100%); }
+        .lp-hero-placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, #0A1628 0%, #16305a 55%, #1e3a5f 100%); }
         .lp-hero-placeholder::after { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(255,255,255,0.025) 47px, rgba(255,255,255,0.025) 48px), repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,0.025) 47px, rgba(255,255,255,0.025) 48px); }
         .lp-hero-text-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 2; }
         .lp-hero-overlay-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(28px, 4vw, 52px); font-weight: 900; color: rgba(255,255,255,0.9); text-align: center; letter-spacing: -0.02em; text-shadow: 0 2px 20px rgba(0,0,0,0.4); }
-        .lp-hero-overlay-title em { font-style: italic; color: #fcd34d; }
+        .lp-hero-overlay-title em { font-style: italic; color: #93c5fd; }
         .lp-hero-overlay-sub { font-size: 14px; color: rgba(255,255,255,0.5); letter-spacing: 0.15em; text-transform: uppercase; }
         .lp-img-badge { position: absolute; bottom: 18px; right: 18px; z-index: 3; display: flex; align-items: center; gap: 7px; padding: 8px 14px; background: rgba(10,22,40,0.72); border: 1px solid rgba(255,255,255,0.14); backdrop-filter: blur(8px); border-radius: 20px; font-size: 11px; color: rgba(255,255,255,0.75); font-weight: 600; letter-spacing: 0.07em; }
         .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
 
         /* STATS */
-        .lp-stats { background: #0A1628; padding: 44px 6vw; display: grid; grid-template-columns: repeat(4,1fr); }
+        .lp-stats { background: #f8fafc; padding: 44px 6vw; display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
         @media (max-width: 600px) { .lp-stats { grid-template-columns: repeat(2,1fr); gap: 32px 0; } }
-        .lp-stat { padding-right: 28px; border-right: 1px solid rgba(255,255,255,0.08); }
+        .lp-stat { padding-right: 28px; border-right: 1px solid #e2e8f0; }
         .lp-stat:last-child { border-right: none; }
-        @media (max-width: 600px) { .lp-stat:nth-child(2) { border-right: none; } .lp-stat:nth-child(3) { border-right: 1px solid rgba(255,255,255,0.08); } }
-        .lp-stat-v { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(36px, 4vw, 48px); font-weight: 900; color: #fbbf24; line-height: 1; margin-bottom: 4px; }
-        .lp-stat-l { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #e2e8f0; margin-bottom: 2px; }
-        .lp-stat-sub { font-size: 11px; color: #64748b; }
+        @media (max-width: 600px) { .lp-stat:nth-child(2) { border-right: none; } .lp-stat:nth-child(3) { border-right: 1px solid #e2e8f0; } }
+        .lp-stat-v { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(36px, 4vw, 48px); font-weight: 900; color: #0A1628; line-height: 1; margin-bottom: 4px; }
+        .lp-stat-l { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #334155; margin-bottom: 2px; }
+        .lp-stat-sub { font-size: 11px; color: #94a3b8; }
 
         /* SECTIONS */
         .lp-sec { padding: 88px 6vw; background: #f1f5f9; }
         @media (max-width: 640px) { .lp-sec { padding: 64px 20px; } }
         .lp-sec-white { background: #ffffff; }
-        .lp-sec-dark { background: #0A1628; }
 
         .lp-sec-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #94a3b8; margin-bottom: 14px; }
         .lp-sec-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: #0A1628; margin: 0 0 16px; max-width: 520px; }
-        .lp-sec-title em { font-style: italic; color: #b45309; }
+        .lp-sec-title em { font-style: italic; color: #2563eb; }
         .lp-sec-sub { font-size: 15px; line-height: 1.7; color: #475569; max-width: 560px; margin: 0 0 48px; }
 
         /* A PROPOS */
@@ -341,37 +340,37 @@ export default function HomePage() {
         @media (max-width: 900px) { .lp-prod-grid { grid-template-columns: repeat(2,1fr); } }
         @media (max-width: 500px) { .lp-prod-grid { grid-template-columns: 1fr; } }
         .lp-prod-cell { background: #fff; padding: 28px 26px; transition: background .15s; }
-        .lp-prod-cell:hover { background: #fffbeb; }
+        .lp-prod-cell:hover { background: #f8fafc; }
         .lp-prod-num { font-family: 'Playfair Display', Georgia, serif; font-size: 11px; color: #cbd5e1; margin-bottom: 16px; }
-        .lp-prod-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 3px 9px; margin-bottom: 10px; }
+        .lp-prod-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #1d4ed8; background: #dbeafe; border-radius: 999px; padding: 3px 9px; margin-bottom: 10px; }
         .lp-prod-nom { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
         .lp-prod-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
 
         /* OPPORTUNITE */
-        .lp-opp-ladder { display: flex; flex-direction: column; }
-        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; padding: 0 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #1e3a5f; }
+        .lp-opp-ladder { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; padding: 14px 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
         @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr 90px; } .lp-opp-hide { display: none; } }
-        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); transition: background .15s; }
-        .lp-opp-row:hover { background: rgba(255,255,255,0.04); }
-        .lp-opp-row.crown { background: rgba(251,191,36,0.08); }
-        .lp-opp-row.crown:hover { background: rgba(251,191,36,0.13); }
+        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; transition: background .15s; }
+        .lp-opp-row:hover { background: #f8fafc; }
+        .lp-opp-row.crown { background: #eff6ff; }
+        .lp-opp-row.crown:hover { background: #dbeafe; }
         @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr 90px; } }
-        .lp-opp-nom { font-size: 15px; font-weight: 700; color: #f8fafc; }
-        .lp-opp-nom.crown-nom { color: #fbbf24; }
-        .lp-opp-note { font-size: 11px; color: #64748b; margin-top: 2px; }
-        .lp-opp-val { font-size: 12px; color: #94a3b8; line-height: 1.35; }
-        .lp-opp-total { font-size: 16px; font-weight: 800; color: #fbbf24; text-align: right; font-family: 'Playfair Display', Georgia, serif; }
-        .lp-opp-footnote { font-size: 12px; color: #64748b; margin-top: 20px; line-height: 1.6; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
-        .lp-disclaimer { font-size: 12px; color: #94a3b8; margin-top: 24px; line-height: 1.6; padding: 14px 18px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.03); }
+        .lp-opp-nom { font-size: 15px; font-weight: 700; color: #0f172a; }
+        .lp-opp-nom.crown-nom { color: #1d4ed8; }
+        .lp-opp-note { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .lp-opp-val { font-size: 12px; color: #475569; line-height: 1.35; }
+        .lp-opp-total { font-size: 16px; font-weight: 800; color: #2563eb; text-align: right; font-family: 'Playfair Display', Georgia, serif; }
+        .lp-opp-footnote { font-size: 12px; color: #475569; margin-top: 20px; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 18px; }
+        .lp-disclaimer { font-size: 12px; color: #64748b; margin-top: 24px; line-height: 1.6; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 
         /* TEMOIGNAGES */
         .lp-temoignages { display: flex; flex-direction: column; gap: 14px; }
         .lp-temoignage { background: #fff; border-radius: 12px; padding: 28px 26px; border: 1.5px solid #e2e8f0; cursor: pointer; transition: box-shadow .2s, border-color .2s; }
-        .lp-temoignage.active { border-color: #b45309; box-shadow: 0 4px 20px rgba(180,83,9,0.12); }
-        .lp-temoignage:hover { border-color: #fde68a; }
+        .lp-temoignage.active { border-color: #2563eb; box-shadow: 0 4px 20px rgba(37,99,235,0.12); }
+        .lp-temoignage:hover { border-color: #93c5fd; }
         .lp-temoignage-quote { font-size: 15px; line-height: 1.7; color: #334155; margin-bottom: 18px; }
         .lp-temoignage-footer { display: flex; align-items: center; gap: 12px; }
-        .lp-temoignage-avatar { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #fcd34d; display: flex; align-items: center; justify-content: center; background: #0A1628; font-size: 14px; font-weight: 800; color: #fbbf24; flex-shrink: 0; }
+        .lp-temoignage-avatar { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; background: #eff6ff; font-size: 14px; font-weight: 800; color: #2563eb; flex-shrink: 0; }
         .lp-temoignage-nom { font-size: 14px; font-weight: 700; color: #0A1628; }
         .lp-temoignage-role { font-size: 11px; color: #94a3b8; }
 
@@ -383,7 +382,7 @@ export default function HomePage() {
         .lp-step:last-child { border-right: none; }
         @media (max-width: 980px) and (min-width: 561px) { .lp-step:nth-child(2n) { border-right: none; } }
         @media (max-width: 560px) { .lp-step { border-right: none !important; padding-left: 0 !important; padding-right: 0 !important; } .lp-step:last-child { border-bottom: none; } }
-        .lp-step-n { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 700; color: #b45309; width: 34px; height: 34px; border: 1.5px solid #fde68a; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; background: #fffbeb; }
+        .lp-step-n { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 700; color: #2563eb; width: 34px; height: 34px; border: 1.5px solid #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; background: #eff6ff; }
         .lp-step-titre { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 8px; }
         .lp-step-desc { font-size: 13px; line-height: 1.65; color: #475569; }
 
@@ -393,22 +392,22 @@ export default function HomePage() {
         .lp-portal-card { border-radius: 12px; padding: 36px 32px; cursor: pointer; text-align: left; border: none; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .2s, transform .2s; }
         .lp-portal-card:hover { transform: translateY(-2px); }
         .lp-portal-card:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-        .lp-portal-card.agent { background: #0A1628; box-shadow: 0 4px 20px rgba(10,22,40,0.18); }
-        .lp-portal-card.agent:hover { box-shadow: 0 12px 40px rgba(10,22,40,0.28); }
-        .lp-portal-card.client { background: #fffbeb; border: 1.5px solid #fde68a; box-shadow: 0 4px 20px rgba(180,83,9,0.08); }
-        .lp-portal-card.client:hover { box-shadow: 0 12px 40px rgba(180,83,9,0.15); }
+        .lp-portal-card.agent { background: #fff; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 20px rgba(15,23,42,0.06); }
+        .lp-portal-card.agent:hover { border-color: #93c5fd; box-shadow: 0 12px 40px rgba(37,99,235,0.12); }
+        .lp-portal-card.client { background: #f8fafc; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 20px rgba(15,23,42,0.04); }
+        .lp-portal-card.client:hover { border-color: #cbd5e1; box-shadow: 0 12px 40px rgba(15,23,42,0.10); }
         .lp-portal-label { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
-        .agent .lp-portal-label { color: #94a8c7; }
-        .client .lp-portal-label { color: #b45309; }
+        .agent .lp-portal-label { color: #2563eb; }
+        .client .lp-portal-label { color: #64748b; }
         .lp-portal-title { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; line-height: 1.05; }
-        .agent .lp-portal-title { color: #ffffff; }
+        .agent .lp-portal-title { color: #0A1628; }
         .client .lp-portal-title { color: #0A1628; }
         .lp-portal-desc { font-size: 13px; line-height: 1.6; }
-        .agent .lp-portal-desc { color: #94a8c7; }
-        .client .lp-portal-desc { color: #92400e; }
+        .agent .lp-portal-desc { color: #475569; }
+        .client .lp-portal-desc { color: #475569; }
         .lp-portal-cta { font-size: 13px; font-weight: 700; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
-        .agent .lp-portal-cta { color: #93c5fd; }
-        .client .lp-portal-cta { color: #b45309; }
+        .agent .lp-portal-cta { color: #2563eb; }
+        .client .lp-portal-cta { color: #0f172a; }
 
         /* CONTACT */
         .lp-contact-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap: clamp(40px,6vw,80px); align-items: flex-start; }
@@ -417,7 +416,7 @@ export default function HomePage() {
         .lp-wa-btn:hover { background: #1da855; box-shadow: 0 6px 20px rgba(37,211,102,0.35); }
         .lp-contact-info { display: flex; flex-direction: column; gap: 20px; margin-top: 28px; }
         .lp-contact-info-item { display: flex; gap: 12px; align-items: flex-start; }
-        .lp-contact-info-icon { width: 36px; height: 36px; border-radius: 8px; background: #fffbeb; color: #b45309; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .lp-contact-info-icon { width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; color: #2563eb; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
         .lp-contact-info-title { font-size: 13px; font-weight: 700; color: #0A1628; margin: 0 0 2px; }
         .lp-contact-info-val { font-size: 13px; color: #64748b; }
 
@@ -428,10 +427,10 @@ export default function HomePage() {
         .lp-field label { font-size: 12px; font-weight: 700; color: #334155; letter-spacing: 0.02em; }
         .lp-field input, .lp-field select, .lp-field textarea { font-family: inherit; font-size: 14px; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 11px 13px; background: #fff; min-height: 44px; transition: border-color .15s, box-shadow .15s; width: 100%; }
         .lp-field textarea { resize: vertical; min-height: 80px; }
-        .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline: none; border-color: #b45309; box-shadow: 0 0 0 3px rgba(180,83,9,0.12); }
+        .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
         .lp-field input::placeholder, .lp-field textarea::placeholder { color: #94a3b8; }
-        .lp-form-submit { width: 100%; font-size: 15px; font-weight: 700; color: #fff; background: #0A1628; border: none; border-radius: 9px; padding: 15px; cursor: pointer; min-height: 50px; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .18s; }
-        .lp-form-submit:hover { background: #1a3260; }
+        .lp-form-submit { width: 100%; font-size: 15px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 9px; padding: 15px; cursor: pointer; min-height: 50px; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .18s; }
+        .lp-form-submit:hover { background: #1d4ed8; }
         .lp-form-submit:disabled { opacity: 0.65; cursor: wait; }
         .lp-spinner { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff; animation: lp-spin 0.7s linear infinite; }
         @keyframes lp-spin { to { transform: rotate(360deg); } }
@@ -502,21 +501,21 @@ export default function HomePage() {
 
         /* FOOTER */
 
-        .lp-footer { background: #060d1a; padding: 40px 6vw 28px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .lp-footer { background: #ffffff; padding: 40px 6vw 28px; border-top: 1px solid #e2e8f0; }
         @media (max-width: 640px) { .lp-footer { padding: 32px 20px 24px; } }
         .lp-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 36px; }
         @media (max-width: 760px) { .lp-footer-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 480px) { .lp-footer-grid { grid-template-columns: 1fr; } }
         .lp-footer-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
         .lp-footer-brand img { height: 36px; width: 36px; object-fit: contain; opacity: 0.9; }
-        .lp-footer-brand-name { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 700; color: #e2e8f0; }
-        .lp-footer-brand-name span { color: #fbbf24; font-style: italic; }
+        .lp-footer-brand-name { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 700; color: #0A1628; }
+        .lp-footer-brand-name span { color: #2563eb; font-style: italic; }
         .lp-footer-desc { font-size: 13px; color: #64748b; line-height: 1.6; max-width: 300px; }
-        .lp-footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #e2e8f0; margin-bottom: 14px; }
+        .lp-footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #334155; margin-bottom: 14px; }
         .lp-footer-links { display: flex; flex-direction: column; gap: 10px; }
         .lp-footer-link { font-size: 13px; color: #64748b; text-decoration: none; background: none; border: none; cursor: pointer; text-align: left; padding: 0; transition: color .15s; }
-        .lp-footer-link:hover { color: #e2e8f0; }
-        .lp-footer-legal { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .lp-footer-link:hover { color: #0A1628; }
+        .lp-footer-legal { border-top: 1px solid #e2e8f0; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
         .lp-footer-rccm { font-size: 11px; color: #475569; line-height: 1.7; }
         .lp-footer-copy { font-size: 11px; color: #475569; }
 
@@ -556,7 +555,6 @@ export default function HomePage() {
             <button className="lp-nav-link" onClick={() => scrollTo('contact')}>Contact</button>
             <div style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 4px' }} aria-hidden />
             <button className="lp-nav-link" onClick={() => navigate('/login')}>Staff</button>
-            <button className="lp-nav-btn" onClick={() => navigate('/ambassadeur')}>Devenir Partenaire</button>
             <button className="lp-nav-btn dark" onClick={() => navigate('/portal/login')}>Connexion Membre</button>
           </div>
         </nav>
@@ -579,8 +577,8 @@ export default function HomePage() {
               ancre dans la realite congolaise.
             </p>
             <div className="lp-actions lp-a3">
-              <button className="lp-btn-primary" onClick={() => navigate('/ambassadeur')} id="hero-cta-partenaire">
-                Devenir Partenaire
+              <button className="lp-btn-primary" onClick={() => scrollTo('contact')} id="hero-cta-contact">
+                Nous contacter
               </button>
               <button className="lp-btn-secondary" onClick={() => scrollTo('produits')} id="hero-cta-produits">
                 Decouvrir nos produits
@@ -712,13 +710,13 @@ export default function HomePage() {
         </div>
 
         {/* OPPORTUNITE */}
-        <section className="lp-sec lp-sec-dark" id="opportunite" aria-labelledby="lp-opp-title">
+        <section className="lp-sec lp-sec-white" id="opportunite" aria-labelledby="lp-opp-title">
           <Reveal>
-            <p className="lp-sec-eyebrow" style={{ color: '#475569' }}>L'opportunite d'affaires</p>
-            <h2 id="lp-opp-title" className="lp-sec-title" style={{ color: '#f8fafc' }}>
+            <p className="lp-sec-eyebrow">L'opportunite d'affaires</p>
+            <h2 id="lp-opp-title" className="lp-sec-title">
               8 niveaux de carriere,<br /><em>un parcours clair.</em>
             </h2>
-            <p className="lp-sec-sub" style={{ color: '#94a3b8' }}>
+            <p className="lp-sec-sub">
               Chaque niveau demande 4 filleuls actifs. Matrice complete = commission versee + promotion.
               Les montants sont configures dans le systeme - rien n'est negocie a part, rien n'est cache.
             </p>
@@ -736,7 +734,7 @@ export default function HomePage() {
                     <div className={`lp-opp-nom${niveau === 'Crown Ambassadeur' ? ' crown-nom' : ''}`}>
                       {niveau}
                       {niveau === 'Crown Ambassadeur' && (
-                        <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400e', background: '#fef3c7', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
+                        <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1d4ed8', background: '#dbeafe', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
                       )}
                     </div>
                     <div className="lp-opp-note">{filleuls} filleuls par matrice</div>
@@ -969,7 +967,6 @@ export default function HomePage() {
             <div>
               <div className="lp-footer-col-title">Portails</div>
               <div className="lp-footer-links">
-                <button className="lp-footer-link" onClick={() => navigate('/ambassadeur')}>Devenir Partenaire</button>
                 <button className="lp-footer-link" onClick={() => navigate('/portal/login')}>Portail Client</button>
                 <button className="lp-footer-link" onClick={() => navigate('/login')}>Espace Employe</button>
               </div>

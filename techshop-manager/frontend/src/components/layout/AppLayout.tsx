@@ -79,7 +79,7 @@ const SETTINGS_GROUP: NavGroupDef = {
 function NavSection({ label }: { label: string }) {
   return (
     <p className="px-5 pt-5 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em]"
-       style={{ color: '#3d5478' }}>
+       style={{ color: '#94a3b8' }}>
       {label}
     </p>
   );
@@ -111,18 +111,18 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside className="sidebar flex flex-col shadow-sidebar">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid #1e2d4a' }}>
+      <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid #e2e8f0' }}>
         <img src="/assets/Progress business logo.png" alt="EBN Network" className="h-14 w-14 rounded-md object-contain flex-shrink-0" />
         <div className="flex flex-col leading-none">
-          <span className="text-[13px] font-bold tracking-tight" style={{ color: '#e8edf5' }}>EBN Network</span>
-          <span className="text-[10px] font-medium" style={{ color: '#3d5478' }}>Manager v1.0</span>
+          <span className="text-[13px] font-bold tracking-tight" style={{ color: '#0f172a' }}>EBN Network</span>
+          <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>Manager v1.0</span>
         </div>
         {onClose && (
           <button
             onClick={onClose}
             className="ml-auto flex h-7 w-7 items-center justify-center rounded-md transition-colors lg:hidden
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-            style={{ color: '#94a8c7' }}
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent"
+            style={{ color: '#64748b' }}
             aria-label="Fermer le menu"
           >
             <X size={16} />
@@ -252,12 +252,12 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                 <ChevronDown
                   size={13}
                   className={cn('transition-transform duration-200', settingsOpen && 'rotate-180')}
-                  style={{ color: '#3d5478' }}
+                  style={{ color: '#94a3b8' }}
                 />
               </button>
 
               {settingsOpen && (
-                <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: '1px solid #1e2d4a' }}>
+                <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: '1px solid #e2e8f0' }}>
                   {visibleSettingsChildren.map((child) => (
                     <NavLink
                       key={child.to}

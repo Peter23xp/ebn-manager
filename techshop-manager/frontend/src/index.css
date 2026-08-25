@@ -129,30 +129,30 @@
   .sidebar {
     width: 240px;
     height: 100%;
-    background-color: #0A1628;
-    @apply text-white flex flex-col flex-shrink-0;
+    @apply bg-white flex flex-col flex-shrink-0;
+    border-right: 1px solid #e2e8f0;
   }
 
   .sidebar-link {
     @apply flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg mx-2
            transition-all duration-150 ease-out-quart
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30;
-    color: #94a8c7;
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent;
+    color: #64748b;
   }
 
   .sidebar-link:hover {
-    color: #e8edf5;
-    background-color: #111f3a;
+    color: #0f172a;
+    background-color: #f1f5f9;
   }
 
   .sidebar-link.active {
-    color: #e8edf5;
-    background-color: #1a3260;
+    color: #1d4ed8;
+    background-color: #dbeafe;
     @apply font-semibold;
   }
 
   .sidebar-link.active .sidebar-icon {
-    color: #60a5fa;
+    color: #2563eb;
   }
 
   /* ── Layout ──────────────────────────────────────────────────── */
