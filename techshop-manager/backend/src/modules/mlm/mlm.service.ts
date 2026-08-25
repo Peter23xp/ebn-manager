@@ -213,8 +213,26 @@ export class MlmService {
       where: { ordre: { gt: membre.level.ordre }, isActive: true },
       orderBy: { ordre: 'asc' },
     });
-    // Build a quick lookup map: filleulId -> filleul data
-    const filleulsMap = new Map(membre.filleuls.map((f) => [f.id, f]));
+    // A position can point to a historical filleul that is not part of the
+    // member's currently loaded direct-filleuls collection (for example after
+    // a promotion/reorganisation). Load every referenced member explicitly so
+    // completed matrix positions always display the person's name.
+    const positionFilleulIds = [...new Set(
+      membre.matrices.flatMap((matrix) => matrix.positions.map((position) => position.filleulId).filter(Boolean) as string[]),
+    )];
+    const positionFilleuls = positionFilleulIds.length
+      ? await this.prisma.membre.findMany({
+          where: { id: { in: positionFilleulIds } },
+          include: {
+            client: { select: { id: true, prenom: true, nom: true } },
+            level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+          },
+        })
+      : [];
+    const filleulsMap = new Map([
+      ...membre.filleuls.map((f) => [f.id, f] as const),
+      ...positionFilleuls.map((f) => [f.id, f] as const),
+    ]);
 
 
     const currentMatrix = membre.matrices.find((m) => m.mlmLevelId === membre.mlmLevelId);

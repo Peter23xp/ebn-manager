@@ -25,7 +25,6 @@ import {
   HelpCircle,
   Award,
   DollarSign,
-  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
@@ -58,7 +57,6 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
   { label: 'Dashboard MLM',        icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
   { label: '8 Niveaux MLM',        icon: <Award size={16} />,         to: '/mlm/levels',         minRole: 'AGENT' },
-  { label: 'Arbre MLM',            icon: <Layers size={16} />,        to: '/mlm/tree',           minRole: 'GERANT' },
   { label: 'Commissions',          icon: <DollarSign size={16} />,    to: '/mlm/commissions',    minRole: 'GERANT' },
   { label: 'Membres MLM',          icon: <Users size={16} />,         to: '/mlm/members',        minRole: 'GERANT' },
   { label: 'Mon Portefeuille',     icon: <Wallet size={16} />,        to: '/mlm/wallet',         minRole: 'AGENT' },
