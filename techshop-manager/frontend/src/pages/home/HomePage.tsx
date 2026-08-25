@@ -272,48 +272,60 @@ export default function HomePage() {
         .lp-nav-btn.dark:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .lp-nav-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 
-        /* HERO */
-        .lp-hero { min-height: 100vh; padding-top: 60px; display: flex; flex-direction: column; background: #ffffff; }
-        .lp-hero-inner { padding: 80px 6vw 72px; max-width: 960px; }
-        @media (max-width: 640px) { .lp-hero-inner { padding: 60px 20px 56px; } }
+        /* HERO - editorial, premium and conversion-focused */
+        .lp-hero { min-height: 700px; padding: 52px 6vw 76px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); gap: clamp(38px, 7vw, 108px); align-items: center; background: #0A1628; position: relative; overflow: hidden; }
+        .lp-hero::before { content: ''; position: absolute; width: 520px; height: 520px; border: 1px solid rgba(251,191,36,.18); border-radius: 50%; right: -160px; top: -220px; pointer-events: none; }
+        .lp-hero::after { content: ''; position: absolute; width: 300px; height: 300px; background: rgba(37,99,235,.12); filter: blur(90px); left: -90px; bottom: -140px; pointer-events: none; }
+        .lp-hero-inner { padding: 34px 0; max-width: 640px; position: relative; z-index: 1; }
+        @media (max-width: 860px) { .lp-hero { min-height: auto; grid-template-columns: 1fr; gap: 28px; padding: 92px 6vw 64px; } .lp-hero-inner { padding: 14px 0 0; max-width: 700px; } }
+        @media (max-width: 640px) { .lp-hero { padding: 80px 20px 48px; } .lp-hero-inner { padding: 0; } }
 
-        .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b; margin-bottom: 28px; }
-        .lp-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #2563eb; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
+        .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #fbbf24; margin-bottom: 28px; }
+        .lp-eyebrow-dot { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; box-shadow: 0 0 0 5px rgba(251,191,36,.13); }
         @keyframes lp-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-        .lp-h1 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(44px, 7.5vw, 84px); font-weight: 900; line-height: 0.97; letter-spacing: -0.03em; color: #0A1628; margin: 0 0 32px; }
-        .lp-h1 em { font-style: italic; color: #2563eb; }
+        .lp-h1 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(44px, 6.5vw, 78px); font-weight: 900; line-height: 0.99; letter-spacing: -0.03em; color: #fff; margin: 0 0 30px; text-wrap: balance; }
+        .lp-h1 em { font-style: italic; color: #fbbf24; }
 
-        .lp-hero-sub { font-size: clamp(15px, 1.6vw, 18px); font-weight: 400; line-height: 1.65; color: #64748b; max-width: 560px; margin: 0 0 48px; }
+        .lp-hero-sub { font-size: clamp(15px, 1.45vw, 18px); font-weight: 400; line-height: 1.7; color: #cbd5e1; max-width: 560px; margin: 0 0 40px; }
 
         .lp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
         .lp-btn-primary { font-size: 14px; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, box-shadow .18s; }
         .lp-btn-primary:hover { background: #1d4ed8; box-shadow: 0 8px 24px rgba(37,99,235,0.25); }
         .lp-btn-primary:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-        .lp-btn-secondary { font-size: 14px; font-weight: 600; background: #f8fafc; color: #0A1628; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, border-color .18s; }
-        .lp-btn-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; }
-        .lp-btn-secondary:focus-visible { outline: 2px solid #0A1628; outline-offset: 3px; }
+        .lp-btn-secondary { font-size: 14px; font-weight: 700; background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.3); border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, border-color .18s; }
+        .lp-btn-secondary:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.65); }
+        .lp-btn-secondary:focus-visible { outline: 2px solid #fbbf24; outline-offset: 3px; }
 
-        .lp-hero-img-wrap { margin: 0 6vw 0; height: 380px; border-radius: 12px; overflow: hidden; background: #0A1628; border: 1px solid #e2e8f0; position: relative; display: flex; align-items: center; justify-content: center; }
-        @media (max-width: 640px) { .lp-hero-img-wrap { height: 220px; margin: 0 20px; } }
-        .lp-hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-        .lp-hero-placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, #0A1628 0%, #16305a 55%, #1e3a5f 100%); }
-        .lp-hero-placeholder::after { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(255,255,255,0.025) 47px, rgba(255,255,255,0.025) 48px), repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,0.025) 47px, rgba(255,255,255,0.025) 48px); }
+        .lp-hero-proof { display: flex; flex-wrap: wrap; gap: 12px 22px; margin-top: 26px; color: #94a3b8; font-size: 11px; line-height: 1.4; }
+        .lp-hero-proof span { display: inline-flex; align-items: center; gap: 5px; }
+        .lp-hero-proof span::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #fbbf24; }
+        .lp-hero-proof strong { color: #fff; font-weight: 800; }
+
+        .lp-hero-img-wrap { margin: 0; height: min(620px, 68vh); min-height: 470px; border-radius: 28px; overflow: visible; background: #16243a; border: 1px solid rgba(255,255,255,.2); position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 28px 80px rgba(0,0,0,.34); }
+        @media (max-width: 860px) { .lp-hero-img-wrap { height: 430px; min-height: 0; max-width: 760px; width: 100%; } }
+        @media (max-width: 640px) { .lp-hero-img-wrap { height: 330px; min-height: 0; border-radius: 20px; } }
+        .lp-hero-img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: inherit; }
+        .lp-hero-placeholder { position: absolute; inset: 0; z-index: 0; border-radius: inherit; background: linear-gradient(135deg, #0A1628 0%, #16305a 55%, #1e3a5f 100%); }
+        .lp-hero-placeholder::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(37,99,235,.08), transparent 55%, rgba(251,191,36,.08)); }
         .lp-hero-text-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 2; }
         .lp-hero-overlay-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(28px, 4vw, 52px); font-weight: 900; color: rgba(255,255,255,0.9); text-align: center; letter-spacing: -0.02em; text-shadow: 0 2px 20px rgba(0,0,0,0.4); }
         .lp-hero-overlay-title em { font-style: italic; color: #93c5fd; }
         .lp-hero-overlay-sub { font-size: 14px; color: rgba(255,255,255,0.5); letter-spacing: 0.15em; text-transform: uppercase; }
-        .lp-img-badge { position: absolute; bottom: 18px; right: 18px; z-index: 3; display: flex; align-items: center; gap: 7px; padding: 8px 14px; background: rgba(10,22,40,0.72); border: 1px solid rgba(255,255,255,0.14); backdrop-filter: blur(8px); border-radius: 20px; font-size: 11px; color: rgba(255,255,255,0.75); font-weight: 600; letter-spacing: 0.07em; }
+        .lp-img-badge { position: absolute; bottom: -20px; left: -24px; z-index: 3; display: flex; align-items: center; gap: 9px; padding: 14px 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 18px 45px rgba(0,0,0,.22); border-radius: 12px; font-size: 11px; color: #0A1628; font-weight: 800; letter-spacing: 0.05em; }
+        @media (max-width: 640px) { .lp-img-badge { left: 14px; bottom: -14px; padding: 11px 14px; } }
         .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
+        .lp-hero-caption { display: none; }
+        .lp-hero-caption-kicker { color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: none; }
 
         /* STATS */
-        .lp-stats { background: #f8fafc; padding: 44px 6vw; display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+        .lp-stats { background: #0A1628; padding: 40px 6vw; display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid #0A1628; border-bottom: 1px solid #0A1628; }
         @media (max-width: 600px) { .lp-stats { grid-template-columns: repeat(2,1fr); gap: 32px 0; } }
-        .lp-stat { padding-right: 28px; border-right: 1px solid #e2e8f0; }
+        .lp-stat { padding-right: 28px; border-right: 1px solid rgba(255,255,255,.14); }
         .lp-stat:last-child { border-right: none; }
-        @media (max-width: 600px) { .lp-stat:nth-child(2) { border-right: none; } .lp-stat:nth-child(3) { border-right: 1px solid #e2e8f0; } }
-        .lp-stat-v { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(36px, 4vw, 48px); font-weight: 900; color: #0A1628; line-height: 1; margin-bottom: 4px; }
-        .lp-stat-l { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #334155; margin-bottom: 2px; }
+        @media (max-width: 600px) { .lp-stat:nth-child(2) { border-right: none; } .lp-stat:nth-child(3) { border-right: 1px solid rgba(255,255,255,.14); } }
+        .lp-stat-v { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(36px, 4vw, 48px); font-weight: 900; color: #fbbf24; line-height: 1; margin-bottom: 4px; }
+        .lp-stat-l { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #f8fafc; margin-bottom: 2px; }
         .lp-stat-sub { font-size: 11px; color: #94a3b8; }
 
         /* SECTIONS */
@@ -448,9 +460,9 @@ export default function HomePage() {
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 10px;
         }
-        .lp-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; border-radius: 12px; }
+        .lp-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: 12px; }
         .lp-photo-hint {
-          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          display: none !important; flex-direction: column; align-items: center; gap: 8px;
           pointer-events: none; user-select: none; text-align: center; padding: 20px;
           position: relative; z-index: 1;
         }
@@ -469,15 +481,15 @@ export default function HomePage() {
         /* A PROPOS layout with photo */
         .lp-about-wrap { display: grid; grid-template-columns: 1fr minmax(0, 420px); gap: clamp(32px,5vw,72px); align-items: flex-start; }
         @media (max-width: 960px) { .lp-about-wrap { grid-template-columns: 1fr; } }
-        .lp-about-photo { height: 480px; }
-        @media (max-width: 960px) { .lp-about-photo { height: 260px; } }
+        .lp-about-photo { height: 560px; }
+        @media (max-width: 960px) { .lp-about-photo { height: 340px; } }
 
         /* PHOTO STRIP (full-width) */
         .lp-photo-strip {
           display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 3px;
-          height: 340px; margin: 0;
+          height: 440px; margin: 0;
         }
-        @media (max-width: 760px) { .lp-photo-strip { grid-template-columns: 1fr 1fr; height: 260px; } }
+        @media (max-width: 760px) { .lp-photo-strip { grid-template-columns: 1fr 1fr; height: 320px; } }
         @media (max-width: 480px) { .lp-photo-strip { grid-template-columns: 1fr; height: auto; gap: 3px; } }
         .lp-photo-strip .lp-photo { border-radius: 0; }
         @media (max-width: 760px) { .lp-photo-strip .lp-photo:last-child { display: none; } }
@@ -485,19 +497,8 @@ export default function HomePage() {
         /* TEMOIGNAGES layout with photo */
         .lp-temo-wrap { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,380px); gap: clamp(32px,5vw,64px); align-items: flex-start; }
         @media (max-width: 900px) { .lp-temo-wrap { grid-template-columns: 1fr; } }
-        .lp-temo-photo { height: 420px; }
-        @media (max-width: 900px) { .lp-temo-photo { height: 220px; } }
-
-        /* BOUTIQUES photo grid */
-        .lp-boutiques-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 40px; }
-        @media (max-width: 640px) { .lp-boutiques-grid { grid-template-columns: 1fr; } }
-        .lp-boutique-photo { height: 200px; position: relative; }
-        .lp-boutique-label {
-          position: absolute; bottom: 14px; left: 14px; z-index: 2;
-          font-size: 12px; font-weight: 700; color: #fff;
-          background: rgba(10,22,40,0.7); backdrop-filter: blur(4px);
-          padding: 4px 11px; border-radius: 999px; letter-spacing: 0.05em;
-        }
+        .lp-temo-photo { height: 520px; }
+        @media (max-width: 900px) { .lp-temo-photo { height: 320px; } }
 
         /* FOOTER */
 
@@ -531,6 +532,44 @@ export default function HomePage() {
           .lp-a0,.lp-a1,.lp-a2,.lp-a3,.lp-a4 { animation: none; }
           .lp-eyebrow-dot,.lp-badge-dot { animation: none; }
         }
+
+        /* PALETTE EBN : blanc, noir et or — aucun bleu */
+        .lp-hero { background: #fff; }
+        .lp-hero::before { border-color: rgba(161,126,54,.2); }
+        .lp-hero::after { background: rgba(161,126,54,.08); }
+        .lp-h1 { color: #111827; }
+        .lp-h1 em, .lp-eyebrow { color: #a17e36; }
+        .lp-eyebrow-dot, .lp-hero-proof span::before { background: #a17e36; box-shadow: 0 0 0 5px rgba(161,126,54,.12); }
+        .lp-hero-sub { color: #475569; }
+        .lp-btn-primary, .lp-form-submit { background: #111827; }
+        .lp-btn-primary:hover, .lp-form-submit:hover { background: #374151; box-shadow: 0 8px 24px rgba(17,24,39,.18); }
+        .lp-btn-primary:focus-visible, .lp-nav-btn:focus-visible, .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline-color: #a17e36; border-color: #a17e36; box-shadow: 0 0 0 3px rgba(161,126,54,.12); }
+        .lp-btn-secondary { color: #111827; border-color: #d1d5db; background: #fff; }
+        .lp-btn-secondary:hover { background: #f9fafb; border-color: #a17e36; }
+        .lp-hero-proof { color: #64748b; }
+        .lp-hero-proof strong { color: #111827; }
+        .lp-hero-img-wrap { background: #f3f4f6; border-color: #e5e7eb; box-shadow: 0 28px 80px rgba(17,24,39,.14); }
+        .lp-hero-placeholder { background: linear-gradient(135deg, #111827 0%, #374151 55%, #6b7280 100%); }
+        .lp-hero-overlay-title em { color: #f5d98b; }
+        .lp-stats { background: #fff; border-color: #e5e7eb; }
+        .lp-stat { border-color: #e5e7eb; }
+        .lp-stat-v { color: #a17e36; }
+        .lp-stat-l { color: #111827; }
+        .lp-nav-name span, .lp-footer-brand-name span { color: #a17e36; }
+        .lp-nav-btn { background: #111827; }
+        .lp-nav-btn:hover { background: #374151; }
+        .lp-nav-btn:focus-visible { outline-color: #a17e36; }
+        .lp-sec-title em, .lp-opp-total, .lp-portal-label, .lp-prod-badge, .lp-step-n { color: #a17e36; }
+        .lp-prod-badge, .lp-step-n { background: #faf7ef; border-color: #dfcfaa; }
+        .lp-opp-row.crown { background: #faf7ef; }
+        .lp-opp-row.crown:hover { background: #f5eddb; }
+        .lp-portal-card.agent:hover { border-color: #dfcfaa; box-shadow: 0 12px 40px rgba(161,126,54,.12); }
+        .lp-portal-card:focus-visible { outline-color: #a17e36; }
+        .lp-contact-info-icon { background: #faf7ef; color: #a17e36; }
+        .lp-temoignage.active { border-color: #a17e36; box-shadow: 0 4px 20px rgba(161,126,54,.12); }
+        .lp-temoignage:hover { border-color: #dfcfaa; }
+        .lp-temoignage-avatar { border-color: #dfcfaa; background: #faf7ef; color: #a17e36; }
+        .lp-img-badge { color: #111827; }
       `}} />
 
       <div className="lp">
@@ -584,11 +623,16 @@ export default function HomePage() {
                 Decouvrir nos produits
               </button>
             </div>
+            <div className="lp-hero-proof lp-a3" aria-label="Engagements EBN">
+              <span><strong>RDC</strong> · ancrage local</span>
+              <span><strong>8</strong> niveaux transparents</span>
+              <span><strong>4</strong> filleuls par étape</span>
+            </div>
           </div>
           <div className="lp-hero-img-wrap lp-a4">
             <img
-              src="/assets/hero-banner.jpg"
-              alt="Equipe EBN Network a Goma, RDC - marketing relationnel"
+              src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=85"
+              alt="Professionnelle noire représentant la communauté EBN Network"
               className="lp-hero-img"
               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
@@ -601,6 +645,10 @@ export default function HomePage() {
             <div className="lp-img-badge">
               <span className="lp-badge-dot" aria-hidden />
               Goma, Nord-Kivu · RDC
+            </div>
+            <div className="lp-hero-caption">
+              <span className="lp-hero-caption-kicker">Une communauté qui avance</span>
+              <span>Goma · Bukavu · Kinshasa</span>
             </div>
           </div>
         </section>
@@ -644,7 +692,7 @@ export default function HomePage() {
             {/* ── PHOTO PLACEHOLDER : Equipe / bureau EBN ── */}
             <Reveal delay={140}>
               <div className="lp-photo lp-about-photo" aria-hidden>
-                <img src="/assets/about-team.jpg" alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1100&q=85" alt="Équipe noire réunie autour d’un projet" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div className="lp-photo-hint">
                   <div className="lp-photo-hint-icon">&#x1F4F7;</div>
                   <div className="lp-photo-hint-label">Photo — equipe EBN</div>
@@ -684,7 +732,7 @@ export default function HomePage() {
         {/* ── PHOTO STRIP — entre Produits et Opportunite ── */}
         <div className="lp-photo-strip" aria-hidden role="presentation">
           <div className="lp-photo">
-            <img src="/assets/strip-1.jpg" alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=1400&q=85" alt="Entrepreneur noir en réunion" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             <div className="lp-photo-hint">
               <div className="lp-photo-hint-icon">&#x1F4F7;</div>
               <div className="lp-photo-hint-label">Photo principale</div>
@@ -692,7 +740,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lp-photo">
-            <img src="/assets/strip-2.jpg" alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1100&q=85" alt="Partenaire noire lors d’une rencontre" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             <div className="lp-photo-hint">
               <div className="lp-photo-hint-icon">&#x1F4F7;</div>
               <div className="lp-photo-hint-label">Photo ambiance</div>
@@ -700,7 +748,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lp-photo">
-            <img src="/assets/strip-3.jpg" alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1100&q=85" alt="Espace de travail professionnel" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
             <div className="lp-photo-hint">
               <div className="lp-photo-hint-icon">&#x1F4F7;</div>
               <div className="lp-photo-hint-label">Photo contexte</div>
@@ -734,7 +782,7 @@ export default function HomePage() {
                     <div className={`lp-opp-nom${niveau === 'Crown Ambassadeur' ? ' crown-nom' : ''}`}>
                       {niveau}
                       {niveau === 'Crown Ambassadeur' && (
-                        <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#1d4ed8', background: '#dbeafe', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
+<span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#a17e36', background: '#faf7ef', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
                       )}
                     </div>
                     <div className="lp-opp-note">{filleuls} filleuls par matrice</div>
@@ -793,7 +841,7 @@ export default function HomePage() {
             {/* ── PHOTO PLACEHOLDER : Ambassadeur / partenaire ── */}
             <Reveal delay={140}>
               <div className="lp-photo lp-temo-photo" aria-hidden>
-                <img src="/assets/ambassadeur.jpg" alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                <img src="https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1000&q=85" alt="Portrait d’un partenaire noir EBN" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div className="lp-photo-hint">
                   <div className="lp-photo-hint-icon">&#x1F4F7;</div>
                   <div className="lp-photo-hint-label">Photo ambassadeur</div>
@@ -919,26 +967,6 @@ export default function HomePage() {
             </Reveal>
           </div>
 
-          {/* ── PHOTO GRID : Nos boutiques ── */}
-          <Reveal delay={160}>
-            <div className="lp-boutiques-grid" aria-hidden role="presentation">
-              {[
-                { ville: 'Goma', src: '/assets/boutique-goma.jpg' },
-                { ville: 'Bukavu', src: '/assets/boutique-bukavu.jpg' },
-                { ville: 'Kinshasa', src: '/assets/boutique-kinshasa.jpg' },
-              ].map(({ ville, src }) => (
-                <div key={ville} className="lp-photo lp-boutique-photo">
-                  <img src={src} alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  <div className="lp-photo-hint" style={{ gap: 6 }}>
-                    <div className="lp-photo-hint-icon" style={{ width: 36, height: 36, fontSize: 16 }}>&#x1F4F7;</div>
-                    <div className="lp-photo-hint-label">Boutique {ville}</div>
-                    <div className="lp-photo-hint-sub">Min 800×600 px</div>
-                  </div>
-                  <div className="lp-boutique-label">{ville}</div>
-                </div>
-              ))}
-            </div>
-          </Reveal>
         </section>
 
         {/* FOOTER */}
