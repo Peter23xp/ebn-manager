@@ -59,7 +59,7 @@ export function WalletCard({ solde, gainsTotaux }: WalletCardProps) {
             </p>
             
             <a 
-              href="https://wa.me/243900000000?text=Bonjour,%20je%20souhaite%20faire%20un%20retrait%20sur%20mon%20portefeuille%20partenaire."
+              href="https://wa.me/243974752784?text=Bonjour,%20je%20souhaite%20faire%20un%20retrait%20sur%20mon%20portefeuille%20partenaire."
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full h-12 bg-[#25D366] hover:bg-[#1da855] text-white font-bold rounded-xl transition-colors mb-3"

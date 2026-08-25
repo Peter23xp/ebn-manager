@@ -87,6 +87,7 @@ export default function MlmConfigPage() {
                     <td className="px-6 py-4">
                       <MlmLevelBadge
                         level={l.ordre}
+                        name={l.nom}
                         size="md"
                       />
                     </td>

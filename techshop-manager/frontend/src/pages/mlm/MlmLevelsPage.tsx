@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useMlmConfig } from '@/hooks/useMlm';
 import { formatUSD } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { MLM_LEVELS_REF } from '@/types';
 
 // Level icons map (lucide, matching MLM_LEVELS_REF.icone)
 const LEVEL_ICONS: Record<string, LucideIcon> = {
@@ -20,6 +21,8 @@ const LEVEL_ICONS: Record<string, LucideIcon> = {
 export default function MlmLevelsPage() {
   const navigate = useNavigate();
   const { data: levels, isLoading } = useMlmConfig();
+  const displayedLevels = levels?.length ? levels : MLM_LEVELS_REF;
+  const totalGains = displayedLevels.reduce((sum: number, level: any) => sum + Number(level.commissionTotale ?? 0), 0);
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -50,7 +53,7 @@ export default function MlmLevelsPage() {
             <h2 className="text-section-title text-primary">Crown Ambassadeur — le sommet</h2>
             <p className="text-sm text-text-muted max-w-2xl mt-1">
               Atteignez le niveau ultime après avoir complété 8 matrices de 4 filleuls chacune.
-              Gain total annoncé : <strong className="font-semibold text-text">50 000 $</strong>.
+              Gain total annoncé sur les 8 étapes : <strong className="font-semibold text-text">{formatUSD(totalGains)}</strong>.
               Votre parrain personnel reçoit également un bonus retraite de 50 000 $.
             </p>
           </div>
@@ -66,7 +69,7 @@ export default function MlmLevelsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {levels?.map((level: any) => (
+          {displayedLevels.map((level: any) => (
             <LevelCard key={level.id} level={level} />
           ))}
         </div>

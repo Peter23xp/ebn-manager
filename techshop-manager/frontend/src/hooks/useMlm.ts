@@ -68,7 +68,7 @@ export function useEarningsByLevel(memberId?: string) {
 export function useMlmConfig() {
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: ['mlm-config'],
+    queryKey: ['mlm-config', 'scheme-20260825'],
     queryFn: () => MlmApi.getConfig(),
   });
 

@@ -9,7 +9,9 @@ export function useMlmNetwork() {
   });
 
   const membersByLevelQuery = useQuery({
-    queryKey: ['mlm-members-by-level'],
+    // Bump the key when the published compensation plan changes so an already
+    // open dashboard cannot keep rendering the previous levels from memory.
+    queryKey: ['mlm-members-by-level', 'scheme-20260825'],
     queryFn: () => MlmApi.getMembersByLevel(),
     staleTime: 5 * 60 * 1000,
   });

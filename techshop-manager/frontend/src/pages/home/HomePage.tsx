@@ -105,14 +105,14 @@ const PRODUITS = [
 ];
 
 const OPPORTUNITE = [
-  { niveau: 'Pierre',  filleuls: 4, commission: '40 $',    salaire: null },
-  { niveau: 'Argent',  filleuls: 4, commission: '60 $',    salaire: null },
-  { niveau: 'Bronze',  filleuls: 4, commission: '100 $',   salaire: null },
-  { niveau: 'Fer',     filleuls: 4, commission: '200 $',   salaire: null },
-  { niveau: 'Or',      filleuls: 4, commission: '400 $',   salaire: '100 $/mois' },
-  { niveau: 'Diamant', filleuls: 4, commission: '1 000 $', salaire: '250 $/mois' },
-  { niveau: 'Platine', filleuls: 4, commission: '2 000 $', salaire: '500 $/mois' },
-  { niveau: 'Crown',   filleuls: 4, commission: '5 000 $', salaire: '1 000 $/mois' },
+  { niveau: 'Builder', filleuls: 4, commission: '24 USD', bonus: '2 pagnes' },
+  { niveau: 'Sapphire', filleuls: 4, commission: '50 USD', bonus: '1er kit alimentaire' },
+  { niveau: 'Ruby', filleuls: 4, commission: '80 USD', bonus: '2e kit alimentaire' },
+  { niveau: 'Emerald', filleuls: 4, commission: '200 USD', bonus: 'Écran plat 52 pouces' },
+  { niveau: 'Diamond', filleuls: 4, commission: '1 000 USD', bonus: 'Moto de luxe de 2 000 USD' },
+  { niveau: 'Crown Diamond', filleuls: 4, commission: '2 000 USD', bonus: '1re voiture de 6 000 USD' },
+  { niveau: 'Ambassadeur', filleuls: 4, commission: '20 000 USD', bonus: '1re maison de 30 000 USD + 2e voiture de 15 000 USD' },
+  { niveau: 'Crown Ambassadeur', filleuls: 4, commission: '50 000 USD', bonus: '2e maison + 3e voiture' },
 ];
 
 const TEMOIGNAGES = [
@@ -128,8 +128,8 @@ const ETAPES = [
   { n: '4', titre: 'Montez les niveaux', desc: "Matrice complete = commission versee + promotion au niveau suivant avec des montants plus eleves." },
 ];
 
-const WHATSAPP_LINK = 'https://wa.me/243000000000?text=Bonjour%20EBN%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20votre%20programme.';
-const WHATSAPP_NUMBER = '+243 000 000 000';
+const WHATSAPP_LINK = 'https://wa.me/243974752784?text=Bonjour%20EBN%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20votre%20programme.';
+const WHATSAPP_NUMBER = '+243 974 752 784';
 
 /* ── formulaire contact ───────────────────────────────────────────────────── */
 
@@ -349,17 +349,17 @@ export default function HomePage() {
 
         /* OPPORTUNITE */
         .lp-opp-ladder { display: flex; flex-direction: column; }
-        .lp-opp-head { display: grid; grid-template-columns: 1fr 80px 100px; padding: 0 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #1e3a5f; }
-        @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr 80px; } .lp-opp-hide { display: none; } }
-        .lp-opp-row { display: grid; grid-template-columns: 1fr 80px 100px; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); transition: background .15s; }
+        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; padding: 0 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #1e3a5f; }
+        @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr 90px; } .lp-opp-hide { display: none; } }
+        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); transition: background .15s; }
         .lp-opp-row:hover { background: rgba(255,255,255,0.04); }
         .lp-opp-row.crown { background: rgba(251,191,36,0.08); }
         .lp-opp-row.crown:hover { background: rgba(251,191,36,0.13); }
-        @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr 80px; } }
+        @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr 90px; } }
         .lp-opp-nom { font-size: 15px; font-weight: 700; color: #f8fafc; }
         .lp-opp-nom.crown-nom { color: #fbbf24; }
         .lp-opp-note { font-size: 11px; color: #64748b; margin-top: 2px; }
-        .lp-opp-val { font-size: 13px; color: #94a3b8; }
+        .lp-opp-val { font-size: 12px; color: #94a3b8; line-height: 1.35; }
         .lp-opp-total { font-size: 16px; font-weight: 800; color: #fbbf24; text-align: right; font-family: 'Playfair Display', Georgia, serif; }
         .lp-opp-footnote { font-size: 12px; color: #64748b; margin-top: 20px; line-height: 1.6; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
         .lp-disclaimer { font-size: 12px; color: #94a3b8; margin-top: 24px; line-height: 1.6; padding: 14px 18px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.03); }
@@ -727,28 +727,28 @@ export default function HomePage() {
             <div className="lp-opp-ladder" role="table" aria-label="Bareme des 8 niveaux de carriere EBN">
               <div className="lp-opp-head" role="row" aria-hidden>
                 <span>Niveau</span>
-                <span className="lp-opp-hide">Salaire mensuel</span>
-                <span style={{ textAlign: 'right' }}>Commission totale</span>
+                <span className="lp-opp-hide">Bonus d'incitation</span>
+                <span style={{ textAlign: 'right' }}>Gains USD</span>
               </div>
-              {OPPORTUNITE.map(({ niveau, filleuls, commission, salaire }) => (
-                <div key={niveau} className={`lp-opp-row${niveau === 'Crown' ? ' crown' : ''}`} role="row">
+              {OPPORTUNITE.map(({ niveau, filleuls, commission, bonus }) => (
+                <div key={niveau} className={`lp-opp-row${niveau === 'Crown Ambassadeur' ? ' crown' : ''}`} role="row">
                   <div>
-                    <div className={`lp-opp-nom${niveau === 'Crown' ? ' crown-nom' : ''}`}>
+                    <div className={`lp-opp-nom${niveau === 'Crown Ambassadeur' ? ' crown-nom' : ''}`}>
                       {niveau}
-                      {niveau === 'Crown' && (
+                      {niveau === 'Crown Ambassadeur' && (
                         <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400e', background: '#fef3c7', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
                       )}
                     </div>
                     <div className="lp-opp-note">{filleuls} filleuls par matrice</div>
                   </div>
-                  <span className="lp-opp-val lp-opp-hide">{salaire ?? '\u2014'}</span>
+                  <span className="lp-opp-val lp-opp-hide">{bonus}</span>
                   <span className="lp-opp-total">{commission}</span>
                 </div>
               ))}
             </div>
             <p className="lp-opp-footnote">
-              Les salaires mensuels demarrent a partir du niveau Or (100 $/mois) et montent jusqu'a 1 000 $/mois au rang Crown.
-              Le bonus retraite de 50 000 $ est verse quand un de vos filleuls directs atteint le rang Crown Ambassadeur.
+              Les 8 étapes représentent un total calculé de <strong>73 354 USD</strong>.
+              Chaque étape nécessite 4 filleuls directs ; les bonus d'incitation sont ceux indiqués ci-dessus.
             </p>
             <p className="lp-disclaimer">
               <strong>Mention legale :</strong> Les revenus presentes correspondent aux montants maximaux par niveau.

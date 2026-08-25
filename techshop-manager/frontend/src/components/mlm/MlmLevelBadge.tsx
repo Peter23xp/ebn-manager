@@ -5,6 +5,7 @@ import { Award, Crown, Gem, Shield, Star, TrendingUp, Zap } from 'lucide-react';
 
 interface MlmLevelBadgeProps {
   level: number;
+  name?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
   showIcon?: boolean;
@@ -22,6 +23,7 @@ const iconMap: Record<string, React.FC<any>> = {
 
 export const MlmLevelBadge: React.FC<MlmLevelBadgeProps> = ({
   level,
+  name,
   size = 'md',
   className,
   showIcon = true,
@@ -57,7 +59,7 @@ export const MlmLevelBadge: React.FC<MlmLevelBadgeProps> = ({
       }}
     >
       {showIcon && <Icon size={iconSizes[size]} strokeWidth={2.5} />}
-      {levelData.nom}
+      {name ?? levelData.nom}
     </span>
   );
 };

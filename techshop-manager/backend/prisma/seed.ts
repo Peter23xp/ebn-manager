@@ -196,14 +196,14 @@ async function main() {
   console.log('⭐ 3. Configuration des 8 niveaux MLM...');
 
   const mlmLevelsData = [
-    { ordre: 1, nom: 'Builder', filleulsRequis: 4, commissionParFilleul: 6, commissionTotale: 24, bonusDescription: 'Deux pagnes en nature', salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
-    { ordre: 2, nom: 'Sapphire', filleulsRequis: 4, commissionParFilleul: 12.5, commissionTotale: 50, bonusDescription: 'Premier kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
-    { ordre: 3, nom: 'Ruby', filleulsRequis: 4, commissionParFilleul: 20, commissionTotale: 80, bonusDescription: 'Deuxième kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
-    { ordre: 4, nom: 'Emerald', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Écran plat de 5 pouces / équipement', salaireMensuel: 50, salaireActif: true, couleur: '#10b981', icone: 'tv' },
-    { ordre: 5, nom: 'Diamond', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Moto de luxe + salaire', salaireMensuel: 200, salaireActif: true, couleur: '#06b6d4', icone: 'bike' },
-    { ordre: 6, nom: 'Crown Diamond', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Voiture de luxe + salaire', salaireMensuel: 500, salaireActif: true, couleur: '#8b5cf6', icone: 'crown' },
-    { ordre: 7, nom: 'Ambassadeur', filleulsRequis: 4, commissionParFilleul: 5000, commissionTotale: 20000, bonusDescription: 'Voiture de luxe + salaire + maison/tour', salaireMensuel: 1500, salaireActif: true, couleur: '#6366f1', icone: 'globe' },
-    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 12500, commissionTotale: 50000, bonusDescription: 'Voiture de luxe + maison de grande valeur + salaire', salaireMensuel: 3000, salaireActif: true, couleur: '#d97706', icone: 'award' },
+    { ordre: 1, nom: 'Builder', filleulsRequis: 4, commissionParFilleul: 6, commissionTotale: 24, bonusDescription: '2 pagnes', salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
+    { ordre: 2, nom: 'Sapphire', filleulsRequis: 4, commissionParFilleul: 12.5, commissionTotale: 50, bonusDescription: '1er kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
+    { ordre: 3, nom: 'Ruby', filleulsRequis: 4, commissionParFilleul: 20, commissionTotale: 80, bonusDescription: '2e kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
+    { ordre: 4, nom: 'Emerald', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Écran plat 52 pouces', salaireMensuel: 0, salaireActif: false, couleur: '#10b981', icone: 'tv' },
+    { ordre: 5, nom: 'Diamond', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Moto de luxe de 2 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#06b6d4', icone: 'bike' },
+    { ordre: 6, nom: 'Crown Diamond', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: '1re voiture de 6 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#8b5cf6', icone: 'crown' },
+    { ordre: 7, nom: 'Ambassadeur', filleulsRequis: 4, commissionParFilleul: 5000, commissionTotale: 20000, bonusDescription: '1re maison de 30 000 USD + 2e voiture de 15 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#6366f1', icone: 'globe' },
+    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 12500, commissionTotale: 50000, bonusDescription: '2e maison + 3e voiture', salaireMensuel: 0, salaireActif: false, couleur: '#d97706', icone: 'award' },
   ];
 
   const dbLevels: Record<number, any> = {};

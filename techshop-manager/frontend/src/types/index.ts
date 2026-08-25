@@ -323,6 +323,18 @@ export const MLM_LEVELS_REF = [
   { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
 ];
 
+// Canonical published MLM scheme used whenever the API is unavailable.
+MLM_LEVELS_REF.splice(0, MLM_LEVELS_REF.length,
+  { ordre: 1, nom: 'Builder', filleulsRequis: 4, commissionParFilleul: 6, commissionTotale: 24, bonusDescription: '2 pagnes', salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
+  { ordre: 2, nom: 'Sapphire', filleulsRequis: 4, commissionParFilleul: 12.5, commissionTotale: 50, bonusDescription: '1er kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
+  { ordre: 3, nom: 'Ruby', filleulsRequis: 4, commissionParFilleul: 20, commissionTotale: 80, bonusDescription: '2e kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
+  { ordre: 4, nom: 'Emerald', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Écran plat 52 pouces', salaireMensuel: 0, salaireActif: false, couleur: '#10b981', icone: 'tv' },
+  { ordre: 5, nom: 'Diamond', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Moto de luxe de 2 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#06b6d4', icone: 'bike' },
+  { ordre: 6, nom: 'Crown Diamond', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: '1re voiture de 6 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#8b5cf6', icone: 'crown' },
+  { ordre: 7, nom: 'Ambassadeur', filleulsRequis: 4, commissionParFilleul: 5000, commissionTotale: 20000, bonusDescription: '1re maison de 30 000 USD + 2e voiture de 15 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#6366f1', icone: 'globe' },
+  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 12500, commissionTotale: 50000, bonusDescription: '2e maison + 3e voiture', salaireMensuel: 0, salaireActif: false, couleur: '#d97706', icone: 'award' },
+);
+
 // ============================================
 // PAGINATION
 // ============================================
