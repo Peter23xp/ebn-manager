@@ -33,4 +33,11 @@ describe('KpayService', () => {
       'Signature KPay invalide',
     );
   });
+
+  it('normalizes local DRC numbers without requiring the country code', () => {
+    const service = new KpayService(config as never);
+
+    expect(service.normalizeDrcPhone('081 234 5678')).toBe('243812345678');
+    expect(service.normalizeDrcPhone('812345678')).toBe('243812345678');
+  });
 });

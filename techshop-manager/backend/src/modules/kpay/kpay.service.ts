@@ -87,7 +87,9 @@ export class KpayService {
   }
 
   normalizeDrcPhone(phoneNumber: string): string {
-    const normalized = phoneNumber.replace(/[^\d]/g, '').replace(/^00/, '');
+    let normalized = phoneNumber.replace(/[^\d]/g, '').replace(/^00/, '');
+    if (normalized.startsWith('0')) normalized = `243${normalized.slice(1)}`;
+    else if (/^\d{9}$/.test(normalized)) normalized = `243${normalized}`;
     if (!/^243\d{9}$/.test(normalized)) {
       throw new BadRequestException('Le numéro Mobile Money doit être un numéro RDC au format 243XXXXXXXXX');
     }

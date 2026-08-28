@@ -14,7 +14,10 @@ export function MobileMoneyPaymentForm({ amount, currency = 'USD', submitting = 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const submit = () => {
-    const normalized = phoneNumber.replace(/\s+/g, '').replace(/^\+/, '');
+    let normalized = phoneNumber.replace(/\D/g, '');
+    if (normalized.startsWith('00')) normalized = normalized.slice(2);
+    if (normalized.startsWith('0')) normalized = `243${normalized.slice(1)}`;
+    else if (/^\d{9}$/.test(normalized)) normalized = `243${normalized}`;
     if (!/^243\d{9}$/.test(normalized)) {
       setError('Saisissez un numéro RDC au format +243XXXXXXXXX.');
       return;

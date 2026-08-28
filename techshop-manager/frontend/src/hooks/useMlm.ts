@@ -82,6 +82,13 @@ export function useMlmConfig() {
   return { ...query, updateConfig: updateMutation };
 }
 
+export function useMlmMembersByLevel() {
+  return useQuery({
+    queryKey: ['mlm-members-by-level'],
+    queryFn: () => MlmApi.getMembersByLevel(),
+  });
+}
+
 export function usePendingBonuses(params: { page: number; limit: number }) {
   const queryClient = useQueryClient();
   const query = useQuery({

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trophy, TrendingUp, Award, Star, Shield, Zap, Crown, Gem } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useMlmConfig } from '@/hooks/useMlm';
+import { useMlmConfig, useMlmMembersByLevel } from '@/hooks/useMlm';
 import { formatUSD } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { MLM_LEVELS_REF } from '@/types';
@@ -21,6 +21,7 @@ const LEVEL_ICONS: Record<string, LucideIcon> = {
 export default function MlmLevelsPage() {
   const navigate = useNavigate();
   const { data: levels, isLoading } = useMlmConfig();
+  const { data: levelMembers } = useMlmMembersByLevel();
   const displayedLevels = levels?.length ? levels : MLM_LEVELS_REF;
   const totalGains = displayedLevels.reduce((sum: number, level: any) => sum + Number(level.commissionTotale ?? 0), 0);
 
@@ -69,9 +70,10 @@ export default function MlmLevelsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {displayedLevels.map((level: any) => (
-            <LevelCard key={level.id} level={level} />
-          ))}
+          {displayedLevels.map((level: any) => {
+            const membersSummary = levelMembers?.find((item: any) => item.id === level.id || item.levelId === level.ordre);
+            return <LevelCard key={level.id} level={{ ...level, count: membersSummary?.count ?? membersSummary?.membresActifs ?? 0 }} />;
+          })}
         </div>
       )}
 
