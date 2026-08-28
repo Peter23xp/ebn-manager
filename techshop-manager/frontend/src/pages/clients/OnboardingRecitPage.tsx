@@ -38,10 +38,7 @@ type FormValues = z.infer<typeof schema>;
 
 const MODES = [
   { value: 'CASH',         label: 'Cash' },
-  { value: 'MPESA',        label: 'M-Pesa' },
-  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
-  { value: 'VIREMENT',     label: 'Virement' },
-  { value: 'KPAY',         label: 'KPay' },
+  { value: 'KPAY',         label: 'Paiement mobile' },
 ] as const;
 
 // ── Page ──────────────────────────────────────────────────────────────────────
