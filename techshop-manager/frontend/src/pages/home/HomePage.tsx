@@ -332,7 +332,7 @@ export default function HomePage() {
         .lp-lottie { position: relative; z-index: 2; width: 100%; height: 100%; }
         .lp-lottie-loading { width: 100%; height: 100%; min-height: 160px; }
         .lp-hero-img-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
-        .lp-about-photo { background: transparent; border-radius: 0; }
+        .lp-about-photo { background: transparent !important; border-radius: 0; }
         .lp-temo-photo { background-image: url('/assets/testimoniql.jpg') !important; background-size: cover; background-position: center; }
         .lp-temo-photo > img { opacity: 0; }
         .lp-temo-photo > .lp-temo-image { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 1; }
