@@ -20,7 +20,24 @@ async function main() {
         langue: 'fr',
       },
     });
-    console.log('Mode admin uniquement : aucun site ni aucune donnée de démonstration créé.');
+    const mlmLevels = [
+      ['Builder', 4, 6, 24, '#f59e0b', 'hammer'],
+      ['Sapphire', 4, 12.5, 50, '#3b82f6', 'gem'],
+      ['Ruby', 4, 20, 80, '#ef4444', 'sparkles'],
+      ['Emerald', 4, 50, 200, '#10b981', 'tv'],
+      ['Diamond', 4, 250, 1000, '#06b6d4', 'bike'],
+      ['Crown Diamond', 4, 500, 2000, '#8b5cf6', 'crown'],
+      ['Ambassadeur', 4, 5000, 20000, '#6366f1', 'globe'],
+      ['Crown Ambassadeur', 4, 12500, 50000, '#d97706', 'award'],
+    ] as const;
+    for (const [index, [nom, filleulsRequis, commissionParFilleul, commissionTotale, couleur, icone]] of mlmLevels.entries()) {
+      await prisma.mlmLevel.upsert({
+        where: { ordre: index + 1 },
+        update: { nom, filleulsRequis, commissionParFilleul, commissionTotale, bonusDescription: '', couleur, icone, isActive: true },
+        create: { ordre: index + 1, nom, filleulsRequis, commissionParFilleul, commissionTotale, bonusDescription: '', couleur, icone, isActive: true },
+      });
+    }
+    console.log('Mode admin uniquement : 8 niveaux MLM configurés, aucune donnée de démonstration créée.');
     return;
   }
   console.log('🌱 Démarrage du seed enrichi EBN Network (Format Matricule AAAAMJXXXX)...');
