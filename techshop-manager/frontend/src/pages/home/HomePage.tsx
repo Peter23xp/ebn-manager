@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Lottie } from 'lottie-react';
 import { PageSEO } from '@/components/seo/PageSEO';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
@@ -65,6 +66,28 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
 
 /* ── donnees ──────────────────────────────────────────────────────────────── */
 
+function LottieAsset({ file, label }: { file: string; label: string }) {
+  const [animationData, setAnimationData] = useState<object | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/assets/${file}`, { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`Impossible de charger ${file}`);
+        return response.json();
+      })
+      .then(setAnimationData)
+      .catch(error => {
+        if (error.name !== 'AbortError') console.error(error);
+      });
+    return () => controller.abort();
+  }, [file]);
+
+  if (!animationData) return <div className="lp-lottie-loading" aria-hidden />;
+
+  return <Lottie src={animationData} loop autoplay className="lp-lottie" aria-label={label} role="img" />;
+}
+
 const STATS = [
   { v: '3', l: 'Villes', sub: 'Goma · Bukavu · Kinshasa' },
   { v: '8', l: 'Niveaux', sub: "D'ambassadeur" },
@@ -96,12 +119,12 @@ const VALEURS = [
 ];
 
 const PRODUITS = [
-  { num: '01', nom: 'Caisse POS', desc: 'Gestion des ventes en moins de 90 secondes, meme hors-ligne. Recus, historique, multi-operateurs.', badge: 'Commerce' },
-  { num: '02', nom: 'Gestion Clients', desc: "Onboarding 4 etapes, profil complet, historique d'achats et suivi fidelite Bronze vers Platine.", badge: 'CRM' },
-  { num: '03', nom: 'Stocks Multi-sites', desc: 'Inventaire en temps reel sur plusieurs boutiques, alertes de seuil, transferts inter-sites.', badge: 'Logistique' },
-  { num: '04', nom: 'Programme Ambassadeur', desc: '8 niveaux de carriere, commissions en USD, salaire mensuel et bonus retraite 50 000 $.', badge: 'MLM' },
-  { num: '05', nom: 'Fidelite & Points', desc: 'Programme Bronze vers Platine avec remises automatiques, points cumulables et recompenses.', badge: 'Fidelite' },
-  { num: '06', nom: 'Rapports & Tableaux', desc: 'Export Excel/PDF, tableaux de bord par ville, rapports quotidiens et mensuels.', badge: 'Analytics' },
+  { num: '01', nom: 'Produits et services reels', desc: 'Proposez des solutions utiles et concrètes qui créent une vraie valeur pour vos clients.', badge: 'Valeur réelle' },
+  { num: '02', nom: 'Formation et accompagnement', desc: 'Commencez avec les bons outils, des conseils pratiques et un accompagnement à chaque étape.', badge: 'Démarrage' },
+  { num: '03', nom: 'Une communauté locale', desc: 'Rejoignez des partenaires engagés à Goma, Bukavu et Kinshasa, et avancez avec eux.', badge: 'Communauté' },
+  { num: '04', nom: 'Parrainage transparent', desc: 'Développez votre réseau dans un cadre clair, fondé sur la confiance et le partage.', badge: 'Réseau' },
+  { num: '05', nom: 'Commissions évolutives', desc: 'Faites progresser vos revenus selon votre activité, votre engagement et les résultats de votre réseau.', badge: 'Progression' },
+  { num: '06', nom: 'Un parcours de réussite', desc: 'Évoluez de Builder vers les niveaux Ambassadeur grâce à un plan de carrière structuré.', badge: 'Carrière' },
 ];
 
 const OPPORTUNITE = [
@@ -306,6 +329,14 @@ export default function HomePage() {
         @media (max-width: 860px) { .lp-hero-img-wrap { height: 430px; min-height: 0; max-width: 760px; width: 100%; } }
         @media (max-width: 640px) { .lp-hero-img-wrap { height: 330px; min-height: 0; border-radius: 20px; } }
         .lp-hero-img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: inherit; }
+        .lp-lottie { position: relative; z-index: 2; width: 100%; height: 100%; }
+        .lp-lottie-loading { width: 100%; height: 100%; min-height: 160px; }
+        .lp-hero-img-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+        .lp-about-photo { background: transparent; border-radius: 0; }
+        .lp-temo-photo { background-image: url('/assets/testimoniql.jpg') !important; background-size: cover; background-position: center; }
+        .lp-temo-photo > img { opacity: 0; }
+        .lp-temo-photo > .lp-temo-image { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 1; }
+        .lp-hero-img-wrap > .lp-hero-img, .lp-hero-img-wrap > .lp-hero-placeholder { display: none; }
         .lp-hero-placeholder { position: absolute; inset: 0; z-index: 0; border-radius: inherit; background: linear-gradient(135deg, #0A1628 0%, #16305a 55%, #1e3a5f 100%); }
         .lp-hero-placeholder::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(37,99,235,.08), transparent 55%, rgba(251,191,36,.08)); }
         .lp-hero-text-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 2; }
@@ -461,6 +492,7 @@ export default function HomePage() {
           gap: 10px;
         }
         .lp-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: 12px; }
+        .lp-about-photo > img, .lp-about-photo > .lp-photo-hint { display: none; }
         .lp-photo-hint {
           display: none !important; flex-direction: column; align-items: center; gap: 8px;
           pointer-events: none; user-select: none; text-align: center; padding: 20px;
@@ -548,7 +580,7 @@ export default function HomePage() {
         .lp-btn-secondary:hover { background: #f9fafb; border-color: #a17e36; }
         .lp-hero-proof { color: #64748b; }
         .lp-hero-proof strong { color: #111827; }
-        .lp-hero-img-wrap { background: #f3f4f6; border-color: #e5e7eb; box-shadow: 0 28px 80px rgba(17,24,39,.14); }
+        .lp-hero-img-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
         .lp-hero-placeholder { background: linear-gradient(135deg, #111827 0%, #374151 55%, #6b7280 100%); }
         .lp-hero-overlay-title em { color: #f5d98b; }
         .lp-stats { background: #fff; border-color: #e5e7eb; }
@@ -630,6 +662,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lp-hero-img-wrap lp-a4">
+            <LottieAsset file="hero%20sect.json" label="Animation présentant une femme dans l'univers EBN Network" />
             <img
               src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=85"
               alt="Professionnelle noire représentant la communauté EBN Network"
@@ -641,10 +674,6 @@ export default function HomePage() {
                 <div className="lp-hero-overlay-title">Votre reseau,<br />votre <em>avenir.</em></div>
                 <div className="lp-hero-overlay-sub">Goma · Bukavu · Kinshasa</div>
               </div>
-            </div>
-            <div className="lp-img-badge">
-              <span className="lp-badge-dot" aria-hidden />
-              Goma, Nord-Kivu · RDC
             </div>
             <div className="lp-hero-caption">
               <span className="lp-hero-caption-kicker">Une communauté qui avance</span>
@@ -692,6 +721,7 @@ export default function HomePage() {
             {/* ── PHOTO PLACEHOLDER : Equipe / bureau EBN ── */}
             <Reveal delay={140}>
               <div className="lp-photo lp-about-photo" aria-hidden>
+                <LottieAsset file="about.json" label="Animation présentant une femme et les valeurs d'EBN Network" />
                 <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1100&q=85" alt="Équipe noire réunie autour d’un projet" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div className="lp-photo-hint">
                   <div className="lp-photo-hint-icon">&#x1F4F7;</div>
@@ -706,13 +736,13 @@ export default function HomePage() {
         {/* PRODUITS */}
         <section className="lp-sec" id="produits" aria-labelledby="lp-prod-title">
           <Reveal>
-            <p className="lp-sec-eyebrow">Nos produits & services</p>
+            <p className="lp-sec-eyebrow">L'expérience EBN</p>
             <h2 id="lp-prod-title" className="lp-sec-title">
-              Des solutions concretes<br />pour votre <em>commerce.</em>
+              Construisez votre avenir<br />avec un <em>réseau solide.</em>
             </h2>
             <p className="lp-sec-sub">
-              EBN propose des produits et services reels - c'est la fondation de notre modele.
-              Le reseau amplifie, mais la valeur creee est tangible et mesurable.
+              Chez EBN, le marketing relationnel commence par une valeur réelle : des produits utiles,
+              une communauté engagée et un accompagnement qui vous aide à grandir durablement.
             </p>
           </Reveal>
           <Reveal delay={80}>
@@ -841,6 +871,7 @@ export default function HomePage() {
             {/* ── PHOTO PLACEHOLDER : Ambassadeur / partenaire ── */}
             <Reveal delay={140}>
               <div className="lp-photo lp-temo-photo" aria-hidden>
+                <img className="lp-temo-image" src="/assets/testimoniql.jpg" alt="" loading="lazy" />
                 <img src="https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1000&q=85" alt="Portrait d’un partenaire noir EBN" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                 <div className="lp-photo-hint">
                   <div className="lp-photo-hint-icon">&#x1F4F7;</div>
