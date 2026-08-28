@@ -437,6 +437,21 @@ export class ClientsService implements OnModuleInit {
     numeroRecu?: string;
     agentId: string;
   }) {
+    // Reprendre un dossier existant depuis la file d'attente au lieu de
+    // créer un deuxième client avec le même numéro.
+    const resumableClient = await this.prisma.client.findUnique({
+      where: { telephone: dto.telephone },
+      include: { onboardingEtapes: true },
+    });
+    const resumableStep = resumableClient?.onboardingEtapes.find((step) => step.etape === EtapeOnboarding.RECIT);
+    if (resumableClient && resumableClient.statut === StatutClient.EN_COURS && resumableStep?.statut !== StatutEtape.COMPLETE) {
+      const resumedStep = await this.prisma.onboardingEtape.upsert({
+        where: { clientId_etape: { clientId: resumableClient.id, etape: EtapeOnboarding.RECIT } },
+        create: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.COMPLETE, completeeAt: new Date(), montant: dto.montantRecit, modePaiement: dto.modePaiement, referenceTransaction: dto.numeroRecu, clientId: resumableClient.id, agentId: dto.agentId, siteId: resumableClient.siteInscriptionId },
+        update: { statut: StatutEtape.COMPLETE, completeeAt: new Date(), montant: dto.montantRecit, modePaiement: dto.modePaiement, referenceTransaction: dto.numeroRecu, agentId: dto.agentId, notes: null },
+      });
+      return { client: await this.findOne(resumableClient.id), etapeId: resumedStep.id };
+    }
     // Vérifier doublon téléphone
     const existingPhone = await this.prisma.client.findUnique({
       where: { telephone: dto.telephone },
