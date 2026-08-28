@@ -600,7 +600,7 @@ export default function POSPage() {
           </div>
 
           {(modePaiement === 'MPESA' || modePaiement === 'AIRTEL_MONEY') && (
-            <MobileMoneyPaymentForm amount={netVal} submitting={kpaySubmitting} onSubmit={handleKpayPayment} />
+            <MobileMoneyPaymentForm amount={netVal} submitting={kpaySubmitting} processing={kpayPolling} onSubmit={handleKpayPayment} />
           )}
 
           {modePaiement === 'CASH' && (
