@@ -22,7 +22,7 @@ export function MobileMoneyPaymentForm({ amount, submitting = false, onSubmit }:
     onSubmit({ provider, phoneNumber: normalized });
   };
   return (
-    <section className="rounded-xl border border-border bg-white p-4" aria-labelledby="mobile-money-title">
+    <section className="w-full min-w-0 rounded-xl border border-border bg-white p-4" aria-labelledby="mobile-money-title">
       <div className="mb-3 flex items-center gap-2"><Smartphone size={18} className="text-primary-accent" /><h3 id="mobile-money-title" className="font-semibold text-primary">Paiement Mobile Money</h3></div>
       <p className="mb-3 text-xs text-text-muted">Montant à confirmer : <strong>{amount.toFixed(2)} USD</strong></p>
       <div className="grid gap-3 sm:grid-cols-2">

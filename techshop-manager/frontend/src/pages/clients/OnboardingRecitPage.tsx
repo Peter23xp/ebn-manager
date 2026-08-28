@@ -197,7 +197,7 @@ export default function OnboardingRecitPage() {
       <OnboardingStepper currentStep={1} />
 
       {/* Formulaire */}
-      <div className="rounded-xl border border-border bg-white shadow-sm p-6">
+      <div className="min-w-0 rounded-xl border border-border bg-white shadow-sm p-6">
         <h2 className="text-[15px] font-bold text-primary mb-5">
           Informations personnelles &amp; Achat du récit
         </h2>
@@ -319,7 +319,7 @@ export default function OnboardingRecitPage() {
           </div>
 
           {/* Séparateur Achat */}
-          <div className="rounded-xl border border-border bg-slate-50 p-5 space-y-4">
+            <div className="min-w-0 rounded-xl border border-border bg-slate-50 p-5 space-y-4">
             <h3 className="text-[13px] font-bold text-primary">Achat du Récit</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -341,12 +341,12 @@ export default function OnboardingRecitPage() {
               {/* Mode paiement */}
               <div className="form-group">
                 <p className="form-label">Mode de paiement *</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {MODES.map((m) => (
                     <label
                       key={m.value}
                       className={cn(
-                        'flex items-center justify-center px-3 py-2 border-2 rounded-lg cursor-pointer text-[12px] font-semibold transition-colors',
+                        'flex min-h-11 min-w-0 items-center justify-center px-2 sm:px-3 py-2 border-2 rounded-lg cursor-pointer text-[12px] font-semibold text-center leading-tight transition-colors',
                         'has-[:checked]:border-primary-accent has-[:checked]:bg-primary-light/40 has-[:checked]:text-primary-accent',
                         'border-border text-text-muted hover:border-border-strong',
                       )}
@@ -380,7 +380,9 @@ export default function OnboardingRecitPage() {
               </div>
             )}
             {modePaiement === 'KPAY' && (
-              <MobileMoneyPaymentForm amount={Number(watch('montantRecit') || 0)} submitting={kpaySubmitting} onSubmit={handleKpaySubmit} />
+              <div className="min-w-0 w-full">
+                <MobileMoneyPaymentForm amount={Number(watch('montantRecit') || 0)} submitting={kpaySubmitting} onSubmit={handleKpaySubmit} />
+              </div>
             )}
           </div>
 
