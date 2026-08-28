@@ -553,7 +553,6 @@ export class ClientsService implements OnModuleInit {
     const existingStep = existingClient?.onboardingEtapes.find((step) => step.etape === EtapeOnboarding.RECIT);
     if (existingClient && existingStep?.statut === StatutEtape.COMPLETE) {
       const failedPayment = await this.prisma.kpayTransaction.findFirst({
-<<<<<<< HEAD
         where: {
           onboardingEtapeId: existingStep.id,
           OR: [
@@ -561,9 +560,6 @@ export class ClientsService implements OnModuleInit {
             { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
           ],
         },
-=======
-        where: { onboardingEtapeId: existingStep.id, status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
->>>>>>> 71de6814f514365950aabf48d25f3c3167914e08
         select: { id: true },
       });
       if (failedPayment) {
@@ -578,7 +574,6 @@ export class ClientsService implements OnModuleInit {
         select: { id: true, status: true, kpayReference: true },
       });
       if (activePayment) return { client: existingClient, transactionId: activePayment.id, status: activePayment.status, reference: activePayment.kpayReference };
-<<<<<<< HEAD
       const retryablePayment = await this.prisma.kpayTransaction.findFirst({
         where: {
           onboardingEtapeId: existingStep.id,
@@ -589,9 +584,6 @@ export class ClientsService implements OnModuleInit {
         },
         select: { id: true },
       });
-=======
-      const retryablePayment = await this.prisma.kpayTransaction.findFirst({ where: { onboardingEtapeId: existingStep.id, status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } }, select: { id: true } });
->>>>>>> 71de6814f514365950aabf48d25f3c3167914e08
       if (!retryablePayment) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Le paiement précédent est encore en cours de vérification.' });
     } else if (existingClient) {
       throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Un client avec ce numéro existe déjà' });
