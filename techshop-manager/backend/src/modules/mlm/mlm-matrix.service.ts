@@ -32,6 +32,7 @@ export class MlmMatrixService {
       const parrainMembre = await this.prisma.membre.findFirst({
         where: {
           OR: [
+            { id: parrainCode },
             { matricule: parrainCode },
             { client: { codeParrain: parrainCode } },
           ],

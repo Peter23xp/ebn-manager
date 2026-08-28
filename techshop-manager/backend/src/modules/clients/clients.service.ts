@@ -496,6 +496,7 @@ export class ClientsService implements OnModuleInit {
           telephone: dto.telephone,
           email: dto.email,
           matriculeExterne: dto.matriculeExterne,
+          parrainClientId: parrainId,
           siteInscriptionId: dto.siteId,
           createdById: dto.agentId,
 
@@ -539,7 +540,7 @@ export class ClientsService implements OnModuleInit {
     }
     const externalId = `ONB-RECIT-${randomUUID()}`;
     const pending = await this.prisma.$transaction(async (tx) => {
-      const client = await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      const client = await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: dto.codeParrain ? (await tx.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true } }))?.id : null, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
       const etape = await tx.onboardingEtape.create({ data: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId } });
       const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
       return { client, transaction };
@@ -858,7 +859,7 @@ export class ClientsService implements OnModuleInit {
 
     // Activer le profil Membre MLM et initialiser matrice / portefeuille
     try {
-      await this.mlmMatrixService.onClientActivated(activatedClient.id);
+      await this.mlmMatrixService.onClientActivated(activatedClient.id, client.parrainClientId ?? undefined);
     } catch (err) {
       console.error(`[MLM ACTIVATION ERROR] Erreur lors de l'initialisation MLM pour le client ${activatedClient.id}:`, err);
     }

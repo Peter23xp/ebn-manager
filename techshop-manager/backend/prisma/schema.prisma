@@ -225,6 +225,7 @@ model Client {
   email             String?        @unique
   matriculeExterne  String?        @unique
   codeParrain       String?        @unique
+  parrainClientId   String?
   statut            StatutClient   @default(EN_COURS)
   notes             String?
   dateActivation    DateTime?
@@ -244,6 +245,8 @@ model Client {
   ventes            Vente[]
   portailToken      PortailToken?
   membre            Membre?
+  parrainClient     Client?        @relation("ClientParrainage", fields: [parrainClientId], references: [id])
+  filleulsParrainage Client[]      @relation("ClientParrainage")
 
   @@map("clients")
 }
