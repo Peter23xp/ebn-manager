@@ -4,6 +4,25 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.SEED_ADMIN_ONLY === 'true') {
+    const passwordHash = await bcrypt.hash('Admin@2025', 10);
+    await prisma.utilisateur.upsert({
+      where: { telephone: '+243902238740' },
+      update: { passwordHash, nom: 'Peter AKILIMALI', role: Role.SUPER_ADMIN, actif: true, langue: 'fr' },
+      create: {
+        id: 'user-admin-001',
+        nom: 'Peter AKILIMALI',
+        telephone: '+243902238740',
+        email: 'admin@ebnnetwork.cd',
+        passwordHash,
+        role: Role.SUPER_ADMIN,
+        actif: true,
+        langue: 'fr',
+      },
+    });
+    console.log('Mode admin uniquement : aucun site ni aucune donnée de démonstration créé.');
+    return;
+  }
   console.log('🌱 Démarrage du seed enrichi EBN Network (Format Matricule AAAAMJXXXX)...');
 
   // ============================================
@@ -199,6 +218,11 @@ async function main() {
   const agentBukavu = superAdmin;
   const gerantKinshasa = superAdmin;
   console.log('  ✓ 1 Utilisateur créé (Super Admin : +243902238740)');
+
+  if (process.env.SEED_ADMIN_ONLY === 'true') {
+    console.log('Mode admin uniquement : aucune donnée de démonstration créée.');
+    return;
+  }
 
   // ============================================
   // 3. MLM LEVELS (8 niveaux)
