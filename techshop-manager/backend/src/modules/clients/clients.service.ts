@@ -64,9 +64,9 @@ export class ClientsService implements OnModuleInit {
       data: { etape: EtapeOnboarding.FICHE, statut: StatutEtape.EN_COURS, montant: dto.amount, modePaiement: ModePaiement.MPESA, clientId, agentId, siteId: client.siteInscriptionId },
     });
     const transaction = await this.prisma.kpayTransaction.create({
-      data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.amount, currency: 'USD', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: step.id, metadata: { clientId, etape: EtapeOnboarding.FICHE } },
+      data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.amount, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: step.id, metadata: { clientId, etape: EtapeOnboarding.FICHE } },
     });
-    const payment = await this.kpay.initDeposit({ amount: dto.amount, currency: 'USD', provider: dto.provider, phoneNumber: dto.phoneNumber, externalId, description: `Fiche onboarding ${client.prenom} ${client.nom}`, metadata: { clientId, onboardingEtapeId: step.id } });
+    const payment = await this.kpay.initDeposit({ amount: dto.amount, currency: 'CDF', provider: dto.provider, phoneNumber: dto.phoneNumber, externalId, description: `Fiche onboarding ${client.prenom} ${client.nom}`, metadata: { clientId, onboardingEtapeId: step.id } });
     await this.prisma.kpayTransaction.update({ where: { id: transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
     return { transactionId: transaction.id, status: payment.status, reference: payment.reference };
   }
@@ -541,10 +541,10 @@ export class ClientsService implements OnModuleInit {
     const pending = await this.prisma.$transaction(async (tx) => {
       const client = await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
       const etape = await tx.onboardingEtape.create({ data: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId } });
-      const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'USD', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
+      const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
       return { client, transaction };
     });
-    const payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'USD', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });
+    const payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'CDF', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });
     await this.prisma.kpayTransaction.update({ where: { id: pending.transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
     return { client: pending.client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
   }

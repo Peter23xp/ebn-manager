@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,13 +11,15 @@ import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
+import { kpayApi } from '@/lib/kpay.api';
 
 // ── Schema Zod ────────────────────────────────────────────────────────────────
 
 const schema = z
   .object({
     montantFiche:      z.number({ invalid_type_error: 'Montant requis' }).positive('Montant requis'),
-    modePaiement:      z.enum(['CASH', 'MPESA', 'AIRTEL_MONEY', 'VIREMENT']),
+    modePaiement:      z.enum(['CASH', 'KPAY']),
     numeroTransaction: z.string().optional(),
   })
   .refine(
@@ -40,9 +43,7 @@ interface ClientForFiche {
 
 const MODES = [
   { value: 'CASH',         label: 'Cash' },
-  { value: 'MPESA',        label: 'M-Pesa' },
-  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
-  { value: 'VIREMENT',     label: 'Virement' },
+  { value: 'KPAY',         label: 'Paiement mobile' },
 ] as const;
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ const MODES = [
 export default function OnboardingFichePage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [kpaySubmitting, setKpaySubmitting] = useState(false);
 
   const { data: client, isLoading } = useQuery<ClientForFiche>({
     queryKey: ['client-basic', id],
@@ -108,8 +110,25 @@ export default function OnboardingFichePage() {
   );
 
   const modePaiement = watch('modePaiement');
-  const needsRef     = modePaiement !== 'CASH';
-  const disabled     = isSubmitting || mutation.isPending;
+  const needsRef     = modePaiement !== 'CASH' && modePaiement !== 'KPAY';
+  const disabled     = isSubmitting || mutation.isPending || kpaySubmitting;
+
+  const handleKpaySubmit = async (payment: { provider: string; phoneNumber: string }) => {
+    if (!id) return;
+    setKpaySubmitting(true);
+    try {
+      const result = await kpayApi.initFiche(id, {
+        amount: Number(watch('montantFiche') || 0),
+        provider: payment.provider as any,
+        phoneNumber: payment.phoneNumber,
+      });
+      toast.success(`Paiement mobile initié. Référence : ${result.reference ?? 'en attente'}`);
+    } catch (error) {
+      toast.error(getErrorMessage(error) || 'Impossible d’initier le paiement mobile.');
+    } finally {
+      setKpaySubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -237,7 +256,7 @@ export default function OnboardingFichePage() {
           {/* Mode paiement */}
           <div className="form-group">
             <p className="form-label">Mode de paiement *</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
               {MODES.map((m) => (
                 <label
                   key={m.value}
@@ -274,6 +293,15 @@ export default function OnboardingFichePage() {
               />
               {errors.numeroTransaction && <p className="form-error">{errors.numeroTransaction.message}</p>}
             </div>
+          )}
+
+          {modePaiement === 'KPAY' && (
+            <MobileMoneyPaymentForm
+              amount={Number(watch('montantFiche') || 0)}
+              currency="CDF"
+              submitting={kpaySubmitting}
+              onSubmit={handleKpaySubmit}
+            />
           )}
 
           {/* Actions */}
