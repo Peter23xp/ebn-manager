@@ -51,9 +51,6 @@ interface ActivationResult {
 
 const MODE_PAIEMENT = [
   { value: 'CASH',         label: 'Cash' },
-  { value: 'MPESA',        label: 'M-Pesa' },
-  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
-  { value: 'VIREMENT',     label: 'Virement' },
 ] as const;
 
 const ETAPE_REQUIRED: Array<{ key: 'RECIT' | 'FICHE'; label: string }> = [
