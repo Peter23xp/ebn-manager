@@ -35,8 +35,11 @@ export class ClientsService implements OnModuleInit {
 
   onModuleInit() {
     this.kpayWebhooks.registerFinalizer(KpayOperationType.ONBOARDING_PAYMENT, async (transactionId, event) => {
-      if (event.status !== 'COMPLETED') return;
-      await this.finalizeKpayOnboarding(transactionId);
+      if (event.status === 'COMPLETED') {
+        await this.finalizeKpayOnboarding(transactionId);
+      } else {
+        await this.markKpayOnboardingFailed(transactionId, event.failureReason ?? `Paiement ${event.status}`);
+      }
     });
   }
 
@@ -100,6 +103,22 @@ export class ClientsService implements OnModuleInit {
       });
     }
     await this.initiateConfiguredAutoPayout(transactionId);
+  }
+
+  private async markKpayOnboardingFailed(transactionId: string, reason: string) {
+    const transaction = await this.prisma.kpayTransaction.findUnique({
+      where: { id: transactionId },
+      select: { onboardingEtapeId: true },
+    });
+    if (!transaction?.onboardingEtapeId) return;
+
+    await this.prisma.onboardingEtape.updateMany({
+      where: { id: transaction.onboardingEtapeId, statut: { not: StatutEtape.COMPLETE } },
+      data: {
+        statut: StatutEtape.EN_COURS,
+        notes: `Paiement Mobile Money échoué : ${reason}. Nouvelle tentative possible.`,
+      },
+    });
   }
 
   private async initiateConfiguredAutoPayout(sourceTransactionId: string) {
@@ -530,8 +549,45 @@ export class ClientsService implements OnModuleInit {
     codeParrain?: string; montantRecit: number; provider: string; phoneNumber: string; agentId: string;
   }) {
     await this.requireConfiguredAdminPhone(dto.provider);
-    const existingPhone = await this.prisma.client.findUnique({ where: { telephone: dto.telephone } });
-    if (existingPhone) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Un client avec ce numéro existe déjà' });
+    const existingClient = await this.prisma.client.findUnique({ where: { telephone: dto.telephone }, include: { onboardingEtapes: true } });
+    const existingStep = existingClient?.onboardingEtapes.find((step) => step.etape === EtapeOnboarding.RECIT);
+    if (existingClient && existingStep?.statut === StatutEtape.COMPLETE) {
+      const failedPayment = await this.prisma.kpayTransaction.findFirst({
+        where: {
+          onboardingEtapeId: existingStep.id,
+          OR: [
+            { status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
+            { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
+          ],
+        },
+        select: { id: true },
+      });
+      if (failedPayment) {
+        await this.prisma.onboardingEtape.update({ where: { id: existingStep.id }, data: { statut: StatutEtape.EN_COURS, completeeAt: null, notes: 'Paiement précédent échoué. Reprise autorisée.' } });
+        existingStep.statut = StatutEtape.EN_COURS;
+      }
+    }
+    if (existingClient && existingStep?.statut === StatutEtape.COMPLETE) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Un client avec ce numéro existe déjà et son récit est déjà payé' });
+    if (existingClient && existingStep) {
+      const activePayment = await this.prisma.kpayTransaction.findFirst({
+        where: { onboardingEtapeId: existingStep.id, status: { in: [KpayTransactionStatus.PENDING, KpayTransactionStatus.PROCESSING] }, kpayPaymentId: { not: null } },
+        select: { id: true, status: true, kpayReference: true },
+      });
+      if (activePayment) return { client: existingClient, transactionId: activePayment.id, status: activePayment.status, reference: activePayment.kpayReference };
+      const retryablePayment = await this.prisma.kpayTransaction.findFirst({
+        where: {
+          onboardingEtapeId: existingStep.id,
+          OR: [
+            { status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
+            { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!retryablePayment) throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Le paiement précédent est encore en cours de vérification.' });
+    } else if (existingClient) {
+      throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Un client avec ce numéro existe déjà' });
+    }
     const site = await this.prisma.site.findUnique({ where: { id: dto.siteId }, select: { id: true } });
     if (!site) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Site introuvable' });
     if (dto.codeParrain) {
@@ -540,12 +596,18 @@ export class ClientsService implements OnModuleInit {
     }
     const externalId = `ONB-RECIT-${randomUUID()}`;
     const pending = await this.prisma.$transaction(async (tx) => {
-      const client = await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: dto.codeParrain ? (await tx.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true } }))?.id : null, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
-      const etape = await tx.onboardingEtape.create({ data: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId } });
+      const client = existingClient ?? await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: dto.codeParrain ? (await tx.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true } }))?.id : null, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      const etape = await tx.onboardingEtape.upsert({ where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.RECIT } }, create: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId }, update: { statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, agentId: dto.agentId, notes: null } });
       const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
       return { client, transaction };
     });
-    const payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'CDF', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });
+    let payment;
+    try {
+      payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'CDF', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });
+    } catch (error) {
+      await this.prisma.kpayTransaction.update({ where: { id: pending.transaction.id }, data: { status: KpayTransactionStatus.FAILED, failureReason: error instanceof Error ? error.message : 'Initialisation KPay échouée' } });
+      throw error;
+    }
     await this.prisma.kpayTransaction.update({ where: { id: pending.transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
     return { client: pending.client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
   }
