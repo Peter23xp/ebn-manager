@@ -12,6 +12,7 @@ import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { useClientDetail } from '@/hooks/useClientDetail';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { EditClientModal } from '@/components/clients/EditClientModal';
 import { ClientInfoTab } from '@/components/clients/tabs/ClientInfoTab';
 import { ClientAchatsTab } from '@/components/clients/tabs/ClientAchatsTab';
@@ -286,6 +287,20 @@ export default function ClientDetailPage() {
                   {(client.matricule || client.codeParrain) && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono bg-primary/10 text-primary">
                       {client.matricule || client.codeParrain}
+                    </span>
+                  )}
+                  {client.membre?.level ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-1.5 py-1 text-[11px] font-semibold text-text-muted">
+                      <span>Niveau MLM</span>
+                      <MlmLevelBadge
+                        level={client.membre.level.ordre}
+                        name={client.membre.level.nom}
+                        size="xs"
+                      />
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-medium text-text-muted">
+                      MLM non activé
                     </span>
                   )}
                 </div>

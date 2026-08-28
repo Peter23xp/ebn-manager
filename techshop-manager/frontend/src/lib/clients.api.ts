@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import type {
   Client,
+  MlmLevel,
   StatutClient,
   PaginatedResponse,
   ModePaiement,
@@ -47,6 +48,11 @@ export interface AchatRow {
 
 export interface ClientDetail extends Client {
   site: { id: string; nom: string };
+  membre: {
+    matricule: string;
+    statut: string;
+    level: Pick<MlmLevel, 'ordre' | 'nom' | 'couleur' | 'icone'> | null;
+  } | null;
   parrain: { id: string; prenom: string; nom: string; matricule?: string; codeParrain?: string; telephone?: string; siteNom?: string } | null;
   onboardingEtapes: OnboardingEtapeDetail[];
   ventes: AchatRow[];
