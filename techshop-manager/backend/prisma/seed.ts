@@ -73,6 +73,9 @@ async function main() {
   });
 
   // Directeur Régional
+  // Les comptes secondaires sont conserves uniquement comme bloc de reference historique.
+  // Le seed de test n'en cree qu'un seul : le SUPER_ADMIN.
+  if (false) {
   const dirRegional = await prisma.utilisateur.upsert({
     where: { telephone: '+243990000001' },
     update: { passwordHash, role: Role.DIRECTEUR_REGIONAL, siteId: siteGoma.id },
@@ -189,6 +192,13 @@ async function main() {
   });
 
   console.log('  ✓ 8 Utilisateurs créés (Super Admin, Dir. Régional, Gérants, Agents, Formateur)');
+
+  }
+
+  const agentGoma = superAdmin;
+  const agentBukavu = superAdmin;
+  const gerantKinshasa = superAdmin;
+  console.log('  ✓ 1 Utilisateur créé (Super Admin : +243902238740)');
 
   // ============================================
   // 3. MLM LEVELS (8 niveaux)
