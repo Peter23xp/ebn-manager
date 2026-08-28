@@ -27,6 +27,25 @@ export class ConfigAppService {
         kpayAdminAirtelPhone: null,
         kpayAdminOrangePhone: null,
       },
+      fidelite: {
+        ratioPtsCDF: 100,
+        dureeValiditeMois: 12,
+        cumulRemises: false,
+        niveaux: [
+          { nom: 'Bronze', seuilPts: 0, remisePct: 0 },
+          { nom: 'Argent', seuilPts: 500, remisePct: 2 },
+          { nom: 'Or', seuilPts: 1500, remisePct: 5 },
+          { nom: 'Platine', seuilPts: 3000, remisePct: 10 },
+        ],
+      },
+      parrainage: {
+        multiNiveaux: true,
+        typeRecompense: 'POINTS',
+        valeurNiveau1: 100,
+        valeurNiveau2: null,
+        conditionDeclenchement: 'ACTIVATION',
+        plafondMensuel: null,
+      },
     };
   }
 
