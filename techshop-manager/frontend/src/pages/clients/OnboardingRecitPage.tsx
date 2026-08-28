@@ -378,7 +378,7 @@ export default function OnboardingRecitPage() {
             )}
             {modePaiement === 'KPAY' && (
               <div className="min-w-0 w-full">
-                <MobileMoneyPaymentForm amount={Number(watch('montantRecit') || 0)} submitting={kpaySubmitting} onSubmit={handleKpaySubmit} />
+                <MobileMoneyPaymentForm amount={Number(watch('montantRecit') || 0)} currency="CDF" submitting={kpaySubmitting} onSubmit={handleKpaySubmit} />
               </div>
             )}
           </div>
