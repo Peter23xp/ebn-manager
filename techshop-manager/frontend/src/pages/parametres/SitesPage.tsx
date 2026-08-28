@@ -16,12 +16,12 @@ import { getErrorMessage } from '@/lib/api';
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
   return (
     <div role="alert" className={cn(
-      'fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white max-w-sm',
+      'fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-auto sm:right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white sm:max-w-sm',
       ok ? 'bg-success' : 'bg-danger',
     )}>
       {ok ? <CheckCircle size={16} className="flex-shrink-0" /> : <AlertCircle size={16} className="flex-shrink-0" />}
       <span className="flex-1">{msg}</span>
-      <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100"><X size={14} /></button>
+      <button onClick={onDismiss} aria-label="Fermer la notification" className="ml-1 flex min-h-8 min-w-8 items-center justify-center rounded-md opacity-70 hover:opacity-100"><X size={14} /></button>
     </div>
   );
 }
@@ -51,7 +51,7 @@ function ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <h3 className="font-bold text-primary">{title}</h3>
         <p className="text-sm text-text-muted">{message}</p>
         <div className="flex gap-3 pt-1">
@@ -103,7 +103,7 @@ function SiteDialog({ mode, site, onClose, onSaved }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       role="dialog" aria-modal="true" aria-label={title}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light">
@@ -111,14 +111,14 @@ function SiteDialog({ mode, site, onClose, onSaved }: {
             </div>
             <h2 className="font-bold text-primary">{title}</h2>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} aria-label="Fermer" className="flex min-h-10 min-w-10 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 transition-colors">
             <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="form-group col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="form-group sm:col-span-2">
               <label className="form-label" htmlFor="sd-nom">Nom du site</label>
               <input id="sd-nom" {...register('nom')} placeholder="Goma Principal" autoFocus />
               {errors.nom && <p className="form-error">{errors.nom.message}</p>}
@@ -140,7 +140,7 @@ function SiteDialog({ mode, site, onClose, onSaved }: {
                 <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-subtle" />
               </div>
             </div>
-            <div className="form-group col-span-2">
+            <div className="form-group sm:col-span-2">
               <label className="form-label" htmlFor="sd-adresse">Adresse complète (optionnel)</label>
               <input id="sd-adresse" {...register('adresse')} placeholder="Av. du Commerce, 12 — Goma" />
             </div>
@@ -184,7 +184,7 @@ function SiteCard({ site, onEdit, onToggle }: {
       {/* Bandeau couleur */}
       <div className={cn(
         'h-1.5 w-full',
-        site.actif ? 'bg-gradient-to-r from-primary-accent to-blue-400' : 'bg-slate-200',
+        site.actif ? 'bg-primary-accent' : 'bg-slate-200',
       )} />
 
       <div className="p-5 flex flex-col gap-4 flex-1">
@@ -308,7 +308,7 @@ export default function SitesPage() {
           </div>
           <div>
             <h1 className="text-page-title text-primary">Gestion des sites</h1>
-            <p className="text-xs text-text-muted mt-0.5">EBN Network — Goma · Bukavu · Kinshasa</p>
+            <p className="text-xs text-text-muted mt-0.5">Gérez vos points de vente et leurs équipes</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
