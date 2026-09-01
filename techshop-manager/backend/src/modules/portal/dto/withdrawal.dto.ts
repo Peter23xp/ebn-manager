@@ -1,4 +1,14 @@
-import { IsString, IsNumber, IsArray, IsEnum, IsOptional, Min, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsNotEmpty,
+  Min,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export enum WithdrawalRequestTypeDto {
   MOBILE_MONEY = 'MOBILE_MONEY',
@@ -32,12 +42,19 @@ export class CreateWithdrawalRequestDto {
 }
 
 export class ApproveWithdrawalRequestDto {
+  @IsString()
+  @IsNotEmpty({ message: 'approvedById est requis' })
+  approvedById: string;
+
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   notes?: string;
 }
 
 export class RejectWithdrawalRequestDto {
   @IsString()
+  @IsNotEmpty({ message: 'Le motif de rejet est requis' })
+  @MaxLength(500, { message: 'Le motif de rejet ne doit pas dépasser 500 caractères' })
   rejectReason: string;
 }

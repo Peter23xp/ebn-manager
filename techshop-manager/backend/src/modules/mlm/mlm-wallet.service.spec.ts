@@ -91,3 +91,90 @@ describe('MlmWalletService withdrawals', () => {
     expect(finalizePayout).toHaveBeenCalledWith('tx-1', 'FAILED');
   });
 });
+
+describe('MlmWalletService — withdrawal requests (commissions)', () => {
+  const resolved = (value: any) => {
+    const mock = jest.fn();
+    (mock as any).mockResolvedValue(value);
+    return mock;
+  };
+  const buildService = (prisma: any) =>
+    new MlmWalletService(prisma as never, {} as never, {} as never);
+
+  it('approves a CASH request: commissions PAYEE + request directly PAYE', async () => {
+    const tx = {
+      commission: { updateMany: jest.fn() },
+      withdrawalRequest: { update: resolved({ statut: 'PAYE' }) },
+    };
+    const prisma = {
+      withdrawalRequest: {
+        findUnique: resolved({
+          id: 'wr-1', membreId: 'm-1', type: 'CASH', statut: 'EN_ATTENTE',
+          commissionIds: ['c-1', 'c-2'],
+        }),
+      },
+      commission: { findMany: resolved([{ id: 'c-1' }, { id: 'c-2' }]) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+    };
+    const service = buildService(prisma);
+
+    const result = await service.approveWithdrawalRequest('wr-1', 'user-1', 'note');
+
+    expect(prisma.commission.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ statut: 'VALIDEE', membreId: 'm-1' }) }),
+    );
+    expect(tx.commission.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ statut: 'PAYEE' }) }),
+    );
+    expect(result.statut).toBe('PAYE');
+  });
+
+  it('rejects approval when a commission is no longer VALIDEE', async () => {
+    const prisma = {
+      withdrawalRequest: {
+        findUnique: resolved({
+          id: 'wr-1', membreId: 'm-1', type: 'CASH', statut: 'EN_ATTENTE',
+          commissionIds: ['c-1', 'c-2'],
+        }),
+      },
+      commission: { findMany: resolved([{ id: 'c-1' }]) }, // 1 sur 2 → invalide
+      $transaction: jest.fn(),
+    };
+    const service = buildService(prisma);
+
+    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a pending request with a reason', async () => {
+    const updated = { id: 'wr-1', statut: 'REJETE', rejectReason: 'Documents manquants' };
+    const prisma = {
+      withdrawalRequest: {
+        findUnique: resolved({ id: 'wr-1', statut: 'EN_ATTENTE' }),
+        update: resolved(updated),
+      },
+    };
+    const service = buildService(prisma);
+
+    const result = await service.rejectWithdrawalRequest('wr-1', 'Documents manquants');
+    expect(result.statut).toBe('REJETE');
+  });
+
+  it('refuses to reject an already-processed request', async () => {
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved({ id: 'wr-1', statut: 'APPROUVE' }) },
+    };
+    const service = buildService(prisma);
+
+    await expect(service.rejectWithdrawalRequest('wr-1', 'x')).rejects.toThrow();
+  });
+
+  it('refuses mark-paid on a request that is not APPROUVE', async () => {
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved({ id: 'wr-1', statut: 'EN_ATTENTE' }) },
+    };
+    const service = buildService(prisma);
+
+    await expect(service.markWithdrawalAsPaid('wr-1')).rejects.toThrow();
+  });
+});

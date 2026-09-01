@@ -20,6 +20,10 @@ import { MlmService, UpdateMlmConfigDto } from './mlm.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 import { MlmWalletService } from './mlm-wallet.service';
 import { KpayProvider } from '../kpay/kpay.types';
+import {
+  ApproveWithdrawalRequestDto,
+  RejectWithdrawalRequestDto,
+} from '../portal/dto/withdrawal.dto';
 import { MlmPayoutStatus } from '@prisma/client';
 
 @Controller('mlm')
@@ -245,9 +249,9 @@ export class MlmController {
   @HttpCode(HttpStatus.OK)
   approveWithdrawalRequest(
     @Param('requestId') requestId: string,
-    @Body() body: { approvedById: string; notes?: string },
+    @Body() dto: ApproveWithdrawalRequestDto,
   ) {
-    return this.walletService.approveWithdrawalRequest(requestId, body.approvedById, body.notes);
+    return this.walletService.approveWithdrawalRequest(requestId, dto.approvedById, dto.notes);
   }
 
   @Patch('withdrawal-requests/:requestId/reject')
@@ -255,9 +259,9 @@ export class MlmController {
   @HttpCode(HttpStatus.OK)
   rejectWithdrawalRequest(
     @Param('requestId') requestId: string,
-    @Body() body: { rejectReason: string },
+    @Body() dto: RejectWithdrawalRequestDto,
   ) {
-    return this.walletService.rejectWithdrawalRequest(requestId, body.rejectReason);
+    return this.walletService.rejectWithdrawalRequest(requestId, dto.rejectReason);
   }
 
   @Put('withdrawal-requests/:requestId/mark-paid')
