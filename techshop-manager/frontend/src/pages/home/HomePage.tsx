@@ -229,9 +229,12 @@ export default function HomePage() {
   const navigate = useNavigate();
   usePageScroll();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const scrollTo = (id: string) =>
+  const scrollTo = (id: string) => {
+    setMobileMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <>
@@ -287,6 +290,62 @@ export default function HomePage() {
         .lp-nav-name span { color: #2563eb; font-style: italic; }
         .lp-nav-links { display: flex; align-items: center; gap: 18px; }
         @media (max-width: 820px) { .lp-nav-links { display: none; } }
+
+        /* HAMBURGER BUTTON */
+        .lp-nav-hamburger {
+          display: none; align-items: center; justify-content: center;
+          width: 40px; height: 40px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+          background: none; cursor: pointer; color: #334155; transition: background .15s, border-color .15s;
+          flex-shrink: 0;
+        }
+        .lp-nav-hamburger:hover { background: #f8fafc; border-color: #a17e36; color: #a17e36; }
+        .lp-nav-hamburger:focus-visible { outline: 2px solid #a17e36; outline-offset: 3px; }
+        @media (max-width: 820px) { .lp-nav-hamburger { display: flex; } }
+
+        /* MOBILE DRAWER OVERLAY */
+        .lp-mobile-overlay {
+          position: fixed; inset: 0; z-index: 200;
+          background: rgba(10,22,40,0.55); backdrop-filter: blur(4px);
+          animation: lp-fade-in .15s ease;
+        }
+        @keyframes lp-fade-in { from { opacity:0; } to { opacity:1; } }
+        .lp-mobile-drawer {
+          position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
+          width: min(300px, 88vw);
+          background: #fff; display: flex; flex-direction: column;
+          padding: 0; box-shadow: -12px 0 40px rgba(10,22,40,.18);
+          animation: lp-slide-in .22s cubic-bezier(0.25,1,0.5,1);
+        }
+        @keyframes lp-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .lp-drawer-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+        }
+        .lp-drawer-close {
+          width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+          background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+          color: #64748b; transition: background .15s, color .15s;
+        }
+        .lp-drawer-close:hover { background: #f1f5f9; color: #0A1628; }
+        .lp-drawer-body { flex: 1; overflow-y: auto; padding: 20px 0; }
+        .lp-drawer-link {
+          display: block; width: 100%; text-align: left; padding: 13px 24px;
+          font-size: 15px; font-weight: 600; color: #334155; background: none; border: none;
+          cursor: pointer; text-decoration: none; transition: background .12s, color .12s;
+        }
+        .lp-drawer-link:hover { background: #faf7ef; color: #a17e36; }
+        .lp-drawer-divider { height: 1px; background: #e2e8f0; margin: 12px 24px; }
+        .lp-drawer-footer { padding: 16px 20px 24px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+        .lp-drawer-btn-primary {
+          width: 100%; height: 46px; border-radius: 10px; font-size: 14px; font-weight: 700;
+          background: #111827; color: #fff; border: none; cursor: pointer; transition: background .15s;
+        }
+        .lp-drawer-btn-primary:hover { background: #374151; }
+        .lp-drawer-btn-secondary {
+          width: 100%; height: 46px; border-radius: 10px; font-size: 14px; font-weight: 700;
+          background: #fff; color: #111827; border: 1.5px solid #e2e8f0; cursor: pointer; transition: background .15s, border-color .15s;
+        }
+        .lp-drawer-btn-secondary:hover { background: #f8fafc; border-color: #a17e36; }
         .lp-nav-link { font-size: 13px; font-weight: 600; color: #334155; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0; }
         .lp-nav-link:hover { color: #0A1628; }
         .lp-nav-btn { font-size: 13px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 7px; padding: 0 18px; height: 36px; cursor: pointer; transition: background .18s; }
@@ -619,6 +678,8 @@ export default function HomePage() {
             <img src="/assets/Progress business logo.png" alt="EBN" />
             <span className="lp-nav-name">EBN <span>Network</span></span>
           </a>
+
+          {/* Desktop links */}
           <div className="lp-nav-links">
             <button className="lp-nav-link" onClick={() => scrollTo('a-propos')}>A propos</button>
             <button className="lp-nav-link" onClick={() => scrollTo('produits')}>Produits</button>
@@ -628,7 +689,84 @@ export default function HomePage() {
             <button className="lp-nav-link" onClick={() => navigate('/login')}>Staff</button>
             <button className="lp-nav-btn dark" onClick={() => navigate('/portal/login')}>Connexion Membre</button>
           </div>
+
+          {/* Mobile hamburger button */}
+          <button
+            className="lp-nav-hamburger"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Ouvrir le menu de navigation"
+            aria-expanded={mobileMenuOpen}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
         </nav>
+
+        {/* Mobile drawer */}
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="lp-mobile-overlay"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden
+            />
+            {/* Drawer */}
+            <div
+              className="lp-mobile-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu de navigation"
+            >
+              {/* Drawer header */}
+              <div className="lp-drawer-header">
+                <a href="/" className="lp-nav-brand" aria-label="Accueil">
+                  <img src="/assets/Progress business logo.png" alt="EBN" />
+                  <span className="lp-nav-name">EBN <span>Network</span></span>
+                </a>
+                <button
+                  className="lp-drawer-close"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-label="Fermer le menu"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Drawer links */}
+              <nav className="lp-drawer-body" aria-label="Navigation mobile">
+                <button className="lp-drawer-link" onClick={() => scrollTo('a-propos')}>À propos</button>
+                <button className="lp-drawer-link" onClick={() => scrollTo('produits')}>Produits</button>
+                <button className="lp-drawer-link" onClick={() => scrollTo('opportunite')}>Opportunité</button>
+                <button className="lp-drawer-link" onClick={() => scrollTo('contact')}>Contact</button>
+                <div className="lp-drawer-divider" aria-hidden />
+                <button className="lp-drawer-link" onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}>Espace Staff</button>
+              </nav>
+
+              {/* Drawer footer CTA */}
+              <div className="lp-drawer-footer">
+                <button
+                  className="lp-drawer-btn-primary"
+                  onClick={() => { setMobileMenuOpen(false); navigate('/portal/login'); }}
+                >
+                  Connexion Membre
+                </button>
+                <button
+                  className="lp-drawer-btn-secondary"
+                  onClick={() => scrollTo('contact')}
+                >
+                  Nous contacter
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* HERO */}
         <section className="lp-hero" aria-labelledby="lp-hero-title">

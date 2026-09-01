@@ -352,4 +352,191 @@ export class MlmWalletService implements OnModuleInit {
       },
     });
   }
+
+  // ── Withdrawal Requests Management (Admin) ──────────────────────────────────
+
+  async listWithdrawalRequests(params: {
+    page?: number;
+    limit?: number;
+    statut?: string;
+    membreId?: string;
+  }) {
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.WithdrawalRequestWhereInput = {};
+    if (params.statut && params.statut !== 'all') where.statut = params.statut as any;
+    if (params.membreId) where.membreId = params.membreId;
+
+    const [requests, total] = await Promise.all([
+      this.prisma.withdrawalRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          membre: {
+            include: {
+              client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+              level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.withdrawalRequest.count({ where }),
+    ]);
+
+    return {
+      requests: requests.map((r) => ({
+        id: r.id,
+        montant: Number(r.montant),
+        type: r.type,
+        provider: r.provider,
+        phoneNumber: r.phoneNumber,
+        statut: r.statut,
+        commissionIds: r.commissionIds as string[],
+        notes: r.notes,
+        rejectReason: r.rejectReason,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        approvedAt: r.approvedAt,
+        paidAt: r.paidAt,
+        membre: {
+          id: r.membre.id,
+          matricule: r.membre.matricule,
+          client: r.membre.client,
+          level: r.membre.level,
+        },
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async approveWithdrawalRequest(withdrawalRequestId: string, approvedById: string, notes?: string) {
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: withdrawalRequestId },
+      include: { membre: true },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Demande de retrait ${withdrawalRequestId} introuvable`);
+    }
+
+    if (request.statut !== 'EN_ATTENTE') {
+      throw new BadRequestException(
+        `Cette demande a déjà été traitée (statut: ${request.statut})`,
+      );
+    }
+
+    // Vérifier que les commissions sont toujours valides
+    const commissionIds = request.commissionIds as string[];
+    const commissions = await this.prisma.commission.findMany({
+      where: {
+        id: { in: commissionIds },
+        membreId: request.membreId,
+        statut: 'VALIDEE',
+      },
+    });
+
+    if (commissions.length !== commissionIds.length) {
+      throw new BadRequestException(
+        `Certaines commissions ne sont plus valides ou disponibles`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Marquer les commissions comme payées
+      await tx.commission.updateMany({
+        where: { id: { in: commissionIds } },
+        data: { statut: 'PAYEE', payeeAt: new Date() },
+      });
+
+      // Approuver la demande de retrait
+      const approved = await tx.withdrawalRequest.update({
+        where: { id: withdrawalRequestId },
+        data: {
+          statut: 'APPROUVE',
+          approvedAt: new Date(),
+          approvedById,
+          notes: notes || request.notes,
+        },
+        include: {
+          membre: {
+            include: {
+              client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+            },
+          },
+        },
+      });
+
+      // Si c'est un retrait CASH, marquer comme payé immédiatement
+      if (request.type === 'CASH') {
+        const paid = await tx.withdrawalRequest.update({
+          where: { id: withdrawalRequestId },
+          data: {
+            statut: 'PAYE',
+            paidAt: new Date(),
+          },
+        });
+        return paid;
+      }
+
+      return approved;
+    });
+  }
+
+  async rejectWithdrawalRequest(withdrawalRequestId: string, rejectReason: string) {
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: withdrawalRequestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Demande de retrait ${withdrawalRequestId} introuvable`);
+    }
+
+    if (request.statut !== 'EN_ATTENTE') {
+      throw new BadRequestException(
+        `Cette demande a déjà été traitée (statut: ${request.statut})`,
+      );
+    }
+
+    return this.prisma.withdrawalRequest.update({
+      where: { id: withdrawalRequestId },
+      data: {
+        statut: 'REJETE',
+        rejectReason,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markWithdrawalAsPaid(withdrawalRequestId: string) {
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: withdrawalRequestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Demande de retrait ${withdrawalRequestId} introuvable`);
+    }
+
+    if (request.statut !== 'APPROUVE') {
+      throw new BadRequestException(
+        `Seules les demandes approuvées peuvent être marquées comme payées`,
+      );
+    }
+
+    return this.prisma.withdrawalRequest.update({
+      where: { id: withdrawalRequestId },
+      data: {
+        statut: 'PAYE',
+        paidAt: new Date(),
+      },
+    });
+  }
 }

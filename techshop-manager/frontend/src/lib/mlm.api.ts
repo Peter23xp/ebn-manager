@@ -88,6 +88,34 @@ export const MlmApi = {
     return data;
   },
 
+  // ── Withdrawal Requests (Admin) ─────────────────────────────────────────────
+  listWithdrawalRequests: async (params: {
+    page?: number;
+    limit?: number;
+    statut?: string;
+    membreId?: string;
+  }) => {
+    const { data } = await api.get('/mlm/withdrawal-requests', { params });
+    return data;
+  },
+  approveWithdrawalRequest: async (requestId: string, approvedById: string, notes?: string) => {
+    const { data } = await api.put(`/mlm/withdrawal-requests/${requestId}/approve`, {
+      approvedById,
+      notes,
+    });
+    return data;
+  },
+  rejectWithdrawalRequest: async (requestId: string, rejectReason: string) => {
+    const { data } = await api.patch(`/mlm/withdrawal-requests/${requestId}/reject`, {
+      rejectReason,
+    });
+    return data;
+  },
+  markWithdrawalAsPaid: async (requestId: string) => {
+    const { data } = await api.put(`/mlm/withdrawal-requests/${requestId}/mark-paid`);
+    return data;
+  },
+
   // ── Wallet ──────────────────────────────────────────────────────────────────
   getWallet: async (memberId?: string) => {
     const url = memberId ? `/mlm/wallet/${memberId}` : '/mlm/wallet';

@@ -227,6 +227,46 @@ export class MlmController {
     return this.walletService.getWallet(memberId);
   }
 
+  // ── Withdrawal Requests (Admin) ──────────────────────────────────────────────
+
+  @Get('withdrawal-requests')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  listWithdrawalRequests(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('statut') statut?: string,
+    @Query('membreId') membreId?: string,
+  ) {
+    return this.walletService.listWithdrawalRequests({ page, limit, statut, membreId });
+  }
+
+  @Put('withdrawal-requests/:requestId/approve')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  approveWithdrawalRequest(
+    @Param('requestId') requestId: string,
+    @Body() body: { approvedById: string; notes?: string },
+  ) {
+    return this.walletService.approveWithdrawalRequest(requestId, body.approvedById, body.notes);
+  }
+
+  @Patch('withdrawal-requests/:requestId/reject')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  rejectWithdrawalRequest(
+    @Param('requestId') requestId: string,
+    @Body() body: { rejectReason: string },
+  ) {
+    return this.walletService.rejectWithdrawalRequest(requestId, body.rejectReason);
+  }
+
+  @Put('withdrawal-requests/:requestId/mark-paid')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  markWithdrawalAsPaid(@Param('requestId') requestId: string) {
+    return this.walletService.markWithdrawalAsPaid(requestId);
+  }
+
   // ── Config ───────────────────────────────────────────────────────────────────
 
   @Get('config')
