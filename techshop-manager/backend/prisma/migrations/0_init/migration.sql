@@ -1,3 +1,7 @@
+-- BASELINE 0_init : capture l'état complet de la DB au 2026-09-01 (avant la migration groupée 20260901192310).
+-- Généré via `prisma migrate diff --from-empty --to-url`. Toutes les migrations antérieures à 20260901192310
+-- ont été supprimées (leur contenu est intégralement capturé ici) et marquées "applied" dans la DB de prod.
+
 -- CreateEnum
 CREATE TYPE "AmbassadeurStatut" AS ENUM ('NOUVELLE', 'CONTACTEE', 'CONVERTIE', 'ANNULEE');
 
