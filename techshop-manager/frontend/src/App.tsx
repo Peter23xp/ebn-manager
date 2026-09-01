@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -76,6 +76,9 @@ const SupportPage       = lazy(() => import('@/pages/support/SupportPage'));
 
 // Home
 const HomePage          = lazy(() => import('@/pages/home/HomePage'));
+
+// 404
+const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
 
 // Parametres
 const UsersPage         = lazy(() => import('@/pages/parametres/UsersPage'));
@@ -188,7 +191,7 @@ export default function App() {
             <Route path="settings/general" element={<RoleGuard minRole="SUPER_ADMIN"><ConfigGeneralePage /></RoleGuard>} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
