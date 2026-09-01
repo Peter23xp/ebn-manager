@@ -41,6 +41,37 @@ export class ClientsService implements OnModuleInit {
         await this.markKpayOnboardingFailed(transactionId, event.failureReason ?? `Paiement ${event.status}`);
       }
     });
+
+    // Auto-rattrapage automatique des clients ACTIF sans profil Membre MLM
+    setTimeout(() => {
+      this.healActiveClientsWithoutMembre().catch((err) => {
+        console.error('[AUTO-HEAL MLM ERROR]:', err);
+      });
+    }, 3000);
+  }
+
+  /**
+   * Rattrape automatiquement les clients actifs qui n'ont pas encore de profil Membre MLM
+   * (par exemple suite à une coupure réseau ou un timeout antérieur).
+   */
+  async healActiveClientsWithoutMembre() {
+    const clientsWithoutMembre = await this.prisma.client.findMany({
+      where: {
+        statut: StatutClient.ACTIF,
+        membre: null,
+      },
+      select: { id: true, parrainClientId: true, prenom: true, nom: true },
+      take: 50,
+    });
+
+    for (const c of clientsWithoutMembre) {
+      try {
+        console.log(`[AUTO-HEAL MLM] Initialisation MLM pour ${c.prenom} ${c.nom} (${c.id})...`);
+        await this.mlmMatrixService.onClientActivated(c.id, c.parrainClientId ?? undefined);
+      } catch (err) {
+        console.error(`[AUTO-HEAL MLM] Échec pour ${c.id}:`, err);
+      }
+    }
   }
 
   async initKpayFiche(clientId: string, dto: InitKpayOnboardingDto, agentId: string) {
@@ -293,7 +324,54 @@ export class ClientsService implements OnModuleInit {
       throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
     }
 
-    const { siteInscription, membre, parrainClient, ...rest } = client;
+    let currentClient = client;
+    if (client.statut === StatutClient.ACTIF && !client.membre) {
+      try {
+        await this.mlmMatrixService.onClientActivated(client.id, client.parrainClientId ?? undefined);
+        const reloaded = await this.prisma.client.findUnique({
+          where: { id },
+          include: {
+            siteInscription: { select: { id: true, nom: true } },
+            parrainClient: {
+              select: {
+                id: true,
+                prenom: true,
+                nom: true,
+                telephone: true,
+                codeParrain: true,
+                membre: { select: { matricule: true } },
+              },
+            },
+            membre: {
+              include: {
+                level: { select: { id: true, nom: true, ordre: true, couleur: true, icone: true } },
+                parrain: {
+                  include: {
+                    client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+                  },
+                },
+              },
+            },
+            onboardingEtapes: {
+              include: {
+                agent: { select: { id: true, nom: true } },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+            ventes: {
+              select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+            },
+          },
+        });
+        if (reloaded) currentClient = reloaded;
+      } catch (err) {
+        console.error(`[AUTO-HEAL MLM] Erreur findOne pour ${client.id}:`, err);
+      }
+    }
+
+    const { siteInscription, membre, parrainClient, ...rest } = currentClient;
     const parrain = membre?.parrain?.client
       ? {
           id: membre.parrain.client.id,
@@ -316,7 +394,7 @@ export class ClientsService implements OnModuleInit {
 
     return {
       ...rest,
-      matricule: membre?.matricule ?? client.codeParrain,
+      matricule: membre?.matricule ?? currentClient.codeParrain,
       site: siteInscription,
       membre,
       parrain,
@@ -1202,11 +1280,19 @@ export class ClientsService implements OnModuleInit {
       );
     }
 
-    // Activer le profil Membre MLM et initialiser matrice / portefeuille
-    try {
-      await this.mlmMatrixService.onClientActivated(activatedClient.id, client.parrainClientId ?? undefined);
-    } catch (err) {
-      console.error(`[MLM ACTIVATION ERROR] Erreur lors de l'initialisation MLM pour le client ${activatedClient.id}:`, err);
+    // Activer le profil Membre MLM et initialiser matrice / portefeuille (avec retry automatique)
+    let mlmSuccess = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await this.mlmMatrixService.onClientActivated(activatedClient.id, client.parrainClientId ?? undefined);
+        mlmSuccess = true;
+        break;
+      } catch (err) {
+        console.error(`[MLM ACTIVATION ATTEMPT ${attempt}/3 FAILED] Client ${activatedClient.id}:`, err);
+        if (attempt < 3) {
+          await new Promise((res) => setTimeout(res, 500 * attempt));
+        }
+      }
     }
 
     return this.findOne(activatedClient.id);
