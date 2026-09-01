@@ -27,7 +27,7 @@ L'audit du projet a révélé des bugs dans le WIP « demandes de retrait de com
 ### A1. Migration Prisma manquante
 `WithdrawalRequest` existe dans `schema.prisma` mais aucune migration dans `backend/prisma/migrations/` (dernière : `20260828000000_preserve_client_sponsor`). **Bloquant en prod.**
 
-**Fix** : lancer `npx prisma migrate dev --name add_withdrawal_requests_and_password_reset_tokens` après avoir écrit les modèles A1 + D1 + C10 dans le schéma (une seule migration groupée). Vérifier le SQL généré avant application.
+**Fix** : lancer `npx prisma migrate dev --name add_withdrawal_requests_categories_password_reset` après avoir écrit les modèles A1 + C1 (Categorie) + C8 (suppression PortailToken) + D1 (PasswordResetToken) dans le schéma (une seule migration groupée). Vérifier le SQL généré avant application.
 
 ### A2. Bug format téléphone
 `withdrawal.dto.ts:22` exige `^\+243\d{9}$` (avec `+`) mais le front envoie `243…` sans `+` (`PortalWithdrawalPage.tsx:157` initial `'243'`, pattern HTML `^243[0-9]{9}$` ligne 390). **Toute demande Mobile Money est rejetée en 400.**
