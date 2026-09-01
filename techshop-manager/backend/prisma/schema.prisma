@@ -256,7 +256,6 @@ model Client {
 
   onboardingEtapes  OnboardingEtape[]
   ventes            Vente[]
-  portailToken      PortailToken?
   membre            Membre?
   parrainClient     Client?        @relation("ClientParrainage", fields: [parrainClientId], references: [id])
   filleulsParrainage Client[]      @relation("ClientParrainage")
@@ -535,22 +534,6 @@ model ExportJob {
   updatedAt   DateTime     @updatedAt
 
   @@map("export_jobs")
-}
-
-// ============================================
-// PORTAIL TOKEN CLIENT
-// ============================================
-
-model PortailToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  clientId String @unique
-  client   Client @relation(fields: [clientId], references: [id])
-
-  @@map("portail_tokens")
 }
 
 // ============================================
@@ -898,4 +881,28 @@ model WithdrawalRequest {
   @@index([membreId])
   @@index([statut])
   @@map("withdrawal_requests")
+}
+
+// ── Catégories de produits (table dédiée, ex-portées par les produits) ──
+model Categorie {
+  id        String   @id @default(uuid())
+  nom       String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("categories")
+}
+
+// ── Tokens de réinitialisation mot de passe (remplace otpStore en mémoire) ──
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  identifier String // téléphone de l'utilisateur ciblé
+  otpHash    String // OTP 6 chiffres hashé bcrypt
+  resetToken String?   @unique // UUID délivré après vérification OTP
+  attempts   Int       @default(0) // max 3 essais OTP
+  expiresAt  DateTime // OTP : +10 min puis réutilisé pour le resetToken : +15 min
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier])
+  @@map("password_reset_tokens")
 }
