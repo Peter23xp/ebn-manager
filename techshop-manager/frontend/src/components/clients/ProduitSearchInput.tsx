@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X } from 'lucide-react';
 import { api } from '@/lib/api';
+import { formatUSD } from '@/lib/utils';
 import { Produit } from '@/types';
 
 interface Props {
@@ -102,7 +103,7 @@ export function ProduitSearchInput({ siteId, onSelect, selected, onClear }: Prop
                 <p className="text-[11px] text-text-muted">{produit.sku}</p>
               </div>
               <span className="text-[12px] font-mono font-bold text-primary flex-shrink-0 ml-4">
-                {new Intl.NumberFormat('fr-CD').format(produit.prixVente)} CDF
+                {formatUSD(produit.prixVente)}
               </span>
             </li>
           ))}
