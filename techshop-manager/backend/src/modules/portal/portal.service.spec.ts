@@ -25,6 +25,15 @@ describe('PortalService', () => {
         findMany: jest.fn<any>(),
         count: jest.fn<any>(),
       },
+      commission: {
+        findMany: jest.fn<any>(),
+      },
+      withdrawalRequest: {
+        create: jest.fn<any>(),
+        findMany: jest.fn<any>(),
+        findUnique: jest.fn<any>(),
+        update: jest.fn<any>(),
+      },
     };
 
     mlmWallet = {
@@ -140,6 +149,53 @@ describe('PortalService', () => {
 
       expect(res.transactions).toHaveLength(1);
       expect(res.transactions[0].montant).toBe(50);
+    });
+  });
+
+  describe('createWithdrawalRequest — normalisation téléphone', () => {
+    const baseMembre = { id: 'membre-1', clientId: 'client-1', portefeuille: { id: 'w-1' } };
+
+    function setupHappyPath(phoneNumber: string) {
+      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
+      prisma.commission.findMany.mockResolvedValueOnce([
+        { id: 'c-1', montant: 25, statut: 'VALIDEE' },
+      ]);
+      prisma.withdrawalRequest.create.mockResolvedValueOnce({
+        id: 'wr-1', montant: 25, type: 'MOBILE_MONEY', provider: 'AIRTEL_COD',
+        phoneNumber, statut: 'EN_ATTENTE', commissionIds: ['c-1'], notes: null, createdAt: new Date(),
+      });
+      return { montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD', phoneNumber, commissionIds: ['c-1'] };
+    }
+
+    it('normalizes 243XXXXXXXXX to +243XXXXXXXXX', async () => {
+      const dto = setupHappyPath('243812345678');
+      await service.createWithdrawalRequest('client-1', dto);
+      expect(prisma.withdrawalRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phoneNumber: '+243812345678' }),
+        }),
+      );
+    });
+
+    it('normalizes 0XXXXXXXXX (prefixe local) to +243XXXXXXXXX', async () => {
+      const dto = setupHappyPath('0812345678');
+      await service.createWithdrawalRequest('client-1', dto);
+      expect(prisma.withdrawalRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phoneNumber: '+243812345678' }),
+        }),
+      );
+    });
+
+    it('rejects a phone that is not a valid DRC number', async () => {
+      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
+      prisma.commission.findMany.mockResolvedValueOnce([{ id: 'c-1', montant: 25, statut: 'VALIDEE' }]);
+      await expect(
+        service.createWithdrawalRequest('client-1', {
+          montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD',
+          phoneNumber: '12345', commissionIds: ['c-1'],
+        }),
+      ).rejects.toThrow();
     });
   });
 });

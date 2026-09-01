@@ -410,12 +410,16 @@ export class PortalService {
       });
     }
 
-    // Vérifier les champs requis selon le type
-    if (dto.type === 'MOBILE_MONEY' && (!dto.provider || !dto.phoneNumber)) {
-      throw new BadRequestException({
-        code: 'ERR_MISSING_PAYMENT_INFO',
-        message: 'Le provider et le numéro de téléphone sont requis pour Mobile Money',
-      });
+    // Vérifier les champs requis selon le type et normaliser le téléphone
+    let phoneNumber: string | undefined;
+    if (dto.type === 'MOBILE_MONEY') {
+      if (!dto.provider || !dto.phoneNumber) {
+        throw new BadRequestException({
+          code: 'ERR_MISSING_PAYMENT_INFO',
+          message: 'Le provider et le numéro de téléphone sont requis pour Mobile Money',
+        });
+      }
+      phoneNumber = this.normalizeDrcPhone(dto.phoneNumber);
     }
 
     // Créer la demande de retrait
@@ -425,7 +429,7 @@ export class PortalService {
         montant: new Prisma.Decimal(dto.montant),
         type: dto.type,
         provider: dto.provider,
-        phoneNumber: dto.phoneNumber,
+        phoneNumber,
         commissionIds: dto.commissionIds,
         notes: dto.notes,
         statut: 'EN_ATTENTE',
@@ -580,5 +584,24 @@ export class PortalService {
     }
     if (period === 'year') return new Date(now.getFullYear(), 0, 1);
     return null;
+  }
+
+  /**
+   * Normalise un numéro RDC vers +243XXXXXXXXX (accepte 243…, +243…, 0…).
+   * Même logique que KpayService.normalizeDrcPhone mais avec préfixe +.
+   */
+  private normalizeDrcPhone(raw: string): string {
+    const digits = raw.replace(/[^\d]/g, '').replace(/^00/, '');
+    let normalized: string;
+    if (digits.startsWith('0')) normalized = `243${digits.slice(1)}`;
+    else if (digits.length === 9) normalized = `243${digits}`;
+    else normalized = digits;
+    if (!/^243\d{9}$/.test(normalized)) {
+      throw new BadRequestException({
+        code: 'ERR_INVALID_PHONE',
+        message: 'Le numéro doit être un numéro RDC valide (+243XXXXXXXXX)',
+      });
+    }
+    return `+${normalized}`;
   }
 }

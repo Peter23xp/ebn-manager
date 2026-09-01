@@ -19,7 +19,7 @@ export class CreateWithdrawalRequestDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\+243\d{9}$/, { message: 'Format téléphone invalide (+243XXXXXXXXX)' })
+  @Matches(/^(\+?243|0)?\d{9}$/, { message: 'Format téléphone invalide (+243XXXXXXXXX)' })
   phoneNumber?: string;
 
   @IsArray()
