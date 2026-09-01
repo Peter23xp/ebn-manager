@@ -416,7 +416,7 @@ export class ClientsService implements OnModuleInit {
         nom: true,
         telephone: true,
         codeParrain: true,
-        statut: true,
+              statut: true,
 
       },
     });
@@ -424,6 +424,203 @@ export class ClientsService implements OnModuleInit {
     return { clients };
   }
 
+  /**
+   * Reprend le RÉCIT d'un client identifié par son ID (bouton « Compléter le récit » de la file).
+   * Aucun risque de doublon car on identifie le client par son ID, pas par son téléphone.
+   */
+  async resumeOnboardingRecit(clientId: string, dto: {
+    montantRecit: number;
+    modePaiement: ModePaiement;
+    numeroRecu?: string;
+    agentId: string;
+  }) {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      include: { onboardingEtapes: true },
+    });
+    if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
+    if (client.statut !== StatutClient.EN_COURS) {
+      throw new ConflictException({ code: 'ERR_CONFLICT', message: "Ce client n'est plus en cours d'onboarding" });
+    }
+
+    const recitStep = client.onboardingEtapes.find((s) => s.etape === EtapeOnboarding.RECIT);
+
+    // Ancien incident : COMPLETE + transaction FAILED → remettre EN_COURS
+    if (recitStep?.statut === StatutEtape.COMPLETE) {
+      const failedPayment = await this.prisma.kpayTransaction.findFirst({
+        where: {
+          onboardingEtapeId: recitStep.id,
+          OR: [
+            { status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
+            { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
+          ],
+        },
+        select: { id: true },
+      });
+      if (failedPayment) {
+        await this.prisma.onboardingEtape.update({
+          where: { id: recitStep.id },
+          data: { statut: StatutEtape.EN_COURS, completeeAt: null, notes: 'Paiement précédent échoué. Reprise autorisée.' },
+        });
+        recitStep.statut = StatutEtape.EN_COURS;
+      } else {
+        throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Le récit de ce client est déjà complété et payé' });
+      }
+    }
+
+    const completedStep = await this.prisma.onboardingEtape.upsert({
+      where: { clientId_etape: { clientId, etape: EtapeOnboarding.RECIT } },
+      create: {
+        etape: EtapeOnboarding.RECIT,
+        statut: StatutEtape.COMPLETE,
+        completeeAt: new Date(),
+        montant: dto.montantRecit,
+        modePaiement: dto.modePaiement,
+        referenceTransaction: dto.numeroRecu,
+        clientId,
+        agentId: dto.agentId,
+        siteId: client.siteInscriptionId,
+      },
+      update: {
+        statut: StatutEtape.COMPLETE,
+        completeeAt: new Date(),
+        montant: dto.montantRecit,
+        modePaiement: dto.modePaiement,
+        referenceTransaction: dto.numeroRecu,
+        agentId: dto.agentId,
+        notes: null,
+      },
+    });
+    return { client: await this.findOne(clientId), etapeId: completedStep.id };
+  }
+
+  /**
+   * Reprend le RÉCIT KPay d'un client identifié par son ID.
+   * Lance un nouveau paiement Mobile Money sans créer de doublon client.
+   */
+  async resumeInitKpayRecit(clientId: string, dto: {
+    montantRecit: number;
+    provider: string;
+    phoneNumber: string;
+    agentId: string;
+  }) {
+    await this.requireConfiguredAdminPhone(dto.provider);
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      include: { onboardingEtapes: true },
+    });
+    if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
+    if (client.statut !== StatutClient.EN_COURS) {
+      throw new ConflictException({ code: 'ERR_CONFLICT', message: "Ce client n'est plus en cours d'onboarding" });
+    }
+
+    const recitStep = client.onboardingEtapes.find((s) => s.etape === EtapeOnboarding.RECIT);
+
+    // Ancien incident : COMPLETE + transaction FAILED → remettre EN_COURS
+    if (recitStep?.statut === StatutEtape.COMPLETE) {
+      const failedPayment = await this.prisma.kpayTransaction.findFirst({
+        where: {
+          onboardingEtapeId: recitStep.id,
+          OR: [
+            { status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
+            { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!failedPayment) {
+        throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Le récit de ce client est déjà complété et payé' });
+      }
+      await this.prisma.onboardingEtape.update({
+        where: { id: recitStep.id },
+        data: { statut: StatutEtape.EN_COURS, completeeAt: null, notes: 'Paiement précédent échoué. Reprise KPay autorisée.' },
+      });
+      recitStep.statut = StatutEtape.EN_COURS;
+    }
+
+    // Si un paiement actif (PENDING/PROCESSING avec kpayPaymentId) → le retourner
+    if (recitStep) {
+      const activePayment = await this.prisma.kpayTransaction.findFirst({
+        where: {
+          onboardingEtapeId: recitStep.id,
+          status: { in: [KpayTransactionStatus.PENDING, KpayTransactionStatus.PROCESSING] },
+          kpayPaymentId: { not: null },
+        },
+        select: { id: true, status: true, kpayReference: true },
+      });
+      if (activePayment) return { client, transactionId: activePayment.id, status: activePayment.status, reference: activePayment.kpayReference };
+    }
+
+    const externalId = `ONB-RECIT-RESUME-${randomUUID()}`;
+    const pending = await this.prisma.$transaction(async (tx) => {
+      const etape = await tx.onboardingEtape.upsert({
+        where: { clientId_etape: { clientId, etape: EtapeOnboarding.RECIT } },
+        create: {
+          etape: EtapeOnboarding.RECIT,
+          statut: StatutEtape.EN_COURS,
+          montant: dto.montantRecit,
+          modePaiement: ModePaiement.MPESA,
+          clientId,
+          agentId: dto.agentId,
+          siteId: client.siteInscriptionId,
+        },
+        update: {
+          statut: StatutEtape.EN_COURS,
+          montant: dto.montantRecit,
+          modePaiement: ModePaiement.MPESA,
+          agentId: dto.agentId,
+          notes: null,
+        },
+      });
+      const transaction = await tx.kpayTransaction.create({
+        data: {
+          operationType: KpayOperationType.ONBOARDING_PAYMENT,
+          status: KpayTransactionStatus.PENDING,
+          amount: dto.montantRecit,
+          currency: 'CDF',
+          externalId,
+          provider: dto.provider,
+          phoneNumber: dto.phoneNumber,
+          onboardingEtapeId: etape.id,
+          metadata: { recit: true, clientId, onboardingEtapeId: etape.id },
+        },
+      });
+      return { transaction };
+    });
+
+    let payment;
+    try {
+      payment = await this.kpay.initDeposit({
+        amount: dto.montantRecit,
+        currency: 'CDF',
+        provider: dto.provider as any,
+        phoneNumber: dto.phoneNumber,
+        externalId,
+        description: `Récit onboarding reprise ${client.prenom} ${client.nom}`,
+      });
+    } catch (error) {
+      await this.prisma.kpayTransaction.update({
+        where: { id: pending.transaction.id },
+        data: {
+          status: KpayTransactionStatus.FAILED,
+          failureReason: error instanceof Error ? error.message : 'Initialisation KPay échouée',
+        },
+      });
+      throw error;
+    }
+    await this.prisma.kpayTransaction.update({
+      where: { id: pending.transaction.id },
+      data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus },
+    });
+    return { client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
+  }
+
+  /**
+   * Crée un nouveau client + étape RÉCIT (Cash).
+   * Si un client EN_COURS existe déjà avec ce numéro et que son RÉCIT n'est pas
+   * encore COMPLETE (ou COMPLETE avec une transaction FAILED/orpheline), on reprend
+   * le dossier existant sans créer de doublon.
+   */
   async onboardingRecit(dto: {
     prenom: string;
     nom: string;
@@ -437,31 +634,82 @@ export class ClientsService implements OnModuleInit {
     numeroRecu?: string;
     agentId: string;
   }) {
-    // Reprendre un dossier existant depuis la file d'attente au lieu de
-    // créer un deuxième client avec le même numéro.
-    const resumableClient = await this.prisma.client.findUnique({
+    // Chercher un client existant par téléphone
+    const existingClient = await this.prisma.client.findUnique({
       where: { telephone: dto.telephone },
       include: { onboardingEtapes: true },
     });
-    const resumableStep = resumableClient?.onboardingEtapes.find((step) => step.etape === EtapeOnboarding.RECIT);
-    if (resumableClient && resumableClient.statut === StatutClient.EN_COURS && resumableStep?.statut !== StatutEtape.COMPLETE) {
-      const resumedStep = await this.prisma.onboardingEtape.upsert({
-        where: { clientId_etape: { clientId: resumableClient.id, etape: EtapeOnboarding.RECIT } },
-        create: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.COMPLETE, completeeAt: new Date(), montant: dto.montantRecit, modePaiement: dto.modePaiement, referenceTransaction: dto.numeroRecu, clientId: resumableClient.id, agentId: dto.agentId, siteId: resumableClient.siteInscriptionId },
-        update: { statut: StatutEtape.COMPLETE, completeeAt: new Date(), montant: dto.montantRecit, modePaiement: dto.modePaiement, referenceTransaction: dto.numeroRecu, agentId: dto.agentId, notes: null },
-      });
-      return { client: await this.findOne(resumableClient.id), etapeId: resumedStep.id };
-    }
-    // Vérifier doublon téléphone
-    const existingPhone = await this.prisma.client.findUnique({
-      where: { telephone: dto.telephone },
-    });
-    if (existingPhone) {
+
+    if (existingClient) {
+      const recitStep = existingClient.onboardingEtapes.find(
+        (step) => step.etape === EtapeOnboarding.RECIT,
+      );
+
+      // Ancien incident : RÉCIT COMPLETE mais transaction FAILED/CANCELLED ou PENDING orpheline
+      // → remettre EN_COURS pour autoriser la reprise
+      if (recitStep?.statut === StatutEtape.COMPLETE) {
+        const failedPayment = await this.prisma.kpayTransaction.findFirst({
+          where: {
+            onboardingEtapeId: recitStep.id,
+            OR: [
+              { status: { in: [KpayTransactionStatus.FAILED, KpayTransactionStatus.CANCELLED] } },
+              { status: KpayTransactionStatus.PENDING, kpayPaymentId: null },
+            ],
+          },
+          select: { id: true },
+        });
+        if (failedPayment) {
+          await this.prisma.onboardingEtape.update({
+            where: { id: recitStep.id },
+            data: {
+              statut: StatutEtape.EN_COURS,
+              completeeAt: null,
+              notes: 'Paiement précédent échoué. Reprise autorisée.',
+            },
+          });
+          recitStep.statut = StatutEtape.EN_COURS;
+        }
+      }
+
+      // Client EN_COURS + RÉCIT pas encore COMPLETE → reprendre le dossier
+      if (
+        existingClient.statut === StatutClient.EN_COURS &&
+        (!recitStep || recitStep.statut !== StatutEtape.COMPLETE)
+      ) {
+        const resumedStep = await this.prisma.onboardingEtape.upsert({
+          where: { clientId_etape: { clientId: existingClient.id, etape: EtapeOnboarding.RECIT } },
+          create: {
+            etape: EtapeOnboarding.RECIT,
+            statut: StatutEtape.COMPLETE,
+            completeeAt: new Date(),
+            montant: dto.montantRecit,
+            modePaiement: dto.modePaiement,
+            referenceTransaction: dto.numeroRecu,
+            clientId: existingClient.id,
+            agentId: dto.agentId,
+            siteId: existingClient.siteInscriptionId,
+          },
+          update: {
+            statut: StatutEtape.COMPLETE,
+            completeeAt: new Date(),
+            montant: dto.montantRecit,
+            modePaiement: dto.modePaiement,
+            referenceTransaction: dto.numeroRecu,
+            agentId: dto.agentId,
+            notes: null,
+          },
+        });
+        return { client: await this.findOne(existingClient.id), etapeId: resumedStep.id };
+      }
+
+      // Sinon : RÉCIT déjà COMPLETE avec paiement valide → doublon
       throw new ConflictException({
         code: 'ERR_CONFLICT',
-        message: 'Un client avec ce numéro existe déjà',
+        message: 'Un client avec ce numéro existe déjà et son récit est déjà complété',
       });
     }
+
+    // Aucun client existant — vérifier les autres contraintes d'unicité
 
     // Vérifier matricule externe si fourni
     if (dto.matriculeExterne) {
@@ -970,7 +1218,7 @@ export class ClientsService implements OnModuleInit {
       let prochainRoute: string;
       if (!recitDone) {
         etapeActuelle = 'RECIT';
-        prochainRoute = `/clients/new/recit`;
+        prochainRoute = `/clients/${c.id}/recit`;
       } else if (!ficheDone) {
         etapeActuelle = 'FICHE';
         prochainRoute = `/clients/${c.id}/fiche`;

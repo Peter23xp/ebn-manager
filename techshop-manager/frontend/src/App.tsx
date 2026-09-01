@@ -20,6 +20,7 @@ const DashboardRegionalPage = lazy(() => import('@/pages/dashboard/DashboardRegi
 const ClientsListPage        = lazy(() => import('@/pages/clients/ClientsListPage'));
 const ClientDetailPage       = lazy(() => import('@/pages/clients/ClientDetailPage'));
 const OnboardingRecitPage    = lazy(() => import('@/pages/clients/OnboardingRecitPage'));
+const OnboardingRecitResumePage = lazy(() => import('@/pages/clients/OnboardingRecitResumePage'));
 const OnboardingFormationPage = lazy(() => import('@/pages/clients/OnboardingFormationPage'));
 const OnboardingFichePage    = lazy(() => import('@/pages/clients/OnboardingFichePage'));
 const OnboardingActivationPage = lazy(() => import('@/pages/clients/OnboardingActivationPage'));
@@ -135,6 +136,7 @@ export default function App() {
             <Route path="clients/queue" element={<OnboardingQueuePage />} />
             <Route path="clients/paiements" element={<RoleGuard minRole="GERANT"><PaiementsOnboardingPage /></RoleGuard>} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
+            <Route path="clients/:id/recit" element={<OnboardingRecitResumePage />} />
             <Route path="clients/:id/formation" element={<RoleGuard minRole="FORMATEUR"><OnboardingFormationPage /></RoleGuard>} />
             <Route path="clients/:id/fiche" element={<OnboardingFichePage />} />
             <Route path="clients/:id/activate" element={<OnboardingActivationPage />} />

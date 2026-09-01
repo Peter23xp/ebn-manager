@@ -109,9 +109,22 @@ export class ClientsController {
     return this.clientsService.checkPhone(phone);
   }
 
+  /** Création d'un nouveau client + RÉCIT (Cash) */
   @Post('onboarding/recit')
   onboardingRecit(@Body() body: any, @CurrentUser() user: any) {
     return this.clientsService.onboardingRecit({ ...body, agentId: user.id });
+  }
+
+  /** Reprise du RÉCIT d'un client existant — Cash (depuis la file d'attente) */
+  @Post(':id/onboarding/recit')
+  resumeOnboardingRecit(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
+    return this.clientsService.resumeOnboardingRecit(clientId, { ...body, agentId: user.id });
+  }
+
+  /** Reprise du RÉCIT d'un client existant — Mobile Money KPay */
+  @Post(':id/onboarding/recit/kpay/init')
+  resumeOnboardingRecitKpay(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
+    return this.clientsService.resumeInitKpayRecit(clientId, { ...body, agentId: user.id });
   }
 
   @Post('import/preview')
