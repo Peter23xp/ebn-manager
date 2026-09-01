@@ -365,7 +365,7 @@ export default function RapportParrainagePage() {
           <h2 className="text-sm font-bold text-primary">Top Parrains</h2>
           <button
             type="button"
-            onClick={() => navigate('/parrainage')}
+            onClick={() => navigate('/mlm/members')}
             className="text-xs text-primary-accent font-semibold hover:underline"
           >
             Voir tout →

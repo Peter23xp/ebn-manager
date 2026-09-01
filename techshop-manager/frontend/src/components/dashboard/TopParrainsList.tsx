@@ -46,7 +46,7 @@ export function TopParrainsList({ data, isLoading }: TopParrainsListProps) {
         <button
           type="button"
           className="text-[13px] font-semibold text-primary-accent hover:text-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent rounded"
-          onClick={() => navigate('/parrainage')}
+          onClick={() => navigate('/mlm/members')}
         >
           Voir tout →
         </button>

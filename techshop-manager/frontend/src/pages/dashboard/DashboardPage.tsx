@@ -208,7 +208,7 @@ export default function DashboardPage() {
             value: stats.data.trends.nouveauxFilleuls,
             label: 'vs mois préc.',
           } : undefined}
-          onClick={() => navigate('/parrainage')}
+          onClick={() => navigate('/mlm/members')}
         />
       </div>
 
