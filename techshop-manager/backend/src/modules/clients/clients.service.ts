@@ -254,6 +254,16 @@ export class ClientsService implements OnModuleInit {
       where: { id },
       include: {
         siteInscription: { select: { id: true, nom: true } },
+        parrainClient: {
+          select: {
+            id: true,
+            prenom: true,
+            nom: true,
+            telephone: true,
+            codeParrain: true,
+            membre: { select: { matricule: true } },
+          },
+        },
         membre: {
           include: {
             level: { select: { id: true, nom: true, ordre: true, couleur: true, icone: true } },
@@ -283,7 +293,7 @@ export class ClientsService implements OnModuleInit {
       throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
     }
 
-    const { siteInscription, membre, ...rest } = client;
+    const { siteInscription, membre, parrainClient, ...rest } = client;
     const parrain = membre?.parrain?.client
       ? {
           id: membre.parrain.client.id,
@@ -291,6 +301,16 @@ export class ClientsService implements OnModuleInit {
           nom: membre.parrain.client.nom,
           telephone: membre.parrain.client.telephone,
           matricule: membre.parrain.matricule,
+          codeParrain: membre.parrain.matricule,
+        }
+      : parrainClient
+      ? {
+          id: parrainClient.id,
+          prenom: parrainClient.prenom,
+          nom: parrainClient.nom,
+          telephone: parrainClient.telephone,
+          matricule: parrainClient.membre?.matricule ?? parrainClient.codeParrain,
+          codeParrain: parrainClient.membre?.matricule ?? parrainClient.codeParrain,
         }
       : null;
 

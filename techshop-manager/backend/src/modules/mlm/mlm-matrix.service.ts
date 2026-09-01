@@ -16,31 +16,61 @@ export class MlmMatrixService {
    * Fills the parrain's matrix position and triggers promotion if matrix is complete.
    */
   async onClientActivated(clientId: string, parrainCode?: string): Promise<void> {
-    // Check if already a member
-    const existing = await this.prisma.membre.findUnique({ where: { clientId } });
-    if (existing) return;
-
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
-      select: { id: true, matriculeExterne: true, codeParrain: true },
+      select: { id: true, matriculeExterne: true, codeParrain: true, parrainClientId: true },
     });
     if (!client) throw new NotFoundException(`Client ${clientId} introuvable`);
 
-    // Resolve parrain by matricule or codeParrain
+    const targetParrainIdentifier = parrainCode || client.parrainClientId;
+
+    // Resolve parrain by Membre.id, Membre.clientId, Membre.matricule, Client.id, Client.codeParrain, Client.matriculeExterne
     let parrainId: string | null = null;
-    if (parrainCode) {
+    let parrainMembreClientId: string | null = null;
+
+    if (targetParrainIdentifier) {
       const parrainMembre = await this.prisma.membre.findFirst({
         where: {
           OR: [
-            { id: parrainCode },
-            { matricule: parrainCode },
-            { client: { codeParrain: parrainCode } },
+            { id: targetParrainIdentifier },
+            { clientId: targetParrainIdentifier },
+            { matricule: targetParrainIdentifier },
+            { client: { id: targetParrainIdentifier } },
+            { client: { codeParrain: targetParrainIdentifier } },
+            { client: { matriculeExterne: targetParrainIdentifier } },
           ],
         },
+        select: { id: true, clientId: true },
       });
       if (parrainMembre) {
         parrainId = parrainMembre.id;
+        parrainMembreClientId = parrainMembre.clientId;
       }
+    }
+
+    // Check if already a member
+    const existing = await this.prisma.membre.findUnique({ where: { clientId } });
+    if (existing) {
+      // If member already exists but has no parrainId and we resolved a parrainId, attach it and fill matrix position
+      if (!existing.parrainId && parrainId && parrainId !== existing.id) {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.membre.update({
+            where: { id: existing.id },
+            data: { parrainId },
+          });
+          if (!client.parrainClientId && parrainMembreClientId) {
+            await tx.client.update({
+              where: { id: clientId },
+              data: { parrainClientId: parrainMembreClientId },
+            });
+          }
+          const level1 = await tx.mlmLevel.findFirst({ where: { ordre: 1 } });
+          if (level1) {
+            await this._fillParrainPosition(tx, parrainId!, existing.id, level1.id);
+          }
+        });
+      }
+      return;
     }
 
     // Get level 1
@@ -60,6 +90,14 @@ export class MlmMatrixService {
 
     // Create member + wallet + matrix in a transaction
     await this.prisma.$transaction(async (tx) => {
+      // If client didn't have parrainClientId set but we resolved it from parrainCode, persist it on Client
+      if (!client.parrainClientId && parrainMembreClientId) {
+        await tx.client.update({
+          where: { id: clientId },
+          data: { parrainClientId: parrainMembreClientId },
+        });
+      }
+
       const membre = await tx.membre.create({
         data: {
           clientId,
