@@ -68,7 +68,7 @@ export class MlmMatrixService {
           if (level1) {
             await this._fillParrainPosition(tx, parrainId!, existing.id, level1.id);
           }
-        });
+        }, { timeout: 30000, maxWait: 10000 });
       }
       return;
     }
@@ -111,27 +111,24 @@ export class MlmMatrixService {
       // Create wallet
       await tx.portefeuille.create({ data: { membreId: membre.id } });
 
-      // Create level-1 matrix
-      const matrix = await tx.matrix.create({
+      // Create level-1 matrix with 4 empty positions in a single query
+      await tx.matrix.create({
         data: {
           membreId: membre.id,
           mlmLevelId: level1.id,
+          positions: {
+            createMany: {
+              data: [1, 2, 3, 4].map((n) => ({ numeroPosition: n })),
+            },
+          },
         },
-      });
-
-      // Create 4 empty positions
-      await tx.position.createMany({
-        data: [1, 2, 3, 4].map((n) => ({
-          matrixId: matrix.id,
-          numeroPosition: n,
-        })),
       });
 
       // Fill parrain's matrix if exists
       if (parrainId) {
         await this._fillParrainPosition(tx, parrainId, membre.id, level1.id);
       }
-    });
+    }, { timeout: 30000, maxWait: 10000 });
   }
 
   /**
@@ -475,7 +472,7 @@ export class MlmMatrixService {
       );
 
       return { ...updated, montant: Number(updated.montant) };
-    });
+    }, { timeout: 30000, maxWait: 10000 });
   }
 
   async payCommission(commissionId: string): Promise<any> {
@@ -607,6 +604,6 @@ export class MlmMatrixService {
       );
 
       return updated;
-    });
+    }, { timeout: 30000, maxWait: 10000 });
   }
 }
