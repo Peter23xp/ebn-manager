@@ -539,7 +539,8 @@ export class PortalService {
     });
   }
 
-  async getValidatedCommissions(clientId: string) {    const membre = await this.ensureMember(clientId);
+  async getValidatedCommissions(clientId: string) {
+    const membre = await this.ensureMember(clientId);
     if (!membre) {
       return { commissions: [], totalDisponible: 0 };
     }
