@@ -187,6 +187,17 @@ describe('PortalService', () => {
       );
     });
 
+    it('rejects a phone that is not a valid DRC number', async () => {
+      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
+      prisma.commission.findMany.mockResolvedValueOnce([{ id: 'c-1', montant: 25, statut: 'VALIDEE' }]);
+      await expect(
+        service.createWithdrawalRequest('client-1', {
+          montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD',
+          phoneNumber: '12345', commissionIds: ['c-1'],
+        }),
+      ).rejects.toThrow();
+    });
+
     describe('cancelWithdrawalRequest', () => {
       it('cancels own pending request', async () => {
         prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
