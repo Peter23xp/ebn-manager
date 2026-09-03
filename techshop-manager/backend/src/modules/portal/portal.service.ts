@@ -511,8 +511,35 @@ export class PortalService {
     };
   }
 
-  async getValidatedCommissions(clientId: string) {
+  async cancelWithdrawalRequest(clientId: string, requestId: string) {
     const membre = await this.ensureMember(clientId);
+    if (!membre) {
+      throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Compte MLM introuvable' });
+    }
+
+    const request = await this.prisma.withdrawalRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request || request.membreId !== membre.id) {
+      throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Demande de retrait introuvable' });
+    }
+
+    if (request.statut !== 'EN_ATTENTE') {
+      throw new BadRequestException({
+        code: 'ERR_NOT_CANCELLABLE',
+        message: 'Seules les demandes en attente peuvent être annulées',
+      });
+    }
+
+    return this.prisma.withdrawalRequest.update({
+      where: { id: requestId },
+      data: { statut: 'ANNULE' },
+      select: { id: true, statut: true },
+    });
+  }
+
+  async getValidatedCommissions(clientId: string) {    const membre = await this.ensureMember(clientId);
     if (!membre) {
       return { commissions: [], totalDisponible: 0 };
     }

@@ -232,4 +232,7 @@ export const portalApi = {
     limit?: number;
   }): Promise<WithdrawalRequestsResponse> =>
     api.get('/portal/withdrawal-requests', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
+
+  cancelWithdrawalRequest: (requestId: string): Promise<{ id: string; statut: string }> =>
+    api.patch(`/portal/withdrawal-requests/${requestId}/cancel`).then((r) => r.data),
 };

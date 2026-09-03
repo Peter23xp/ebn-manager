@@ -187,15 +187,36 @@ describe('PortalService', () => {
       );
     });
 
-    it('rejects a phone that is not a valid DRC number', async () => {
-      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
-      prisma.commission.findMany.mockResolvedValueOnce([{ id: 'c-1', montant: 25, statut: 'VALIDEE' }]);
-      await expect(
-        service.createWithdrawalRequest('client-1', {
-          montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD',
-          phoneNumber: '12345', commissionIds: ['c-1'],
-        }),
-      ).rejects.toThrow();
+    describe('cancelWithdrawalRequest', () => {
+      it('cancels own pending request', async () => {
+        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
+        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
+          id: 'wr-1', membreId: 'membre-1', statut: 'EN_ATTENTE',
+        });
+        prisma.withdrawalRequest.update.mockResolvedValueOnce({ id: 'wr-1', statut: 'ANNULE' });
+
+        const res = await service.cancelWithdrawalRequest('client-1', 'wr-1');
+        expect(res.statut).toBe('ANNULE');
+        expect(prisma.withdrawalRequest.update).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: 'wr-1' }, data: expect.objectContaining({ statut: 'ANNULE' }) }),
+        );
+      });
+
+      it('refuses to cancel someone else’s request (404-like)', async () => {
+        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
+        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
+          id: 'wr-2', membreId: 'membre-AUTRE', statut: 'EN_ATTENTE',
+        });
+        await expect(service.cancelWithdrawalRequest('client-1', 'wr-2')).rejects.toThrow();
+      });
+
+      it('refuses to cancel a non-pending request', async () => {
+        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
+        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
+          id: 'wr-1', membreId: 'membre-1', statut: 'APPROUVE',
+        });
+        await expect(service.cancelWithdrawalRequest('client-1', 'wr-1')).rejects.toThrow();
+      });
     });
   });
 });

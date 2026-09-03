@@ -74,7 +74,13 @@ function CommissionCard({
 
 // ── Withdrawal Request Card ───────────────────────────────────────────────────
 
-function WithdrawalRequestCard({ request }: { request: WithdrawalRequest }) {
+function WithdrawalRequestCard({
+  request,
+  onCancel,
+}: {
+  request: WithdrawalRequest;
+  onCancel?: () => void;
+}) {
   const statusConfig = {
     EN_ATTENTE: { label: 'En attente', icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
     APPROUVE: { label: 'Approuvé', icon: CheckCircle2, color: 'text-blue-600 bg-blue-50' },
@@ -139,6 +145,16 @@ function WithdrawalRequestCard({ request }: { request: WithdrawalRequest }) {
         )}
       </div>
 
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-3 w-full h-9 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 transition-colors"
+        >
+          Annuler la demande
+        </button>
+      )}
+
       <p className="text-[10px] text-neutral-400 mt-2">
         {request.commissionIds.length} commission{request.commissionIds.length > 1 ? 's' : ''} incluse{request.commissionIds.length > 1 ? 's' : ''}
       </p>
@@ -185,6 +201,17 @@ export default function PortalWithdrawalPage() {
     onError: (error: any) => {
       toast.error(error?.response?.data?.message ?? 'Erreur lors de la création de la demande');
     },
+  });
+
+  const cancelWithdrawalMutation = useMutation({
+    mutationFn: (requestId: string) => portalApi.cancelWithdrawalRequest(requestId),
+    onSuccess: () => {
+      toast.success('Demande annulée');
+      queryClient.invalidateQueries({ queryKey: ['portal', 'commissions', 'validated'] });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'withdrawal-requests'] });
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message ?? 'Erreur lors de l\'annulation'),
   });
 
   const commissions = commissionsData?.commissions ?? [];
@@ -462,7 +489,15 @@ export default function PortalWithdrawalPage() {
             ) : (
               <div className="space-y-3">
                 {requests.map((request) => (
-                  <WithdrawalRequestCard key={request.id} request={request} />
+                  <WithdrawalRequestCard
+                    key={request.id}
+                    request={request}
+                    onCancel={
+                      request.statut === 'EN_ATTENTE' && !cancelWithdrawalMutation.isPending
+                        ? () => cancelWithdrawalMutation.mutate(request.id)
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             )}
