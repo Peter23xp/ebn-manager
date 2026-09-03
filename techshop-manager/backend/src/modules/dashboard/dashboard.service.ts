@@ -77,8 +77,18 @@ export class DashboardService {
           where: { ...siteFilter, createdAt: { gte: prevDateDebut, lte: prevDateFin }, statut: 'VALIDE' },
           _sum: { montantNet: true },
         }),
-        Promise.resolve(0),
-        Promise.resolve(0),
+        this.prisma.membre.count({
+          where: {
+            dateInscription: { gte: dateDebut, lte: dateFin },
+            ...(siteIds ? { client: { siteInscriptionId: { in: siteIds } } } : {}),
+          },
+        }),
+        this.prisma.membre.count({
+          where: {
+            dateInscription: { gte: prevDateDebut, lte: prevDateFin },
+            ...(siteIds ? { client: { siteInscriptionId: { in: siteIds } } } : {}),
+          },
+        }),
         this.prisma.stockSite.findMany({
           where: siteIds ? { siteId: { in: siteIds } } : {},
           select: { quantite: true, seuilAlerte: true },
