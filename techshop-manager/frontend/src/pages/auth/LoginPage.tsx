@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { PageSEO } from '@/components/seo/PageSEO';
 import { Eye, EyeOff, Loader2, Wifi, WifiOff, ShieldCheck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ function getRoleRedirect(role: Role): string {
 export default function LoginPage() {
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
+  const location       = useLocation();
   const isOnline       = useOnlineStatus();
   const { setAuth, loginAttempts, lockedUntil, incrementAttempts, resetAttempts, setLockedUntil } =
     useAuthStore();
@@ -89,7 +90,8 @@ export default function LoginPage() {
       setAuth(user, accessToken);
       toast.success(`Bienvenue, ${user.name} !`);
       const redirect = searchParams.get('redirect');
-      navigate(redirect ?? getRoleRedirect(user.role), { replace: true });
+      const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      navigate(redirect ?? from ?? getRoleRedirect(user.role), { replace: true });
     } catch (error: unknown) {
       const axErr = error as { response?: { status?: number; data?: { error?: { attemptsLeft?: number; unlocksAt?: string } } } };
       const status = axErr?.response?.status;
