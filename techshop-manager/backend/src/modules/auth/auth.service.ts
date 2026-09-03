@@ -3,23 +3,26 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import { MailerService } from '../mailer/mailer.service';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { LoginDto, ForgotPasswordDto, VerifyOtpDto, ResetPasswordDto } from './dto/login.dto';
+} from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../../prisma/prisma.service";
+import { MailerService } from "../mailer/mailer.service";
+import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+import {
+  LoginDto,
+  ForgotPasswordDto,
+  VerifyOtpDto,
+  ResetPasswordDto,
+} from "./dto/login.dto";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
-  private otpStore = new Map<string, { otpHash: string; expiresAt: Date; attempts: number }>();
-  private resetTokenStore = new Map<string, { phone: string; expiresAt: Date }>();
-
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -35,15 +38,18 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException({
-        error: { code: 'INVALID_CREDENTIALS', message: 'Téléphone ou mot de passe incorrect' },
+        error: {
+          code: "INVALID_CREDENTIALS",
+          message: "Téléphone ou mot de passe incorrect",
+        },
       });
     }
 
     if (user.bloqueJusquA && user.bloqueJusquA > new Date()) {
       throw new UnauthorizedException({
         error: {
-          code: 'ACCOUNT_LOCKED',
-          message: 'Compte bloqué',
+          code: "ACCOUNT_LOCKED",
+          message: "Compte bloqué",
           unlocksAt: user.bloqueJusquA.toISOString(),
         },
       });
@@ -54,15 +60,17 @@ export class AuthService {
     if (!valid) {
       const attempts = user.tentativesConnexion + 1;
       const bloqueJusquA =
-        attempts >= MAX_ATTEMPTS ? new Date(Date.now() + LOCKOUT_MINUTES * 60000) : null;
+        attempts >= MAX_ATTEMPTS
+          ? new Date(Date.now() + LOCKOUT_MINUTES * 60000)
+          : null;
       await this.prisma.utilisateur.update({
         where: { id: user.id },
         data: { tentativesConnexion: attempts, bloqueJusquA },
       });
       throw new UnauthorizedException({
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Téléphone ou mot de passe incorrect',
+          code: "INVALID_CREDENTIALS",
+          message: "Téléphone ou mot de passe incorrect",
           attemptsLeft: MAX_ATTEMPTS - attempts,
         },
       });
@@ -70,16 +78,20 @@ export class AuthService {
 
     await this.prisma.utilisateur.update({
       where: { id: user.id },
-      data: { tentativesConnexion: 0, bloqueJusquA: null, derniereConnexion: new Date() },
+      data: {
+        tentativesConnexion: 0,
+        bloqueJusquA: null,
+        derniereConnexion: new Date(),
+      },
     });
 
     const payload = { sub: user.id, role: user.role, siteId: user.siteId };
     const accessToken = this.jwt.sign(payload, {
-      expiresIn: this.config.get('JWT_EXPIRES_IN', '8h'),
+      expiresIn: this.config.get("JWT_EXPIRES_IN", "8h"),
     });
     const refreshToken = this.jwt.sign(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET'),
-      expiresIn: dto.rememberMe ? '30d' : '7d',
+      secret: this.config.get("JWT_REFRESH_SECRET"),
+      expiresIn: dto.rememberMe ? "30d" : "7d",
     });
 
     return {
@@ -98,22 +110,28 @@ export class AuthService {
   async refreshToken(token: string | undefined) {
     if (!token) {
       throw new UnauthorizedException({
-        error: { code: 'REFRESH_TOKEN_INVALID', message: 'Refresh token manquant' },
+        error: {
+          code: "REFRESH_TOKEN_INVALID",
+          message: "Refresh token manquant",
+        },
       });
     }
     try {
       const payload = this.jwt.verify(token, {
-        secret: this.config.get('JWT_REFRESH_SECRET'),
+        secret: this.config.get("JWT_REFRESH_SECRET"),
       }) as { sub: string; role: string; siteId?: string };
 
       const accessToken = this.jwt.sign(
         { sub: payload.sub, role: payload.role, siteId: payload.siteId },
-        { expiresIn: this.config.get('JWT_EXPIRES_IN', '8h') },
+        { expiresIn: this.config.get("JWT_EXPIRES_IN", "8h") },
       );
       return { accessToken, newRefreshToken: null };
     } catch {
       throw new UnauthorizedException({
-        error: { code: 'REFRESH_TOKEN_INVALID', message: 'Refresh token invalide ou expiré' },
+        error: {
+          code: "REFRESH_TOKEN_INVALID",
+          message: "Refresh token invalide ou expiré",
+        },
       });
     }
   }
@@ -124,15 +142,19 @@ export class AuthService {
     });
     if (!user) {
       throw new NotFoundException({
-        error: { code: 'PHONE_NOT_FOUND', message: 'Aucun compte trouvé pour ce numéro' },
+        error: {
+          code: "PHONE_NOT_FOUND",
+          message: "Aucun compte trouvé pour ce numéro",
+        },
       });
     }
 
     if (!user.email) {
       throw new BadRequestException({
         error: {
-          code: 'NO_EMAIL',
-          message: 'Aucun email associé à ce compte. Contactez votre administrateur pour en ajouter un.',
+          code: "NO_EMAIL",
+          message:
+            "Aucun email associé à ce compte. Contactez votre administrateur pour en ajouter un.",
         },
       });
     }
@@ -140,78 +162,113 @@ export class AuthService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60000);
-    this.otpStore.set(dto.phone, { otpHash, expiresAt, attempts: 0 });
 
-    const maskedPhone = dto.phone.slice(0, 7) + ' *** ' + dto.phone.slice(-4);
-    const maskedEmail = user.email.replace(/(.{2}).+(@.+)/, '$1***$2');
+    await this.prisma.passwordResetToken.deleteMany({
+      where: { identifier: dto.phone },
+    });
+    await this.prisma.passwordResetToken.create({
+      data: { identifier: dto.phone, otpHash, attempts: 0, expiresAt },
+    });
 
-    await this.mailer.sendOtpResetPassword(user.email, user.nom, otp, maskedPhone);
+    const maskedPhone = dto.phone.slice(0, 7) + " *** " + dto.phone.slice(-4);
+    const maskedEmail = user.email.replace(/(.{2}).+(@.+)/, "$1***$2");
 
-    return { success: true, maskedPhone, maskedEmail, expiresIn: 600, retryAfter: 120 };
+    await this.mailer.sendOtpResetPassword(
+      user.email,
+      user.nom,
+      otp,
+      maskedPhone,
+    );
+
+    return {
+      success: true,
+      maskedPhone,
+      maskedEmail,
+      expiresIn: 600,
+      retryAfter: 120,
+    };
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
-    const entry = this.otpStore.get(dto.phone);
+    const entry = await this.prisma.passwordResetToken.findFirst({
+      where: { identifier: dto.phone, consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
 
     if (!entry || entry.expiresAt < new Date()) {
-      this.otpStore.delete(dto.phone);
+      await this.prisma.passwordResetToken.deleteMany({
+        where: { identifier: dto.phone },
+      });
       throw new BadRequestException({
-        error: { code: 'OTP_EXPIRED', message: 'Code OTP expiré. Demandez un nouveau code.' },
+        error: {
+          code: "OTP_EXPIRED",
+          message: "Code OTP expiré. Demandez un nouveau code.",
+        },
       });
     }
 
     if (entry.attempts >= 3) {
-      this.otpStore.delete(dto.phone);
+      await this.prisma.passwordResetToken.deleteMany({
+        where: { identifier: dto.phone },
+      });
       throw new BadRequestException({
         error: {
-          code: 'TOO_MANY_OTP_ATTEMPTS',
-          message: 'Trop de tentatives invalides. Recommencez.',
+          code: "TOO_MANY_OTP_ATTEMPTS",
+          message: "Trop de tentatives invalides. Recommencez.",
         },
       });
     }
 
     const valid = await bcrypt.compare(dto.otp, entry.otpHash);
     if (!valid) {
-      this.otpStore.set(dto.phone, { ...entry, attempts: entry.attempts + 1 });
+      await this.prisma.passwordResetToken.update({
+        where: { id: entry.id },
+        data: { attempts: { increment: 1 } },
+      });
       throw new BadRequestException({
         error: {
-          code: 'INVALID_OTP',
-          message: 'Code incorrect.',
+          code: "INVALID_OTP",
+          message: "Code incorrect.",
           attemptsLeft: 3 - (entry.attempts + 1),
         },
       });
     }
 
-    this.otpStore.delete(dto.phone);
-
+    // Consommer l'OTP et délivrer le resetToken (15 min)
     const resetToken = crypto.randomUUID();
-    this.resetTokenStore.set(resetToken, {
-      phone: dto.phone,
-      expiresAt: new Date(Date.now() + 10 * 60000),
+    await this.prisma.passwordResetToken.update({
+      where: { id: entry.id },
+      data: {
+        consumedAt: new Date(),
+        attempts: { increment: 1 },
+        resetToken,
+        expiresAt: new Date(Date.now() + 15 * 60000),
+      },
     });
 
     return { success: true, resetToken };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const entry = this.resetTokenStore.get(dto.resetToken);
+    const entry = await this.prisma.passwordResetToken.findUnique({
+      where: { resetToken: dto.resetToken },
+    });
 
-    if (!entry || entry.expiresAt < new Date()) {
-      this.resetTokenStore.delete(dto.resetToken);
+    if (!entry || entry.consumedAt || entry.expiresAt < new Date()) {
       throw new BadRequestException({
         error: {
-          code: 'RESET_TOKEN_EXPIRED',
-          message: 'Session expirée. Recommencez la réinitialisation.',
+          code: "RESET_TOKEN_EXPIRED",
+          message: "Session expirée. Recommencez la réinitialisation.",
         },
       });
     }
 
     const user = await this.prisma.utilisateur.findFirst({
-      where: { telephone: entry.phone },
+      where: { telephone: entry.identifier },
     });
     if (!user) {
       throw new NotFoundException({
-        error: { code: 'ERR_NOT_FOUND', message: 'Utilisateur introuvable' },
+        error: { code: "ERR_NOT_FOUND", message: "Utilisateur introuvable" },
       });
     }
 
@@ -219,8 +276,9 @@ export class AuthService {
     if (sameAsOld) {
       throw new BadRequestException({
         error: {
-          code: 'PASSWORD_ALREADY_USED',
-          message: 'Ce mot de passe a déjà été utilisé. Choisissez-en un nouveau.',
+          code: "PASSWORD_ALREADY_USED",
+          message:
+            "Ce mot de passe a déjà été utilisé. Choisissez-en un nouveau.",
         },
       });
     }
@@ -231,8 +289,24 @@ export class AuthService {
       data: { passwordHash, tentativesConnexion: 0, bloqueJusquA: null },
     });
 
-    this.resetTokenStore.delete(dto.resetToken);
+    // Consommer le reset token (usage unique)
+    await this.prisma.passwordResetToken.update({
+      where: { id: entry.id },
+      data: { consumedAt: new Date() },
+    });
 
-    return { success: true, message: 'Mot de passe mis à jour avec succès.' };
+    return { success: true, message: "Mot de passe mis à jour avec succès." };
+  }
+
+  /** Purge quotidienne des tokens de reset expirés depuis plus de 24h */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async purgeExpiredResetTokens() {
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000);
+    const res = await this.prisma.passwordResetToken.deleteMany({
+      where: { expiresAt: { lt: cutoff } },
+    });
+    if (res.count > 0) {
+      console.log(`[AUTH] Purged ${res.count} expired password reset tokens`);
+    }
   }
 }
