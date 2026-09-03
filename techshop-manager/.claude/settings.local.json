@@ -86,7 +86,10 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['serviceDetails']['envSpecificDetails']\\)\")",
       "Bash(grep -v \"^\\\\\\\\\\\\\\\\u001b\")",
       "Bash(grep -v \"^$\")",
-      "Bash(xargs grep -l \"nodemailer\")"
+      "Bash(xargs grep -l \"nodemailer\")",
+      "Bash(git commit -m 'docs: add design spec for 404 NotFoundPage *)",
+      "Bash(echo \"--- tsc exit: $?\")",
+      "Bash(npx jest *)"
     ]
   }
 }
