@@ -28,8 +28,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
+import { useOnlineSync } from '@/hooks/useOnlineSync';
 import { cn } from '@/lib/utils';
-import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import type { Role } from '@/types';
 
 interface NavItemDef {
@@ -384,11 +384,11 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 // ── AppLayout ─────────────────────────────────────────────────────
 export function AppLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  // Drain de la file de ventes offline (IndexedDB → API) à la reconnexion
+  useOnlineSync();
 
   return (
     <>
-      <OfflineBanner />
-
       <div className="flex overflow-hidden bg-bg" style={{ height: '100dvh' }}>
         {/* Desktop sidebar */}
         <div className="hidden lg:flex lg:flex-shrink-0">
