@@ -24,12 +24,14 @@ describe("AuthService — password reset (persisted tokens)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = {
+      $transaction: jest.fn(async (cb: any) => cb(prisma)),
       passwordResetToken: {
         deleteMany: jest.fn(),
         create: jest.fn(),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       utilisateur: {
         findFirst: jest.fn(),
@@ -97,7 +99,7 @@ describe("AuthService — password reset (persisted tokens)", () => {
 
     it("issues a resetToken and consumes the OTP on success", async () => {
       prisma.passwordResetToken.findFirst.mockResolvedValueOnce(storedToken());
-      prisma.passwordResetToken.update.mockResolvedValueOnce({});
+      prisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 1 });
       compareMock.mockResolvedValueOnce(true);
 
       const res = await service.verifyOtp({
@@ -108,9 +110,10 @@ describe("AuthService — password reset (persisted tokens)", () => {
       expect(res.success).toBe(true);
       expect(res.resetToken).toMatch(/^[0-9a-f-]{36}$/);
       expect(compareMock).toHaveBeenCalledWith("123456", "$2a$10$hash");
-      expect(prisma.passwordResetToken.update).toHaveBeenCalledWith(
+      // Consommation GARDÉE : updateMany avec consumedAt: null (anti-course)
+      expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "t-1" },
+          where: { id: "t-1", consumedAt: null },
           data: expect.objectContaining({
             consumedAt: expect.any(Date),
             attempts: { increment: 1 },
@@ -119,6 +122,18 @@ describe("AuthService — password reset (persisted tokens)", () => {
           }),
         }),
       );
+    });
+
+    it("refuses consumption if the OTP was consumed concurrently", async () => {
+      prisma.passwordResetToken.findFirst.mockResolvedValueOnce(storedToken());
+      prisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 0 });
+      compareMock.mockResolvedValueOnce(true);
+
+      await expect(
+        service.verifyOtp({ phone: "+243812345678", otp: "123456" }),
+      ).rejects.toMatchObject({
+        response: { error: { code: "OTP_EXPIRED" } },
+      });
     });
 
     it("rejects after expiry and deletes the token", async () => {
@@ -193,7 +208,7 @@ describe("AuthService — password reset (persisted tokens)", () => {
       compareMock.mockResolvedValueOnce(false); // sameAsOld → false
       hashMock.mockResolvedValueOnce("$2a$12$new");
       prisma.utilisateur.update.mockResolvedValueOnce({});
-      prisma.passwordResetToken.update.mockResolvedValueOnce({});
+      prisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 1 });
 
       const res = await service.resetPassword({
         resetToken: "uuid-1",
@@ -201,15 +216,45 @@ describe("AuthService — password reset (persisted tokens)", () => {
       });
 
       expect(res.success).toBe(true);
+      // Update utilisateur + consommation dans la même transaction
+      expect(prisma.$transaction).toHaveBeenCalled();
       expect(prisma.utilisateur.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "u-1" },
           data: expect.objectContaining({ passwordHash: "$2a$12$new" }),
         }),
       );
-      expect(prisma.passwordResetToken.update).toHaveBeenCalledWith({
-        where: { id: "t-1" },
+      // Consommation GARDÉE (usage unique anti-course)
+      expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        where: { id: "t-1", consumedAt: null },
         data: { consumedAt: expect.any(Date) },
+      });
+    });
+
+    it("refuses the reset if the token is consumed concurrently (race)", async () => {
+      prisma.passwordResetToken.findUnique.mockResolvedValueOnce({
+        id: "t-1",
+        identifier: "+243812345678",
+        resetToken: "uuid-1",
+        expiresAt: new Date(Date.now() + 60000),
+        consumedAt: null,
+      });
+      prisma.utilisateur.findFirst.mockResolvedValueOnce({
+        id: "u-1",
+        passwordHash: "$2a$12$old",
+      });
+      compareMock.mockResolvedValueOnce(false);
+      hashMock.mockResolvedValueOnce("$2a$12$new");
+      prisma.utilisateur.update.mockResolvedValueOnce({});
+      prisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        service.resetPassword({
+          resetToken: "uuid-1",
+          newPassword: "N3wPassword",
+        }),
+      ).rejects.toMatchObject({
+        response: { error: { code: "RESET_TOKEN_EXPIRED" } },
       });
     });
 

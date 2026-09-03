@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
@@ -23,6 +24,8 @@ const LOCKOUT_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -234,10 +237,10 @@ export class AuthService {
       });
     }
 
-    // Consommer l'OTP et délivrer le resetToken (15 min)
+    // Consommer l'OTP et délivrer le resetToken (15 min) — garde anti-course (usage unique)
     const resetToken = crypto.randomUUID();
-    await this.prisma.passwordResetToken.update({
-      where: { id: entry.id },
+    const consumed = await this.prisma.passwordResetToken.updateMany({
+      where: { id: entry.id, consumedAt: null },
       data: {
         consumedAt: new Date(),
         attempts: { increment: 1 },
@@ -245,6 +248,14 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 15 * 60000),
       },
     });
+    if (consumed.count === 0) {
+      throw new BadRequestException({
+        error: {
+          code: "OTP_EXPIRED",
+          message: "Code OTP expiré. Demandez un nouveau code.",
+        },
+      });
+    }
 
     return { success: true, resetToken };
   }
@@ -284,15 +295,26 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
-    await this.prisma.utilisateur.update({
-      where: { id: user.id },
-      data: { passwordHash, tentativesConnexion: 0, bloqueJusquA: null },
-    });
 
-    // Consommer le reset token (usage unique)
-    await this.prisma.passwordResetToken.update({
-      where: { id: entry.id },
-      data: { consumedAt: new Date() },
+    // Update utilisateur + consommation du token en une transaction (usage unique garanti)
+    await this.prisma.$transaction(async (tx) => {
+      await tx.utilisateur.update({
+        where: { id: user.id },
+        data: { passwordHash, tentativesConnexion: 0, bloqueJusquA: null },
+      });
+
+      const consumed = await tx.passwordResetToken.updateMany({
+        where: { id: entry.id, consumedAt: null },
+        data: { consumedAt: new Date() },
+      });
+      if (consumed.count === 0) {
+        throw new BadRequestException({
+          error: {
+            code: "RESET_TOKEN_EXPIRED",
+            message: "Session expirée. Recommencez la réinitialisation.",
+          },
+        });
+      }
     });
 
     return { success: true, message: "Mot de passe mis à jour avec succès." };
@@ -306,7 +328,7 @@ export class AuthService {
       where: { expiresAt: { lt: cutoff } },
     });
     if (res.count > 0) {
-      console.log(`[AUTH] Purged ${res.count} expired password reset tokens`);
+      this.logger.log(`Purged ${res.count} expired password reset tokens`);
     }
   }
 }
