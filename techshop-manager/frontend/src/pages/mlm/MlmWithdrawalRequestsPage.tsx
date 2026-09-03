@@ -85,6 +85,8 @@ export default function MlmWithdrawalRequestsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const canModerate =
+    user?.role === 'SUPER_ADMIN' || user?.role === 'DIRECTEUR_REGIONAL';
   const [page, setPage] = useState(1);
   const [statut, setStatut] = useState('');
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -350,7 +352,7 @@ export default function MlmWithdrawalRequestsPage() {
                         </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {r.statut === 'EN_ATTENTE' && (
+                            {r.statut === 'EN_ATTENTE' && canModerate && (
                               <>
                                 <button
                                   onClick={() => setApprovingId(r.id)}
@@ -366,7 +368,9 @@ export default function MlmWithdrawalRequestsPage() {
                                 </button>
                               </>
                             )}
-                            {r.statut === 'APPROUVE' && r.type === 'MOBILE_MONEY' && (
+                            {r.statut === 'APPROUVE' &&
+                              r.type === 'MOBILE_MONEY' &&
+                              canModerate && (
                               <button
                                 onClick={() => markPaidMut.mutate(r.id)}
                                 disabled={markPaidMut.isPending}
