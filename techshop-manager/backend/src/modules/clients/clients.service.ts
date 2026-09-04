@@ -1146,7 +1146,7 @@ export class ClientsService implements OnModuleInit {
       });
     }
 
-    // Générer un code parrain unique format TSG-XXXX
+    // Générer un code parrain unique au format AAAAMMJJ#### (ex: 202609010001)
     const codeParrain = await this.generateUniqueCodeParrain();
 
     // Générer le numéro de vente
