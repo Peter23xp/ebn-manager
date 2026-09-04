@@ -175,7 +175,6 @@ export default function App() {
             <Route path="mlm/withdrawal-requests" element={<RoleGuard minRole="GERANT"><MlmWithdrawalRequestsPage /></RoleGuard>} />
             <Route path="mlm/members" element={<RoleGuard minRole="GERANT"><MlmMembersPage /></RoleGuard>} />
             <Route path="mlm/members/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
-            <Route path="mlm/member/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
             <Route path="mlm/wallet" element={<RoleGuard minRole="AGENT"><WalletPage /></RoleGuard>} />
             <Route path="mlm/config" element={<RoleGuard minRole="SUPER_ADMIN"><MlmConfigPage /></RoleGuard>} />
 
