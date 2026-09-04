@@ -691,25 +691,38 @@ export class StocksService {
   // ── Catégories ────────────────────────────────────────────────────────────────
 
   async getCategories(): Promise<string[]> {
-    const rows = await this.prisma.produit.findMany({
-      select: { categorie: true },
-      distinct: ['categorie'],
-      orderBy: { categorie: 'asc' },
+    let rows = await this.prisma.categorie.findMany({
+      orderBy: { nom: 'asc' },
+      select: { nom: true },
     });
-    return rows.map((r) => r.categorie);
+
+    // Transition : peupler la table depuis les catégories portées par les produits
+    if (rows.length === 0) {
+      const distinct = await this.prisma.produit.findMany({
+        select: { categorie: true },
+        distinct: ['categorie'],
+        orderBy: { categorie: 'asc' },
+      });
+      if (distinct.length > 0) {
+        await this.prisma.categorie.createMany({
+          data: distinct.map((d: { categorie: string }) => ({ nom: d.categorie })),
+          skipDuplicates: true,
+        });
+        rows = await this.prisma.categorie.findMany({
+          orderBy: { nom: 'asc' },
+          select: { nom: true },
+        });
+      }
+    }
+    return rows.map((r: { nom: string }) => r.nom);
   }
 
   async addCategorie(nom: string): Promise<{ categories: string[] }> {
-    // La catégorie n'a pas de table dédiée — elle est portée par les produits.
-    // On retourne la liste enrichie pour que le frontend se mette à jour.
     const existing = await this.getCategories();
     if (existing.map((c) => c.toLowerCase()).includes(nom.toLowerCase())) {
       throw new ConflictException({ code: 'CATEGORIE_EXISTE', message: 'Cette catégorie existe déjà.' });
     }
-    // Créer un produit placeholder archivé pour matérialiser la catégorie ? Non.
-    // On stocke les catégories libres dans ConfigGenerale.smsApiKey... trop hacky.
-    // Solution propre : on retourne simplement la liste existante + la nouvelle valeur en mémoire.
-    // Le vrai stockage se fait à la création du premier produit de cette catégorie.
+    await this.prisma.categorie.create({ data: { nom } });
     return { categories: [...existing, nom].sort() };
   }
 
@@ -720,6 +733,10 @@ export class StocksService {
         code: 'CATEGORIE_EN_USE',
         message: `Impossible de supprimer : ${count} produit(s) actif(s) dans cette catégorie.`,
       });
+    }
+    const row = await this.prisma.categorie.findUnique({ where: { nom } });
+    if (row) {
+      await this.prisma.categorie.delete({ where: { id: row.id } });
     }
     const remaining = await this.getCategories();
     return { categories: remaining.filter((c) => c !== nom) };
@@ -780,6 +797,12 @@ export class StocksService {
           actif: true,
         },
       });
+
+      await tx.categorie.upsert({
+        where: { nom: dto.categorie },
+        update: {},
+        create: { nom: dto.categorie },
+      }).catch(() => undefined); // best-effort : la table n'est qu'un index des catégories
 
       // Créer StockSite pour chaque site cible
       for (const siteId of siteIds) {
