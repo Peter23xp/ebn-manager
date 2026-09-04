@@ -24,7 +24,6 @@ interface CartState {
   client: CartClient | null;
   modePaiement: ModePaiement | null;
   montantRecu: number;
-  appliquerRemise: boolean;
   isSubmitting: boolean;
   lastVenteResult: {
     id: string;
@@ -35,7 +34,6 @@ interface CartState {
 
   // computed
   montantBrut: () => number;
-  remiseMontant: () => number;
   montantNet: () => number;
   monnaieARendre: () => number;
 
@@ -46,7 +44,6 @@ interface CartState {
   setClient: (client: CartClient | null) => void;
   setModePaiement: (mode: ModePaiement | null) => void;
   setMontantRecu: (montant: number) => void;
-  toggleRemise: () => void;
   setIsSubmitting: (v: boolean) => void;
   resetAfterSale: (result: CartState['lastVenteResult']) => void;
   clearCart: () => void;
@@ -57,7 +54,6 @@ export const useCartStore = create<CartState>()((set, get) => ({
   client: null,
   modePaiement: null,
   montantRecu: 0,
-  appliquerRemise: true,
   isSubmitting: false,
   lastVenteResult: null,
 
@@ -66,12 +62,9 @@ export const useCartStore = create<CartState>()((set, get) => ({
     return items.reduce((sum, item) => sum + item.prixUnitaire * item.quantite, 0);
   },
 
-  remiseMontant: () => {
-    return 0; // Removed with MLM migration
-  },
-
   montantNet: () => {
-    return get().montantBrut() - get().remiseMontant();
+    // Remises fidélité supprimées avec la migration MLM
+    return get().montantBrut();
   },
 
   monnaieARendre: () => {
@@ -129,8 +122,6 @@ export const useCartStore = create<CartState>()((set, get) => ({
 
   setMontantRecu: (montantRecu: number) => set({ montantRecu }),
 
-  toggleRemise: () => set((state) => ({ appliquerRemise: !state.appliquerRemise })),
-
   setIsSubmitting: (isSubmitting: boolean) => set({ isSubmitting }),
 
   resetAfterSale: (result) => {
@@ -139,7 +130,6 @@ export const useCartStore = create<CartState>()((set, get) => ({
       client: null,
       modePaiement: null,
       montantRecu: 0,
-      appliquerRemise: true,
       isSubmitting: false,
       lastVenteResult: result,
     });
@@ -151,11 +141,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
       client: null,
       modePaiement: null,
       montantRecu: 0,
-      appliquerRemise: true,
       isSubmitting: false,
       lastVenteResult: null,
     });
   },
 }));
-
-

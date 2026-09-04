@@ -8,10 +8,11 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, minRole }: RoleGuardProps) {
-  const { hasRole } = useAuthStore();
+  const { user, hasRole } = useAuthStore();
 
   if (!hasRole(minRole)) {
-    return <Navigate to="/dashboard" replace />;
+    // Un CLIENT ne peut pas accéder au back-office : renvoyer vers son portail
+    return <Navigate to={user?.role === 'CLIENT' ? '/portal/home' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;

@@ -1,4 +1,4 @@
-﻿# Progress Business — Guide Développement
+# Progress Business — Guide Développement
 
 ## Vue d'ensemble
 
@@ -68,7 +68,7 @@ npm run dev
 
 - **Monnaie** : CDF avec séparateurs de milliers (ex: `1 200 000 CDF`)
 - **Téléphone** : format `+243XXXXXXXXX`
-- **Code parrain** : format `TSG-XXXX` (incrémental par site)
+- **Code parrain** : format `AAAAMMJJ####` (ex: `202609010001`) — les SKU produits utilisent `TSG-<CAT>-<seq>`
 - **N° vente** : format `{SITE}-{ANNEE}{MOIS}-{SEQ}` (ex: `GOM-202501-0047`)
 - **Points fidélité** : 1 pt / 1 000 CDF dépensés
 - **Remises** : Bronze 0%, Argent 3%, Or 5%, Platine 8%
@@ -92,7 +92,7 @@ npm run dev
 4. **Transfert** : stock source décrémenté à l'INITIATION, destination incrémenté à la RÉCEPTION
 5. **Points** : attribués uniquement aux clients ACTIF (vente anonyme = 0 pts)
 6. **Offline** : toutes les écritures → IndexedDB d'abord, sync API ensuite (jamais de blocage UX)
-7. **Auth** : token JWT en mémoire uniquement (jamais localStorage) + httpOnly cookie refresh token
+7. **Auth** : access token JWT en localStorage (clé `ebn_auth_v1` — session persiste au F5) + refresh token en cookie httpOnly
 
 ## Variables d'environnement requises
 

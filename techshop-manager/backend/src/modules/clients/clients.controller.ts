@@ -32,7 +32,6 @@ export class ClientsController {
   findAll(
     @Query('siteId') siteId?: string,
     @Query('statut') statut?: string,
-    @Query('niveau') niveau?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -42,7 +41,6 @@ export class ClientsController {
       {
         siteId,
         statut,
-        niveau,
         search,
         page: page ? parseInt(page, 10) : 1,
         limit: limit ? parseInt(limit, 10) : 50,

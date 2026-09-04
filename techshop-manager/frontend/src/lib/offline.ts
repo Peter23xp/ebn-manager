@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'ebn-network-offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let db: IDBPDatabase | null = null;
 
@@ -17,11 +17,9 @@ export async function getDB() {
           database.createObjectStore('cache', { keyPath: 'key' });
         }
       }
-      if (oldVersion < 2) {
-        if (!database.objectStoreNames.contains('dashboardCache')) {
-          const store = database.createObjectStore('dashboardCache', { keyPath: 'key' });
-          store.createIndex('cachedAt', 'cachedAt');
-        }
+      // v2 avait un store dashboardCache jamais utilisé → supprimé en v3
+      if (oldVersion < 3 && database.objectStoreNames.contains('dashboardCache')) {
+        database.deleteObjectStore('dashboardCache');
       }
     },
   });
@@ -53,15 +51,4 @@ export async function cacheData(key: string, data: unknown) {
 export async function getCachedData<T>(key: string): Promise<{ data: T; cachedAt: string } | null> {
   const database = await getDB();
   return database.get('cache', key);
-}
-
-// Dashboard cache helpers
-export async function saveDashboardCache(key: string, data: unknown) {
-  const database = await getDB();
-  return database.put('dashboardCache', { key, data, cachedAt: new Date().toISOString() });
-}
-
-export async function getDashboardCache<T>(key: string): Promise<{ data: T; cachedAt: string } | null> {
-  const database = await getDB();
-  return database.get('dashboardCache', key);
 }

@@ -1,12 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { Home, ShoppingBag, Wallet, Users } from 'lucide-react';
+import { Home, ShoppingBag, DollarSign, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { to: '/portal/home',      icon: Home,        label: 'Accueil'  },
-  { to: '/portal/purchases', icon: ShoppingBag, label: 'Achats'   },
-  { to: '/portal/points',    icon: Wallet,      label: 'Gains'    },
-  { to: '/portal/referrals', icon: Users,       label: 'Filleuls' },
+  { to: '/portal/home',        icon: Home,        label: 'Accueil'     },
+  { to: '/portal/purchases',   icon: ShoppingBag, label: 'Achats'      },
+  { to: '/portal/commissions', icon: DollarSign,  label: 'Commissions' },
+  { to: '/portal/referrals',   icon: Users,       label: 'Filleuls'    },
 ];
 
 export function PortalNav() {

@@ -105,6 +105,62 @@ export interface PortalPayoutInput {
   phoneNumber: string;
 }
 
+export interface ValidatedCommission {
+  id: string;
+  montant: number;
+  description: string;
+  createdAt: string;
+  valideeAt: string | null;
+  level: {
+    id: number;
+    ordre: number;
+    nom: string;
+  };
+  filleul: {
+    id: string;
+    matricule: string;
+    client: {
+      id: string;
+      prenom: string;
+      nom: string;
+    };
+  } | null;
+}
+
+export interface ValidatedCommissionsResponse {
+  commissions: ValidatedCommission[];
+  totalDisponible: number;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  montant: number;
+  type: 'MOBILE_MONEY' | 'CASH';
+  provider?: string;
+  phoneNumber?: string;
+  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'PAYE' | 'ANNULE';
+  commissionIds: string[];
+  notes?: string;
+  rejectReason?: string;
+  createdAt: string;
+  approvedAt?: string;
+  paidAt?: string;
+}
+
+export interface WithdrawalRequestsResponse {
+  requests: WithdrawalRequest[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export interface CreateWithdrawalRequestInput {
+  montant: number;
+  type: 'MOBILE_MONEY' | 'CASH';
+  provider?: string;
+  phoneNumber?: string;
+  commissionIds: string[];
+  notes?: string;
+}
+
 export interface PortalFilleul {
   id: string;
   prenom: string;
@@ -163,4 +219,20 @@ export const portalApi = {
 
   initPayout: (input: PortalPayoutInput) =>
     api.post('/portal/wallet/payouts', input).then((r) => r.data),
+
+  getValidatedCommissions: (): Promise<ValidatedCommissionsResponse> =>
+    api.get('/portal/commissions/validated').then((r) => r.data),
+
+  createWithdrawalRequest: (input: CreateWithdrawalRequestInput) =>
+    api.post('/portal/withdrawal-requests', input).then((r) => r.data),
+
+  getWithdrawalRequests: (params: {
+    statut?: string;
+    page: number;
+    limit?: number;
+  }): Promise<WithdrawalRequestsResponse> =>
+    api.get('/portal/withdrawal-requests', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
+
+  cancelWithdrawalRequest: (requestId: string): Promise<{ id: string; statut: string }> =>
+    api.patch(`/portal/withdrawal-requests/${requestId}/cancel`).then((r) => r.data),
 };

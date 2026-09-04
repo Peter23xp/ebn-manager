@@ -68,6 +68,13 @@ export default function MlmDashboardPage() {
             Commissions
           </Link>
           <Link
+            to="/mlm/withdrawal-requests"
+            className="btn-secondary flex items-center gap-1.5 text-[13px]"
+          >
+            <Clock size={15} className="text-amber-600" />
+            Retraits
+          </Link>
+          <Link
             to="/mlm/members"
             className="btn-primary flex items-center gap-1.5 text-[13px]"
           >

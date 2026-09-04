@@ -57,6 +57,7 @@ const MlmConfigPage      = lazy(() => import('@/pages/mlm/MlmConfigPage'));
 const MlmLevelsPage      = lazy(() => import('@/pages/mlm/MlmLevelsPage'));
 const MlmTreePage        = lazy(() => import('@/pages/mlm/MlmTreePage'));
 const MlmCommissionsPage = lazy(() => import('@/pages/mlm/MlmCommissionsPage'));
+const MlmWithdrawalRequestsPage = lazy(() => import('@/pages/mlm/MlmWithdrawalRequestsPage'));
 
 // Rapports
 const RapportsDashboardPage  = lazy(() => import('@/pages/rapports/RapportsDashboardPage'));
@@ -70,6 +71,7 @@ const PortalHomePage    = lazy(() => import('@/pages/portal/PortalHomePage'));
 const PortalAchatsPage  = lazy(() => import('@/pages/portal/PortalAchatsPage'));
 const PortalPointsPage  = lazy(() => import('@/pages/portal/PortalPointsPage'));
 const PortalFilleulsPage = lazy(() => import('@/pages/portal/PortalFilleulsPage'));
+const PortalWithdrawalPage = lazy(() => import('@/pages/portal/PortalWithdrawalPage'));
 
 // Support
 const SupportPage       = lazy(() => import('@/pages/support/SupportPage'));
@@ -125,6 +127,7 @@ export default function App() {
           <Route path="/portal/purchases" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalAchatsPage /></RoleGuard></AuthGuard>} />
           <Route path="/portal/points"    element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalPointsPage /></RoleGuard></AuthGuard>} />
           <Route path="/portal/referrals" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalFilleulsPage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/commissions" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalWithdrawalPage /></RoleGuard></AuthGuard>} />
 
           {/* App routes — role AGENT+ */}
           <Route element={<AuthGuard><RoleGuard minRole="AGENT"><AppLayout /></RoleGuard></AuthGuard>}>
@@ -169,9 +172,9 @@ export default function App() {
             <Route path="mlm/levels" element={<RoleGuard minRole="AGENT"><MlmLevelsPage /></RoleGuard>} />
             <Route path="mlm/tree" element={<RoleGuard minRole="GERANT"><MlmTreePage /></RoleGuard>} />
             <Route path="mlm/commissions" element={<RoleGuard minRole="GERANT"><MlmCommissionsPage /></RoleGuard>} />
+            <Route path="mlm/withdrawal-requests" element={<RoleGuard minRole="GERANT"><MlmWithdrawalRequestsPage /></RoleGuard>} />
             <Route path="mlm/members" element={<RoleGuard minRole="GERANT"><MlmMembersPage /></RoleGuard>} />
             <Route path="mlm/members/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
-            <Route path="mlm/member/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
             <Route path="mlm/wallet" element={<RoleGuard minRole="AGENT"><WalletPage /></RoleGuard>} />
             <Route path="mlm/config" element={<RoleGuard minRole="SUPER_ADMIN"><MlmConfigPage /></RoleGuard>} />
 

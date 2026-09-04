@@ -130,6 +130,19 @@ enum CommissionStatut {
   ANNULEE
 }
 
+enum WithdrawalRequestStatut {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+  PAYE
+  ANNULE
+}
+
+enum WithdrawalRequestType {
+  MOBILE_MONEY
+  CASH
+}
+
 enum KpayOperationType {
   ONBOARDING_PAYMENT
   SALE_PAYMENT
@@ -243,7 +256,6 @@ model Client {
 
   onboardingEtapes  OnboardingEtape[]
   ventes            Vente[]
-  portailToken      PortailToken?
   membre            Membre?
   parrainClient     Client?        @relation("ClientParrainage", fields: [parrainClientId], references: [id])
   filleulsParrainage Client[]      @relation("ClientParrainage")
@@ -525,22 +537,6 @@ model ExportJob {
 }
 
 // ============================================
-// PORTAIL TOKEN CLIENT
-// ============================================
-
-model PortailToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  clientId String @unique
-  client   Client @relation(fields: [clientId], references: [id])
-
-  @@map("portail_tokens")
-}
-
-// ============================================
 // SUPPORT
 // ============================================
 
@@ -653,6 +649,7 @@ model Membre {
   commissionsRecues    Commission[]     @relation("CommissionBeneficiaire")
   commissionsGenerees  Commission[]     @relation("CommissionFilleul")
   payouts              MlmPayout[]
+  withdrawalRequests   WithdrawalRequest[]
 
   @@map("membres")
 }
@@ -859,4 +856,53 @@ model Commission {
   @@index([membreId])
   @@index([statut])
   @@map("commissions")
+}
+
+// ── Withdrawal Requests (Demandes de retrait) ─────────────────────
+model WithdrawalRequest {
+  id                String                   @id @default(uuid())
+  membreId          String
+  montant           Decimal                  @db.Decimal(12, 2)
+  type              WithdrawalRequestType
+  provider          String?
+  phoneNumber       String?
+  statut            WithdrawalRequestStatut  @default(EN_ATTENTE)
+  commissionIds     Json
+  notes             String?
+  rejectReason      String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  approvedAt        DateTime?
+  approvedById      String?
+  paidAt            DateTime?
+
+  membre            Membre                   @relation(fields: [membreId], references: [id])
+
+  @@index([membreId])
+  @@index([statut])
+  @@map("withdrawal_requests")
+}
+
+// ── Catégories de produits (table dédiée, ex-portées par les produits) ──
+model Categorie {
+  id        String   @id @default(uuid())
+  nom       String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("categories")
+}
+
+// ── Tokens de réinitialisation mot de passe (remplace otpStore en mémoire) ──
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  identifier String // téléphone de l'utilisateur ciblé
+  otpHash    String // OTP 6 chiffres hashé bcrypt
+  resetToken String?   @unique // UUID délivré après vérification OTP
+  attempts   Int       @default(0) // max 3 essais OTP
+  expiresAt  DateTime // OTP : +10 min puis réutilisé pour le resetToken : +15 min
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier])
+  @@map("password_reset_tokens")
 }

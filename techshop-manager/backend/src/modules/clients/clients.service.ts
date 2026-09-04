@@ -207,14 +207,13 @@ export class ClientsService implements OnModuleInit {
     query: {
       siteId?: string;
       statut?: string;
-      niveau?: string;
       search?: string;
       page?: number;
       limit?: number;
     },
     user: { id: string; role: Role; siteId?: string },
   ) {
-    const { statut, niveau, search, page = 1, limit = 50 } = query;
+    const { statut, search, page = 1, limit = 50 } = query;
 
     // AGENT voit uniquement les clients de son site
     const effectiveSiteId =
@@ -227,9 +226,6 @@ export class ClientsService implements OnModuleInit {
     }
     if (statut) {
       where.statut = statut;
-    }
-    if (niveau) {
-      where.niveauFidelite = niveau;
     }
     if (search) {
       where.OR = [
@@ -1150,7 +1146,7 @@ export class ClientsService implements OnModuleInit {
       });
     }
 
-    // Générer un code parrain unique format TSG-XXXX
+    // Générer un code parrain unique au format AAAAMMJJ#### (ex: 202609010001)
     const codeParrain = await this.generateUniqueCodeParrain();
 
     // Générer le numéro de vente

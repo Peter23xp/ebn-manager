@@ -1028,7 +1028,7 @@ async function main() {
   console.log('======================================================');
   console.log('📊 Données prêtes pour tous les écrans :');
   console.log('  • Sites (3)         : Goma, Bukavu, Kinshasa');
-  console.log('  • Utilisateurs (8)   : Super Admin (+243902238740), Dir. Régional, Gérants, Agents, Formateur');
+  console.log('  • Utilisateurs (1)   : Super Admin (+243902238740) — les comptes de démo sont désactivés (bloc if (false))');
   console.log('  • MLM Niveaux (8)   : Niveaux 1 à 7 + Crown Ambassadeur');
   console.log('  • Produits (9)      : Packs, Récits, Bio, Cosmétiques, Équipements (avec stocks & alertes)');
   console.log('  • Clients (15)      : Actifs + En attente (Matricules: 202608010001 à 202608010012)');

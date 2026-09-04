@@ -20,6 +20,10 @@ import { MlmService, UpdateMlmConfigDto } from './mlm.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 import { MlmWalletService } from './mlm-wallet.service';
 import { KpayProvider } from '../kpay/kpay.types';
+import {
+  ApproveWithdrawalRequestDto,
+  RejectWithdrawalRequestDto,
+} from '../portal/dto/withdrawal.dto';
 import { MlmPayoutStatus } from '@prisma/client';
 
 @Controller('mlm')
@@ -225,6 +229,46 @@ export class MlmController {
       return { error: 'Paramètre memberId requis pour admin' };
     }
     return this.walletService.getWallet(memberId);
+  }
+
+  // ── Withdrawal Requests (Admin) ──────────────────────────────────────────────
+
+  @Get('withdrawal-requests')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  listWithdrawalRequests(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('statut') statut?: string,
+    @Query('membreId') membreId?: string,
+  ) {
+    return this.walletService.listWithdrawalRequests({ page, limit, statut, membreId });
+  }
+
+  @Put('withdrawal-requests/:requestId/approve')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  approveWithdrawalRequest(
+    @Param('requestId') requestId: string,
+    @Body() dto: ApproveWithdrawalRequestDto,
+  ) {
+    return this.walletService.approveWithdrawalRequest(requestId, dto.approvedById, dto.notes);
+  }
+
+  @Patch('withdrawal-requests/:requestId/reject')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  rejectWithdrawalRequest(
+    @Param('requestId') requestId: string,
+    @Body() dto: RejectWithdrawalRequestDto,
+  ) {
+    return this.walletService.rejectWithdrawalRequest(requestId, dto.rejectReason);
+  }
+
+  @Put('withdrawal-requests/:requestId/mark-paid')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @HttpCode(HttpStatus.OK)
+  markWithdrawalAsPaid(@Param('requestId') requestId: string) {
+    return this.walletService.markWithdrawalAsPaid(requestId);
   }
 
   // ── Config ───────────────────────────────────────────────────────────────────
