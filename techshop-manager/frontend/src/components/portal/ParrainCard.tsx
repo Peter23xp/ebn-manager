@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share2, Copy, Check } from 'lucide-react';
+import { Share2, Copy, Check, Users } from 'lucide-react';
 
 interface ParrainCardProps {
   codeParrain: string;
@@ -23,42 +23,53 @@ export function ParrainCard({ codeParrain, nbFilleulsActifs, nbFilleulsTotal }: 
   }, [codeParrain]);
 
   return (
-    <div className="rounded-xl p-4 bg-blue-50 border border-blue-100">
-      <div className="flex items-center gap-2 mb-2">
-        <Share2 size={16} className="text-[#2E86C1]" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
-          Votre matricule membre
-        </span>
+    <div className="rounded-2xl border border-border bg-bg-card p-4 shadow-card">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Share2 size={14} className="text-text-subtle" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
+            Votre matricule membre
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={copied
+            ? 'flex h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700'
+            : 'flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[#2E86C1] transition-colors hover:bg-blue-50'}
+          aria-label="Copier le code parrain"
+        >
+          {copied ? <><Check size={13} /> Copié !</> : <><Copy size={13} /> Copier</>}
+        </button>
       </div>
 
-      <p className="text-2xl font-mono font-bold text-[#1E3A5F] mb-3" data-testid="code-parrain">
+      <p
+        className="mt-2 font-mono text-[22px] font-bold tracking-[0.08em] text-primary"
+        data-testid="code-parrain"
+      >
         {codeParrain}
       </p>
 
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="flex items-center gap-2 bg-[#1E3A5F] text-white rounded-xl h-10 px-4 text-sm font-semibold w-full justify-center mb-3"
-        aria-label="Copier le matricule"
-      >
-        {copied ? (
-          <><Check size={15} /> Copié !</>
-        ) : (
-          <><Copy size={15} /> Copier le matricule</>
-        )}
-      </button>
-
-      <p className="text-xs text-neutral-500">
-        <span className="font-semibold text-[#1E3A5F]">{nbFilleulsActifs} filleuls actifs</span>
-        {' '}/{' '}{nbFilleulsTotal} total
-      </p>
-      <button
-        type="button"
-        onClick={() => navigate('/portal/referrals')}
-        className="text-xs text-[#2E86C1] font-semibold mt-1 hover:underline"
-      >
-        Voir mes filleuls →
-      </button>
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => navigate('/portal/referrals')}
+          className="flex items-center gap-2 text-left"
+        >
+          <Users size={16} className="text-text-subtle" />
+          <span className="text-xs text-text-muted">
+            <span className="font-bold text-primary">{nbFilleulsActifs} filleuls actifs</span>
+            {' '}/ {nbFilleulsTotal} total
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/portal/referrals')}
+          className="text-xs font-semibold text-[#2E86C1] transition-colors hover:text-[#1E3A5F]"
+        >
+          Voir le réseau →
+        </button>
+      </div>
     </div>
   );
 }

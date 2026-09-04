@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, Share2, Loader2, Gift, UserPlus } from 'lucide-react';
+import { Copy, Check, Share2, Loader2, Gift, UserPlus, BadgeCheck, List, Network } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { PortalLayout } from '@/components/portal/PortalLayout';
+import { ReferralTree } from '@/components/portal/ReferralTree';
 import { usePortalReferrals, type ReferralFilter } from '@/hooks/usePortalReferrals';
+import { usePortalReferralTree } from '@/hooks/usePortalReferralTree';
 import { cn } from '@/lib/utils';
 
 
-// ── Share code card ───────────────────────────────────────────────────────────
+// ── Carte de partage du code ──────────────────────────────────────────────────
 
 function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
   const [copied, setCopied] = useState(false);
@@ -35,52 +37,77 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
 
   return (
     <div
-      className="rounded-2xl p-6 text-white shadow-lg"
-      style={{ background: 'linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%)' }}
+      className="relative overflow-hidden rounded-2xl text-white"
+      style={{ background: 'linear-gradient(150deg, #0A1628 0%, #14304f 60%, #1E3A5F 100%)' }}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70 mb-2">
-        Votre matricule membre
-      </p>
-      <p className="text-4xl font-mono font-bold text-center my-3" data-testid="code-parrain">
-        {codeParrain}
-      </p>
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(115deg, transparent 0 9px, #ffffff 9px 10px)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute -bottom-16 -left-10 w-44 h-44 rounded-full border border-white/10"
+      />
 
-      <div className="flex gap-2 mt-4">
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label="Copier le matricule"
-          className="flex-1 h-11 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm flex items-center justify-center gap-2"
+      <div className="relative p-5">
+        <div className="flex items-center gap-2">
+          <Share2 size={14} className="text-[#e8a33d]" />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+            Votre matricule membre
+          </p>
+        </div>
+
+        <p
+          className="mt-3 text-center font-mono text-[28px] font-bold tracking-[0.1em]"
+          data-testid="code-parrain"
         >
-          {copied ? <><Check size={15} /> Copié !</> : <><Copy size={15} /> Copier</>}
-        </button>
-        <button
-          type="button"
-          onClick={handleShare}
-          aria-label="Partager le matricule"
-          className="flex-1 h-11 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm flex items-center justify-center gap-2"
-        >
-          <Share2 size={15} /> Partager
-        </button>
+          {codeParrain}
+        </p>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label="Copier le code parrain"
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-semibold text-white backdrop-blur transition-colors duration-150 hover:bg-white/20"
+          >
+            {copied ? <><Check size={15} /> Copié !</> : <><Copy size={15} /> Copier</>}
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Partager le code parrain"
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-semibold text-white backdrop-blur transition-colors duration-150 hover:bg-white/20"
+          >
+            <Share2 size={15} /> Partager
+          </button>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-white/50">
+          Donnez ce matricule à vos contacts lors de leur inscription chez EBN Network.
+        </p>
       </div>
 
-      <p className="text-xs text-white/60 text-center mt-3">
-        Donnez ce matricule à vos contacts lors de leur inscription chez EBN Network.
-      </p>
-
-      {/* Share fallback dialog */}
+      {/* Dialogue de repli (Web Share indisponible) */}
       {showDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A1628]/60"
           onClick={() => setShowDialog(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Partager votre matricule"
         >
           <div
-            className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full"
+            className="mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-bold text-[#1E3A5F] mb-3">Partager votre matricule</p>
-            <p className="text-sm text-neutral-600 bg-neutral-50 rounded-xl p-3 mb-4">
-              Inscris-toi chez EBN Network avec mon matricule : <strong>{codeParrain}</strong>
+            <p className="mb-3 font-bold text-primary">Partager votre matricule</p>
+            <p className="mb-4 rounded-xl bg-bg p-3 text-sm text-text-muted">
+              Inscris-toi chez EBN Network avec mon matricule : <strong className="text-primary">{codeParrain}</strong>
             </p>
             <button
               type="button"
@@ -88,7 +115,7 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
                 await navigator.clipboard.writeText(`Inscris-toi chez EBN Network avec mon matricule : ${codeParrain}`);
                 setShowDialog(false);
               }}
-              className="w-full h-11 rounded-xl bg-[#1E3A5F] text-white font-semibold text-sm"
+              className="h-11 w-full rounded-xl bg-[#1E3A5F] text-sm font-semibold text-white transition-colors hover:bg-[#13294b]"
             >
               Copier le message
             </button>
@@ -99,63 +126,75 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
   );
 }
 
-// ── Stats cards ───────────────────────────────────────────────────────────────
+// ── Cartes stats ──────────────────────────────────────────────────────────────
 
-function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux }: {
+function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: {
   nbActifs: number;
   nbTotal: number;
   gainsTotaux: number;
+  typeRecompense?: string;
 }) {
-  const gainsLabel = `$${gainsTotaux.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const gainsLabel = typeRecompense === 'COMMISSION_CDF'
+    ? `${gainsTotaux.toLocaleString('fr')} CDF`
+    : `${gainsTotaux.toLocaleString('fr')} pts`;
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <div className="rounded-xl p-4 bg-white border border-blue-100 shadow-sm">
-        <p className="text-[10px] uppercase tracking-wider text-neutral-400 mb-1">Filleuls actifs</p>
-        <p className="text-3xl font-bold text-[#1E3A5F]">{nbActifs}</p>
-        <p className="text-xs text-neutral-400">{nbTotal} inscrits au total</p>
+      <div className="rounded-2xl border border-border bg-bg-card p-4 shadow-card">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-subtle">Filleuls actifs</p>
+        <p className="mt-1 text-3xl font-bold tabular-nums text-primary">{nbActifs}</p>
+        <p className="mt-0.5 text-xs text-text-subtle">{nbTotal} inscrits au total</p>
       </div>
-      <div className="rounded-xl p-4 bg-white border border-blue-100 shadow-sm">
-        <p className="text-[10px] uppercase tracking-wider text-neutral-400 mb-1">Gains totaux</p>
-        <p className="text-3xl font-bold text-[#1E3A5F]">{gainsLabel}</p>
-        <p className="text-xs text-neutral-400">depuis votre inscription</p>
+      <div className="rounded-2xl border border-border bg-bg-card p-4 shadow-card">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-subtle">Gains totaux</p>
+        <p className="mt-1 text-3xl font-bold tabular-nums text-primary">{gainsLabel}</p>
+        <p className="mt-0.5 text-xs text-text-subtle">depuis votre inscription</p>
       </div>
     </div>
   );
 }
 
-// ── How it works ──────────────────────────────────────────────────────────────
+// ── Comment ça marche ─────────────────────────────────────────────────────────
 
-function HowReferralWorks() {
+function HowReferralWorks({ recompenseValeur, typeRecompense }: {
+  recompenseValeur?: number;
+  typeRecompense?: string;
+}) {
+  const recompense = typeRecompense === 'COMMISSION_CDF'
+    ? `${recompenseValeur?.toLocaleString('fr') ?? ''} CDF`
+    : `${recompenseValeur?.toLocaleString('fr') ?? ''} pts`;
+
   const steps = [
-    { icon: Share2, color: 'bg-blue-100 text-blue-600', title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
-    { icon: UserPlus, color: 'bg-green-100 text-green-600', title: 'Votre partenaire s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
-    { icon: Gift, color: 'bg-yellow-100 text-yellow-700', title: 'Vous gagnez vos commissions', desc: 'Dès que son compte est actif, vous gagnez des commissions MLM.' },
+    { icon: Share2, title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
+    { icon: UserPlus, title: 'Votre ami s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
+    { icon: Gift, title: 'Vous recevez votre récompense', desc: `Dès que son compte est actif, vous recevez ${recompense}.` },
   ];
 
   return (
-    <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-3">
+    <div className="rounded-2xl border border-border bg-bg p-4">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
         Comment ça marche ?
       </p>
-      <div className="space-y-3">
+      <ol className="space-y-3">
         {steps.map((s, i) => (
-          <div key={i} className="flex items-start gap-3">
-            <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', s.color)}>
-              <s.icon size={15} />
-            </div>
+          <li key={i} className="flex items-start gap-3">
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-bg-card text-primary shadow-card">
+              <s.icon size={14} />
+            </span>
             <div>
-              <p className="text-sm font-medium text-neutral-800">{s.title}</p>
-              <p className="text-xs text-neutral-500">{s.desc}</p>
+              <p className="text-sm font-semibold text-text">
+                <span className="mr-1.5 text-text-subtle">{i + 1}.</span>{s.title}
+              </p>
+              <p className="text-xs text-text-muted">{s.desc}</p>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }
 
-// ── Filleul card ──────────────────────────────────────────────────────────────
+// ── Carte filleul ─────────────────────────────────────────────────────────────
 
 function FilleulCard({ filleul }: {
   filleul: {
@@ -163,49 +202,56 @@ function FilleulCard({ filleul }: {
     statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';
     dateInscription: string; etapeEnCours?: string;
     generation?: number;
+    recompenseGeneree?: number;
   };
 }) {
   const initials = `${filleul.prenom[0] ?? ''}${filleul.nom[0] ?? ''}`.toUpperCase();
-  const avatarColor = filleul.statut === 'ACTIF' ? 'bg-green-100 text-green-700'
-    : filleul.statut === 'SUSPENDU' ? 'bg-red-100 text-red-600'
-    : 'bg-orange-100 text-orange-600';
 
   const badge = filleul.statut === 'ACTIF'
-    ? <span className="text-[11px] font-semibold text-green-600 bg-green-50 rounded-full px-2 py-0.5">Actif ●</span>
+    ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Actif ●</span>
     : filleul.statut === 'SUSPENDU'
-    ? <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Suspendu ✗</span>
-    : <span className="text-[11px] font-semibold text-orange-500 bg-orange-50 rounded-full px-2 py-0.5">En cours ○</span>;
+    ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600">Suspendu ✗</span>
+    : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">En cours ○</span>;
 
   return (
-    <div className="bg-white border border-neutral-100 rounded-xl p-4 mb-3 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={cn('w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0', avatarColor)}>
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-neutral-800 truncate">
-              {filleul.prenom} {filleul.nom}
-            </p>
-            {badge}
-          </div>
-          <p className="text-xs text-neutral-400">
-            Inscrit le {format(new Date(filleul.dateInscription), 'd MMM yyyy', { locale: fr })}
-            {filleul.generation ? ` • Génération ${filleul.generation}` : ''}
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span
+        className={cn(
+          'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold',
+          filleul.statut === 'ACTIF' ? 'bg-emerald-50 text-emerald-700'
+            : filleul.statut === 'SUSPENDU' ? 'bg-red-50 text-red-600'
+            : 'bg-amber-50 text-amber-700',
+        )}
+        aria-hidden
+      >
+        {initials}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-medium text-text">
+            {filleul.prenom} {filleul.nom}
           </p>
-          {filleul.statut === 'EN_COURS' && filleul.etapeEnCours && (
-            <p className="text-xs text-orange-500 italic mt-1">{filleul.etapeEnCours}</p>
-          )}
-          {filleul.statut === 'SUSPENDU' && (
-            <p className="text-xs text-red-500">Compte suspendu</p>
-          )}
+          {badge}
         </div>
+        <p className="text-xs text-text-subtle">
+          Inscrit le {format(new Date(filleul.dateInscription), 'd MMM yyyy', { locale: fr })}
+          {filleul.generation ? ` · Génération ${filleul.generation}` : ''}
+          {filleul.recompenseGeneree != null && filleul.recompenseGeneree > 0 && (
+            <> · <span className="font-semibold text-emerald-600">+{filleul.recompenseGeneree} pts</span></>
+          )}
+        </p>
+        {filleul.statut === 'EN_COURS' && filleul.etapeEnCours && (
+          <p className="mt-0.5 text-xs italic text-amber-700">{filleul.etapeEnCours}</p>
+        )}
+        {filleul.statut === 'SUSPENDU' && (
+          <p className="mt-0.5 text-xs text-red-500">Compte suspendu</p>
+        )}
       </div>
-    </div>
+    </li>
   );
 }
 
-// ── Filter pills ──────────────────────────────────────────────────────────────
+// ── Filtres ───────────────────────────────────────────────────────────────────
 
 const FILTERS: { value: ReferralFilter; label: string }[] = [
   { value: 'actifs',     label: 'Actifs'      },
@@ -217,19 +263,21 @@ const FILTERS: { value: ReferralFilter; label: string }[] = [
 
 export default function PortalFilleulsPage() {
   const navigate = useNavigate();
+  const [view, setView] = useState<'liste' | 'arbre'>('liste');
   const {
     codeParrain, stats, typeRecompense, recompenseValeur,
     filleuls, filter, setFilter,
     isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = usePortalReferrals();
+  const tree = usePortalReferralTree(view === 'arbre');
 
   return (
     <PortalLayout title="Mes filleuls" showBackButton onBack={() => navigate('/portal/home')}>
       <div className="px-4 py-4 space-y-5">
 
-        {/* Share code */}
+        {/* Code de partage */}
         {isLoading ? (
-          <div className="h-44 rounded-2xl animate-pulse bg-neutral-200" />
+          <div className="skeleton h-44 rounded-2xl" />
         ) : codeParrain ? (
           <ShareCodeCard codeParrain={codeParrain} />
         ) : null}
@@ -240,30 +288,65 @@ export default function PortalFilleulsPage() {
             nbActifs={stats.nbFilleulsActifs}
             nbTotal={stats.nbFilleulsTotal}
             gainsTotaux={stats.gainsTotaux}
+            typeRecompense={typeRecompense}
           />
         )}
 
-        {/* How it works */}
+        {/* Comment ça marche */}
         {!isLoading && (
-          <HowReferralWorks />
+          <HowReferralWorks recompenseValeur={recompenseValeur} typeRecompense={typeRecompense} />
         )}
 
-        {/* Filleuls list */}
+        {/* Section filleuls : vue Liste ou vue Arbre */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-            Mes filleuls {stats ? `(${stats.nbFilleulsActifs} actifs)` : ''}
-          </p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-subtle">
+              Mes filleuls {stats ? `(${stats.nbFilleulsActifs} actifs)` : ''}
+            </p>
+            <div className="flex gap-1 rounded-xl bg-bg-inset p-1" role="group" aria-label="Type d'affichage">
+              <button
+                type="button"
+                onClick={() => setView('liste')}
+                aria-pressed={view === 'liste'}
+                className={cn(
+                  'flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
+                  view === 'liste' ? 'bg-bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text',
+                )}
+              >
+                <List size={13} /> Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('arbre')}
+                aria-pressed={view === 'arbre'}
+                className={cn(
+                  'flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
+                  view === 'arbre' ? 'bg-bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text',
+                )}
+              >
+                <Network size={13} /> Arbre
+              </button>
+            </div>
+          </div>
 
-          {/* Filter pills */}
-          <div className="flex gap-2 mb-3">
+          {view === 'arbre' ? (
+            <ReferralTree
+              nodes={tree.filleuls}
+              total={tree.total}
+              isLoading={tree.isLoading}
+              codeParrain={codeParrain}
+            />
+          ) : (
+            <>
+          <div className="mb-3 flex gap-2">
             {FILTERS.map((f) => (
               <button
                 key={f.value}
                 type="button"
                 onClick={() => setFilter(f.value)}
                 className={cn(
-                  'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                  filter === f.value ? 'bg-[#1E3A5F] text-white' : 'bg-neutral-100 text-neutral-600',
+                  'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150',
+                  filter === f.value ? 'bg-[#1E3A5F] text-white' : 'bg-bg-inset text-text-muted hover:bg-border',
                 )}
               >
                 {f.label}
@@ -272,24 +355,29 @@ export default function PortalFilleulsPage() {
           </div>
 
           {filter === 'en_attente' && filleuls.length > 0 && (
-            <p className="text-xs text-orange-600 bg-orange-50 rounded-xl p-3 mb-3">
-              Ces amis ont commencé leur inscription mais ne l'ont pas encore terminée. Encouragez-les à finaliser leur formation !
+            <p className="mb-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
+              Ces amis ont commencé leur inscription mais ne l'ont pas encore terminée.
+              Encouragez-les à finaliser leur formation !
             </p>
           )}
 
           {isLoading && (
             <div className="space-y-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-20 rounded-xl animate-pulse bg-neutral-200" />)}
+              {[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-2xl bg-bg-inset" />)}
+              <div className="h-40 animate-pulse rounded-2xl bg-bg-inset" />
             </div>
           )}
 
           {!isLoading && filleuls.length === 0 && (
-            <div className="py-8 text-center">
+            <div className="rounded-2xl border border-dashed border-border py-8 text-center">
               {filter === 'en_attente' ? (
-                <p className="text-sm text-neutral-500">Tous vos amis inscrits ont bien finalisé leur inscription ! 🎉</p>
+                <>
+                  <BadgeCheck size={22} className="mx-auto mb-2 text-emerald-600" />
+                  <p className="text-sm text-text-muted">Tous vos amis inscrits ont bien finalisé leur inscription !</p>
+                </>
               ) : (
                 <>
-                  <p className="text-sm text-neutral-500 mb-2">Vous n'avez pas encore de filleuls.</p>
+                  <p className="mb-1.5 text-sm text-text-muted">Vous n'avez pas encore de filleuls.</p>
                   {codeParrain && (
                     <p className="text-sm font-semibold text-[#2E86C1]">
                       Partagez votre code {codeParrain} pour commencer !
@@ -300,23 +388,29 @@ export default function PortalFilleulsPage() {
             </div>
           )}
 
-          {filleuls.map((f) => (
-            <FilleulCard key={f.id} filleul={f} />
-          ))}
+          {!isLoading && filleuls.length > 0 && (
+            <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
+              {filleuls.map((f) => (
+                <FilleulCard key={f.id} filleul={f} />
+              ))}
+            </ul>
+          )}
 
           {hasNextPage && (
             <button
               type="button"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="w-full h-10 rounded-xl border border-neutral-200 text-sm text-neutral-600 flex items-center justify-center gap-2"
+              className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border text-sm font-medium text-text-muted transition-colors duration-150 hover:bg-bg"
             >
               {isFetchingNextPage && <Loader2 size={14} className="animate-spin" />}
-              Charger plus…
+              Charger plus
             </button>
           )}
           {!hasNextPage && filleuls.length > 0 && (
-            <p className="text-center text-xs text-neutral-400 py-2">Vous avez vu tous vos filleuls.</p>
+            <p className="py-2.5 text-center text-xs text-text-subtle">Vous avez vu tous vos filleuls.</p>
+          )}
+            </>
           )}
         </div>
 

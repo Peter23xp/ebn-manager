@@ -1,48 +1,41 @@
-import { ShoppingBag, Star, Users } from 'lucide-react';
+import { ShoppingBag, Star, Users, ChevronRight } from 'lucide-react';
 
 interface QuickActionsGridProps {
   onNavigate: (route: string) => void;
   nbFilleulsActifs: number;
 }
 
+/**
+ * Liste d'actions primaires : une action = une ligne pleine largeur.
+ * Lisible sous pression, cibles 44px+, hiérarchie unique (pas de carrousel coloré).
+ */
 export function QuickActionsGrid({ onNavigate, nbFilleulsActifs }: QuickActionsGridProps) {
+  const actions = [
+    { to: '/portal/purchases', icon: ShoppingBag, label: 'Mes achats', hint: 'Suivi de vos commandes' },
+    { to: '/portal/points',    icon: Star,        label: 'Mes points', hint: 'Fidélité et remises' },
+    { to: '/portal/referrals', icon: Users,       label: 'Mes filleuls', hint: `${nbFilleulsActifs} filleul${nbFilleulsActifs !== 1 ? 's' : ''} actif${nbFilleulsActifs !== 1 ? 's' : ''}`, ariaLabel: `Mes filleuls — ${nbFilleulsActifs} actifs` },
+  ];
+
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="divide-y divide-border rounded-2xl border border-border bg-bg-card shadow-card overflow-hidden">
+      {actions.map(({ to, icon: Icon, label, hint, ariaLabel }) => (
         <button
+          key={to}
           type="button"
-          onClick={() => onNavigate('/portal/purchases')}
-          className="h-[72px] rounded-xl bg-blue-500 text-white flex flex-col items-center justify-center gap-1 shadow-sm
-                     hover:scale-[1.02] hover:shadow-md active:scale-[0.98] transition-transform"
-          aria-label="Mes achats"
+          onClick={() => onNavigate(to)}
+          className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-blue-50/50 active:bg-blue-50"
+          aria-label={ariaLabel ?? label}
         >
-          <ShoppingBag size={22} />
-          <span className="text-sm font-semibold">Mes achats</span>
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary">
+            <Icon size={17} />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-text">{label}</span>
+            <span className="block text-xs text-text-subtle">{hint}</span>
+          </span>
+          <ChevronRight size={16} className="flex-shrink-0 text-text-subtle" />
         </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('/portal/points')}
-          className="h-[72px] rounded-xl bg-yellow-500 text-white flex flex-col items-center justify-center gap-1 shadow-sm
-                     hover:scale-[1.02] hover:shadow-md active:scale-[0.98] transition-transform"
-          aria-label="Mes points"
-        >
-          <Star size={22} />
-          <span className="text-sm font-semibold">Mes points</span>
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => onNavigate('/portal/referrals')}
-        className="w-full h-[72px] rounded-xl bg-green-600 text-white flex flex-col items-center justify-center gap-0.5 shadow-sm
-                   hover:scale-[1.02] hover:shadow-md active:scale-[0.98] transition-transform"
-        aria-label={`Mes filleuls — ${nbFilleulsActifs} actifs`}
-      >
-        <Users size={22} />
-        <span className="text-sm font-semibold">Mes filleuls</span>
-        <span className="text-[11px] text-green-100">{nbFilleulsActifs} filleul{nbFilleulsActifs !== 1 ? 's' : ''} actif{nbFilleulsActifs !== 1 ? 's' : ''}</span>
-      </button>
+      ))}
     </div>
   );
 }

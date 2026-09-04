@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
+import { Loader2, ArrowDownRight, ArrowUpRight, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { PortalLayout } from '@/components/portal/PortalLayout';
@@ -11,36 +11,40 @@ import { cn } from '@/lib/utils';
 import type { PortalWalletTransaction } from '@/lib/portal.api';
 import { portalApi } from '@/lib/portal.api';
 
-// ── Transaction Card ──────────────────────────────────────────────────────────
+// ── Transaction row ───────────────────────────────────────────────────────────
 
-function TransactionCard({ tx }: { tx: PortalWalletTransaction }) {
+function TransactionRow({ tx }: { tx: PortalWalletTransaction }) {
   const isGain = tx.type === 'COMMISSION' || tx.type === 'BONUS' || tx.type === 'SALAIRE';
   const Icon = isGain ? ArrowDownRight : ArrowUpRight;
-  const colorClass = isGain ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
-  const sign = isGain ? '+' : '-';
 
   return (
-    <div className="bg-white border border-neutral-100 rounded-xl p-4 mb-3 shadow-sm flex items-center gap-3">
-      <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', colorClass)}>
-        <Icon size={18} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-0.5">
-          <p className="text-sm font-semibold text-[#0A1628] truncate">
-            {tx.type}
-          </p>
-          <p className={cn('text-sm font-bold', isGain ? 'text-green-600' : 'text-[#0A1628]')}>
-            {sign}${tx.montant.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <p className="text-xs text-neutral-500 truncate mb-1">
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span
+        className={cn(
+          'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
+          isGain ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-[#2E86C1]',
+        )}
+      >
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-primary">{tx.type}</p>
+        <p className="truncate text-xs text-text-subtle">
           {tx.description ?? 'Transaction MLM'}
         </p>
-        <p className="text-[10px] text-neutral-400">
-          {format(new Date(tx.createdAt), 'd MMM yyyy à HH:mm', { locale: fr })}
+        <p className="text-[10px] text-text-subtle">
+          {format(new Date(tx.createdAt), "d MMM yyyy · HH'h'mm", { locale: fr })}
         </p>
       </div>
-    </div>
+      <p
+        className={cn(
+          'flex-shrink-0 text-sm font-bold tabular-nums',
+          isGain ? 'text-emerald-600' : 'text-primary',
+        )}
+      >
+        {isGain ? '+' : '-'}${tx.montant.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      </p>
+    </li>
   );
 }
 
@@ -68,42 +72,52 @@ export default function PortalPointsPage() {
     isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = usePortalWalletHistory();
 
+  const fmtUSD = (v: number) =>
+    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
     <PortalLayout title="Historique" showBackButton onBack={() => navigate('/portal/home')}>
-      <div className="px-4 py-4 space-y-5">
+      <div className="px-4 py-4">
 
-        {/* En-tête du solde actuel */}
-        <div 
-          className="rounded-2xl p-5 text-white shadow-lg relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0A1628 0%, #1a3260 100%)' }}
+        {/* Solde actuel */}
+        <div
+          className="relative mb-5 overflow-hidden rounded-2xl text-white"
+          style={{ background: 'linear-gradient(150deg, #0A1628 0%, #13294b 55%, #1a3a5c 100%)' }}
         >
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
-          <div className="relative z-10 flex items-center justify-between">
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(115deg, transparent 0 9px, #ffffff 9px 10px)',
+            }}
+          />
+          <div className="relative flex items-end justify-between p-5">
             <div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <Wallet size={14} className="text-[#b45309]" />
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/70">
-                  Solde actuel
-                </p>
-              </div>
-              <p className="text-2xl font-bold font-mono">
-                ${(wallet?.soldeDisponible ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+                Solde actuel
+              </p>
+              <p className="mt-1.5 font-mono text-[26px] font-bold leading-none tabular-nums">
+                ${fmtUSD(wallet?.soldeDisponible ?? 0)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">
                 Total gagné
               </p>
-              <p className="text-sm font-semibold text-white/90">
-                ${(wallet?.totalGagne ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <p className="mt-1 text-sm font-semibold tabular-nums text-white/90">
+                ${fmtUSD(wallet?.totalGagne ?? 0)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-neutral-100 bg-white p-5 shadow-sm">
-          <p className="text-sm font-bold text-[#0A1628] mb-1">Retirer mes gains</p>
-          <p className="text-xs text-neutral-500 mb-4">Le montant est en USD. KPay envoie les fonds sur votre Mobile Money.</p>
+        {/* Retrait */}
+        <div className="mb-5 rounded-2xl border border-border bg-bg-card p-4 shadow-card">
+          <p className="text-sm font-bold text-primary">Retirer mes gains</p>
+          <p className="mb-4 mt-0.5 text-xs text-text-muted">
+            Le montant est en USD. KPay envoie les fonds sur votre Mobile Money.
+          </p>
           <form className="space-y-3" onSubmit={async (event) => {
             event.preventDefault();
             setIsSubmitting(true); setPayoutMessage('');
@@ -117,32 +131,34 @@ export default function PortalPointsPage() {
             } finally { setIsSubmitting(false); }
           }}>
             <div className="grid grid-cols-2 gap-2">
-              <input aria-label="Montant en USD" type="number" min="1" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant USD" className="h-11 rounded-xl border border-neutral-200 px-3 text-sm" />
-              <select aria-label="Opérateur" value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)} className="h-11 rounded-xl border border-neutral-200 px-3 text-sm">
+              <input aria-label="Montant en USD" type="number" min="1" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant USD" className="rounded-xl" />
+              <select aria-label="Opérateur" value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)} className="rounded-xl">
                 <option value="VODACOM_MPESA_COD">M-Pesa</option><option value="AIRTEL_COD">Airtel Money</option><option value="ORANGE_COD">Orange Money</option>
               </select>
             </div>
-            <input aria-label="Numéro Mobile Money" required pattern="^243[0-9]{9}$" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="243XXXXXXXXX" className="h-11 w-full rounded-xl border border-neutral-200 px-3 text-sm" />
-            <button disabled={isSubmitting} className="h-11 w-full rounded-xl bg-[#b45309] text-sm font-bold text-white disabled:opacity-50">{isSubmitting ? 'Envoi…' : 'Demander le retrait'}</button>
-            {payoutMessage && <p className="text-xs text-neutral-600">{payoutMessage}</p>}
+            <input aria-label="Numéro Mobile Money" required pattern="^243[0-9]{9}$" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="243XXXXXXXXX" className="rounded-xl" />
+            <button disabled={isSubmitting} className="flex h-11 w-full items-center justify-center rounded-xl bg-[#b45309] text-sm font-bold text-white transition-colors duration-150 hover:bg-[#92400e] disabled:opacity-50">
+              {isSubmitting ? 'Envoi…' : 'Demander le retrait'}
+            </button>
+            {payoutMessage && <p className="text-xs text-text-muted animate-fade-in">{payoutMessage}</p>}
           </form>
         </div>
 
-        {/* Transactions list */}
+        {/* Historique */}
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-400 mb-3">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-text-subtle">
             Historique des transactions
           </p>
 
-          <div className="flex gap-2 mb-4">
+          <div className="mb-4 flex gap-2">
             {FILTERS.map((f) => (
               <button
                 key={f.value}
                 type="button"
                 onClick={() => setTypeFilter(f.value)}
                 className={cn(
-                  'rounded-full px-4 py-1.5 text-xs font-semibold transition-colors',
-                  typeFilter === f.value ? 'bg-[#0A1628] text-white' : 'bg-neutral-100 text-neutral-600',
+                  'rounded-full px-4 py-1.5 text-xs font-semibold transition-colors duration-150',
+                  typeFilter === f.value ? 'bg-[#0A1628] text-white' : 'bg-bg-inset text-text-muted hover:bg-border',
                 )}
               >
                 {f.label}
@@ -152,39 +168,43 @@ export default function PortalPointsPage() {
 
           {isLoading && (
             <div className="space-y-3">
-              {[1, 2, 3, 4].map(i => <div key={i} className="h-20 rounded-xl animate-pulse bg-neutral-200" />)}
+              {[1, 2, 3, 4].map(i => <div key={i} className="skeleton h-16 rounded-2xl" />)}
             </div>
           )}
 
           {!isLoading && transactions.length === 0 && (
-            <div className="py-12 text-center">
-              <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mx-auto mb-3">
-                <Wallet size={20} className="text-neutral-400" />
+            <div className="rounded-2xl border border-dashed border-border py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-bg-inset">
+                <Wallet size={20} className="text-text-subtle" />
               </div>
-              <p className="text-sm font-medium text-neutral-600 mb-1">Aucune transaction</p>
-              <p className="text-xs text-neutral-500">
+              <p className="mb-0.5 text-sm font-medium text-text">Aucune transaction</p>
+              <p className="text-xs text-text-muted">
                 Vous n'avez pas encore de {typeFilter === 'gains' ? 'gains' : typeFilter === 'retraits' ? 'retraits' : 'transactions'}.
               </p>
             </div>
           )}
 
-          {transactions.map((tx) => (
-            <TransactionCard key={tx.id} tx={tx} />
-          ))}
+          {!isLoading && transactions.length > 0 && (
+            <div className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
+              {transactions.map((tx) => (
+                <TransactionRow key={tx.id} tx={tx} />
+              ))}
+            </div>
+          )}
 
           {hasNextPage && (
             <button
               type="button"
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="w-full h-11 mt-2 rounded-xl border-2 border-neutral-100 text-sm font-semibold text-[#0A1628] flex items-center justify-center gap-2 hover:bg-neutral-50 transition-colors"
+              className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-primary transition-colors duration-150 hover:bg-bg"
             >
               {isFetchingNextPage && <Loader2 size={14} className="animate-spin" />}
               Charger plus
             </button>
           )}
           {!hasNextPage && transactions.length > 0 && (
-            <p className="text-center text-xs font-medium text-neutral-400 py-4">Fin de l'historique.</p>
+            <p className="py-4 text-center text-xs font-medium text-text-subtle">Fin de l'historique.</p>
           )}
         </div>
 

@@ -11,11 +11,25 @@ interface PointsCardProps {
   niveauxConfig: NiveauConfig[];
 }
 
-const NIVEAU_STYLE: Record<LegacyNiveau, { gradient: string; border: string }> = {
-  BRONZE:  { gradient: 'from-amber-50 to-amber-100',   border: 'border-l-amber-500' },
-  ARGENT:  { gradient: 'from-gray-50 to-gray-100',     border: 'border-l-gray-400'  },
-  OR:      { gradient: 'from-yellow-50 to-yellow-100', border: 'border-l-yellow-500'},
-  PLATINE: { gradient: 'from-purple-50 to-purple-100', border: 'border-l-violet-500'},
+const NIVEAU_LABEL: Record<LegacyNiveau, string> = {
+  BRONZE: 'Bronze',
+  ARGENT: 'Argent',
+  OR: 'Or',
+  PLATINE: 'Platine',
+};
+
+const NIVEAU_CHIP: Record<LegacyNiveau, string> = {
+  BRONZE:  'bg-amber-100 text-amber-800',
+  ARGENT:  'bg-slate-200 text-slate-600',
+  OR:      'bg-yellow-100 text-yellow-700',
+  PLATINE: 'bg-violet-100 text-[#4A148C]',
+};
+
+const NIVEAU_BAR: Record<LegacyNiveau, string> = {
+  BRONZE:  'bg-amber-500',
+  ARGENT:  'bg-slate-400',
+  OR:      'bg-yellow-500',
+  PLATINE: 'bg-violet-500',
 };
 
 export function PointsCard({
@@ -25,10 +39,9 @@ export function PointsCard({
   prochainNiveau,
   niveauxConfig,
 }: PointsCardProps) {
-  const { gradient, border } = NIVEAU_STYLE[niveauFidelite] ?? NIVEAU_STYLE.BRONZE;
   const isPlatine = niveauFidelite === 'PLATINE';
 
-  // Progress percentage
+  // Pourcentage de progression vers le palier suivant
   let pct = 100;
   if (!isPlatine && prochainNiveau) {
     const currentLevel = niveauxConfig
@@ -39,49 +52,51 @@ export function PointsCard({
     pct = span > 0 ? Math.min(100, Math.round(((pointsActuels - base) / span) * 100)) : 0;
   }
 
-  const barColor: Record<LegacyNiveau, string> = {
-    BRONZE:  'bg-amber-500',
-    ARGENT:  'bg-gray-400',
-    OR:      'bg-yellow-500',
-    PLATINE: 'bg-violet-500',
-  };
-
   return (
     <div
-      className={cn(
-        'bg-gradient-to-br rounded-xl p-5 shadow-md border-l-4',
-        gradient,
-        border,
-      )}
+      className="rounded-2xl border border-border bg-bg-card p-4 shadow-card"
       data-testid="points-card"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 mb-2">
-        Vos Points
-      </p>
-
-      <div className="flex items-center gap-3 mb-3">
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/70 text-primary-accent border border-primary-accent/30">
-          {niveauFidelite}
+      <div className="flex items-center justify-between">
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide',
+            NIVEAU_CHIP[niveauFidelite] ?? NIVEAU_CHIP.BRONZE,
+          )}
+        >
+          {NIVEAU_LABEL[niveauFidelite] ?? niveauFidelite}
         </span>
-        <span className="text-4xl font-bold text-[#1E3A5F]" aria-label={`${pointsActuels} points`}>
-          {pointsActuels.toLocaleString('fr')}
-          <span className="text-base font-medium text-neutral-500 ml-1">pts</span>
-        </span>
+        {remisePct > 0 && (
+          <span className="text-xs font-semibold text-emerald-700">
+            Remise applicable : {remisePct}%
+          </span>
+        )}
       </div>
 
-      {/* Progress bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-xs text-neutral-500 mb-1">
-          <span>
+      <p className="mt-2.5 text-[32px] font-bold leading-none tabular-nums text-primary" aria-label={`${pointsActuels} points`}>
+        {pointsActuels.toLocaleString('fr')}
+        <span className="ml-1.5 text-sm font-medium text-text-subtle">pts</span>
+      </p>
+
+      {/* Progression vers le palier suivant */}
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between text-xs">
+          <span className="text-text-muted">
             {isPlatine
-              ? '🏆 Niveau maximum atteint !'
-              : `Progression vers ${prochainNiveau?.nom ?? '—'}`}
+              ? 'Niveau maximum atteint'
+              : prochainNiveau
+                ? `Vers ${prochainNiveau.nom}`
+                : 'Progression'}
           </span>
-          {!isPlatine && <span>{pct}%</span>}
+          {!isPlatine && prochainNiveau && (
+            <span className="font-semibold tabular-nums text-primary">
+              {prochainNiveau.pointsManquants.toLocaleString('fr')} pts
+            </span>
+          )}
         </div>
-        <div className="h-2.5 bg-white/60 rounded-full overflow-hidden">
+        <div className="h-2 overflow-hidden rounded-full bg-bg-inset">
           <div
-            className={cn('h-full rounded-full transition-all', barColor[niveauFidelite])}
+            className={cn('h-full rounded-full transition-all duration-500 ease-out-quart', NIVEAU_BAR[niveauFidelite] ?? NIVEAU_BAR.BRONZE)}
             style={{ width: `${pct}%` }}
             role="progressbar"
             aria-valuenow={pct}
@@ -90,24 +105,17 @@ export function PointsCard({
           />
         </div>
         {!isPlatine && prochainNiveau && (
-          <p className="text-xs text-neutral-500 mt-1">
-            Il vous manque{' '}
-            <span className="font-semibold">{prochainNiveau.pointsManquants.toLocaleString('fr')} pts</span>
-            {' '}pour atteindre <span className="font-semibold">{prochainNiveau.nom}</span>
+          <p className="mt-1.5 text-xs text-text-subtle">
+            Encore <span className="font-semibold text-text">{prochainNiveau.pointsManquants.toLocaleString('fr')} pts</span> pour atteindre{' '}
+            <span className="font-semibold text-text">{prochainNiveau.nom}</span>
           </p>
         )}
         {niveauFidelite === 'BRONZE' && !isPlatine && (
-          <p className="text-xs text-amber-700 mt-1 font-medium">
-            Atteignez 500 pts pour débloquer votre première remise !
+          <p className="mt-1.5 text-xs font-medium text-amber-700">
+            Atteignez 500 pts pour débloquer votre première remise.
           </p>
         )}
       </div>
-
-      {remisePct > 0 && (
-        <p className="text-sm font-semibold text-green-700 mt-1">
-          Remise applicable sur vos achats : {remisePct}%
-        </p>
-      )}
     </div>
   );
 }

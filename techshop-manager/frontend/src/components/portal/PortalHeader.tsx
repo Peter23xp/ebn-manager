@@ -28,16 +28,19 @@ export function PortalHeader({
   };
 
   return (
-    <header
-      className="flex items-center justify-between h-14 px-4 flex-shrink-0"
-      style={{ background: '#1E3A5F' }}
-    >
-      <div className="w-8">
+    <header className="relative flex items-center justify-between h-14 px-3 flex-shrink-0 bg-[#0A1628]">
+      {/* Fini décoratif : liseré lumineux sous la barre */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#b45309]/60 to-transparent"
+      />
+
+      <div className="w-10 flex items-center">
         {showBack && (
           <button
             type="button"
             onClick={handleBack}
-            className="text-white/80 hover:text-white p-1"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Retour"
           >
             <ChevronLeft size={22} />
@@ -45,16 +48,18 @@ export function PortalHeader({
         )}
       </div>
 
-      <span className="text-white font-semibold text-sm">{title}</span>
+      <span className="text-white font-semibold text-sm tracking-wide">{title}</span>
 
-      <button
-        type="button"
-        onClick={handleLogout}
-        className="text-white/80 hover:text-white p-1"
-        aria-label="Se déconnecter"
-      >
-        <LogOut size={18} />
-      </button>
+      <div className="w-10 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          aria-label="Se déconnecter"
+        >
+          <LogOut size={17} />
+        </button>
+      </div>
     </header>
   );
 }

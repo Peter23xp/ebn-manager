@@ -342,6 +342,7 @@ export class PortalService {
 
     const mappedFilleuls = filteredFilleuls.map((f) => ({
       id: f.id,
+      parrainId: f.parrainId,
       prenom: f.client.prenom,
       nom: f.client.nom,
       statut: f.statut,

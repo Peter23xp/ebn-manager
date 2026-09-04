@@ -6,6 +6,7 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { HelmetProvider } from 'react-helmet-async';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -94,11 +95,13 @@ function makeQC() {
 function renderHome(user = CLIENT_USER) {
   Object.assign(mockAuthStore, { user, isAuthenticated: true });
   return render(
-    <QueryClientProvider client={makeQC()}>
-      <MemoryRouter initialEntries={['/portal/home']}>
-        <PortalHomePage />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <HelmetProvider>
+      <QueryClientProvider client={makeQC()}>
+        <MemoryRouter initialEntries={['/portal/home']}>
+          <PortalHomePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </HelmetProvider>,
   );
 }
 
@@ -123,11 +126,13 @@ describe('PortalLoginPage', () => {
   function renderLogin() {
     Object.assign(mockAuthStore, { user: null, isAuthenticated: false });
     return render(
-      <QueryClientProvider client={makeQC()}>
-        <MemoryRouter>
-          <PortalLoginPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
+      <HelmetProvider>
+        <QueryClientProvider client={makeQC()}>
+          <MemoryRouter>
+            <PortalLoginPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </HelmetProvider>,
     );
   }
 
@@ -232,12 +237,12 @@ describe('PortalHomePage', () => {
       expect(screen.getByText('EBN Network')).toBeInTheDocument();
     });
 
-    test('8 — PortalNav : 4 onglets Home, Achats, Points, Filleuls', async () => {
+    test('8 — PortalNav : 4 onglets Accueil, Achats, Commissions, Filleuls', async () => {
       mockGetHomeData.mockResolvedValue(HOME_DATA);
       renderHome();
       expect(screen.getByText('Accueil')).toBeInTheDocument();
       expect(screen.getByText('Achats')).toBeInTheDocument();
-      expect(screen.getByText('Points')).toBeInTheDocument();
+      expect(screen.getByText('Commissions')).toBeInTheDocument();
       expect(screen.getByText('Filleuls')).toBeInTheDocument();
     });
 
@@ -260,7 +265,8 @@ describe('PortalHomePage', () => {
       mockGetHomeData.mockResolvedValue(HOME_DATA);
       renderHome();
       await waitFor(() => expect(screen.getByTestId('points-card')).toBeInTheDocument());
-      expect(screen.getByText(/or/i)).toBeInTheDocument();
+      // Badge de niveau "Or" : match exact pour éviter les sous-chaînes "or" ailleurs
+      expect(screen.getByText('Or')).toBeInTheDocument();
       expect(screen.getByText(/2\s*963/)).toBeInTheDocument();
     });
 

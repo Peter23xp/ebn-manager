@@ -163,6 +163,7 @@ export interface CreateWithdrawalRequestInput {
 
 export interface PortalFilleul {
   id: string;
+  parrainId?: string;
   prenom: string;
   nom: string;
   statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';

@@ -89,7 +89,17 @@
       "Bash(xargs grep -l \"nodemailer\")",
       "Bash(git commit -m 'docs: add design spec for 404 NotFoundPage *)",
       "Bash(echo \"--- tsc exit: $?\")",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(node ../.claude/skills/impeccable/scripts/load-context.mjs)",
+      "Bash(git stash *)",
+      "Bash(npx vite *)",
+      "Bash(grep -B1 \"0m<\\\\|0m$\")",
+      "Bash(sed -n '/Found multiple/,/\\(If this is intentional/p')",
+      "Read(//tmp/**)",
+      "Bash(grep -v \"test\\\\|//\")",
+      "Bash(node -e \"console.log\\('vite cache check'\\)\")",
+      "Bash(rm -rf node_modules/.vite/vitest)",
+      "Bash(grep -B30 \"0mOr$\")"
     ]
   }
 }
