@@ -36,7 +36,13 @@ export class DashboardService {
 
   private async resolveSiteIds(role: Role, userSiteId: string | undefined, querySiteId?: string): Promise<string[] | null> {
     if (role === Role.AGENT || role === Role.GERANT || role === Role.FORMATEUR) {
-      return userSiteId ? [userSiteId] : null;
+      if (!userSiteId) {
+        throw new ForbiddenException({
+          code: 'ERR_SITE_REQUIRED',
+          message: 'Votre compte doit être rattaché à un site. Contactez votre administrateur.',
+        });
+      }
+      return [userSiteId];
     }
     if (querySiteId) return [querySiteId];
     // null = all sites

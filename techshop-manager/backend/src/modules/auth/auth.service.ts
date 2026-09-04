@@ -79,6 +79,19 @@ export class AuthService {
       });
     }
 
+    // Validation : GERANT, AGENT et FORMATEUR doivent avoir un site attribué
+    if (
+      (user.role === "GERANT" || user.role === "AGENT" || user.role === "FORMATEUR") &&
+      !user.siteId
+    ) {
+      throw new UnauthorizedException({
+        error: {
+          code: "SITE_REQUIRED",
+          message: "Votre compte doit être rattaché à un site. Contactez votre administrateur.",
+        },
+      });
+    }
+
     await this.prisma.utilisateur.update({
       where: { id: user.id },
       data: {

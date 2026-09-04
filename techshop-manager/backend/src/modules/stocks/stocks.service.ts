@@ -49,35 +49,79 @@ export class StocksService {
   }) {
     const { siteId, produitId, categorie, search, statut, alerteOnly, page = 1, limit = 50, sortBy, sortOrder = 'asc' } = query;
 
-    const where: any = { produit: { actif: true } };
-    if (siteId) where.siteId = siteId;
-    if (produitId) where.produitId = produitId;
-    if (categorie) where.produit = { ...where.produit, categorie };
+    // Construction du filtre pour les produits
+    const produitWhere: any = { actif: true };
+    if (produitId) produitWhere.id = produitId;
+    if (categorie) produitWhere.categorie = categorie;
     if (search) {
-      where.produit = {
-        ...where.produit,
-        OR: [
-          { nom: { contains: search, mode: 'insensitive' } },
-          { sku: { contains: search, mode: 'insensitive' } },
-        ],
-      };
+      produitWhere.OR = [
+        { nom: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    const allStocks = await this.prisma.stockSite.findMany({
-      where,
+    // Récupérer TOUS les produits actifs (comme dans searchProduits)
+    const produits = await this.prisma.produit.findMany({
+      where: produitWhere,
       include: {
-        produit: {
-          select: { id: true, nom: true, sku: true, categorie: true, prixVente: true, actif: true },
+        stockSites: {
+          where: siteId ? { siteId } : {},
+          select: { 
+            siteId: true,
+            quantite: true, 
+            seuilAlerte: true,
+            updatedAt: true,
+            site: { select: { id: true, nom: true, ville: true } },
+          },
         },
-        site: { select: { id: true, nom: true, ville: true } },
       },
-      orderBy: sortBy === 'nom'
-        ? [{ produit: { nom: sortOrder } }]
-        : [{ quantite: sortOrder }],
+      orderBy: sortBy === 'nom' ? { nom: sortOrder } : undefined,
     });
 
-    let filtered = allStocks.filter((s) => s.produit.actif);
+    // Mapper les produits avec leur stock par site
+    let allStocks = produits.flatMap((p) => {
+      // Si le produit n'a pas de stock sur les sites demandés, on l'affiche quand même avec stock = 0
+      if (p.stockSites.length === 0 && siteId) {
+        return [{
+          produitId: p.id,
+          sku: p.sku,
+          produitNom: p.nom,
+          categorie: p.categorie,
+          prixVente: Number(p.prixVente),
+          siteId: siteId,
+          siteNom: '—',
+          quantite: 0,
+          seuilAlerte: 5,
+          statut: 'RUPTURE',
+          updatedAt: new Date().toISOString(),
+        }];
+      }
+      
+      return p.stockSites.map((stock) => {
+        const stockStatut = stock.quantite === 0 ? 'RUPTURE' : stock.quantite <= stock.seuilAlerte ? 'ALERTE' : 'OK';
+        return {
+          produitId: p.id,
+          sku: p.sku,
+          produitNom: p.nom,
+          categorie: p.categorie,
+          prixVente: Number(p.prixVente),
+          siteId: stock.siteId,
+          siteNom: stock.site.nom,
+          quantite: stock.quantite,
+          seuilAlerte: stock.seuilAlerte,
+          statut: stockStatut,
+          updatedAt: stock.updatedAt.toISOString(),
+        };
+      });
+    });
 
+    // Tri par quantité si demandé
+    if (sortBy === 'quantite') {
+      allStocks.sort((a, b) => sortOrder === 'asc' ? a.quantite - b.quantite : b.quantite - a.quantite);
+    }
+
+    // Filtrage par statut
+    let filtered = allStocks;
     if (alerteOnly) {
       filtered = filtered.filter((s) => s.quantite <= s.seuilAlerte);
     }
@@ -94,21 +138,7 @@ export class StocksService {
 
     const total = filtered.length;
     const { skip, take } = paginate(page, limit);
-    const page_data = filtered.slice(skip, skip + take);
-
-    const stocks = page_data.map((s) => ({
-      produitId: s.produitId,
-      sku: s.produit.sku,
-      produitNom: s.produit.nom,
-      categorie: s.produit.categorie,
-      prixVente: Number(s.produit.prixVente),
-      siteId: s.siteId,
-      siteNom: s.site.nom,
-      quantite: s.quantite,
-      seuilAlerte: s.seuilAlerte,
-      statut: s.quantite === 0 ? 'RUPTURE' : s.quantite <= s.seuilAlerte ? 'ALERTE' : 'OK',
-      updatedAt: s.updatedAt.toISOString(),
-    }));
+    const stocks = filtered.slice(skip, skip + take);
 
     return {
       stocks,

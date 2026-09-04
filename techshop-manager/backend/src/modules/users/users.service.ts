@@ -64,6 +64,15 @@ export class UsersService {
       });
     }
 
+    // Validation : siteId obligatoire pour GERANT, AGENT et FORMATEUR
+    const rolesRequiringSite = [Role.GERANT, Role.AGENT, Role.FORMATEUR] as const;
+    if (rolesRequiringSite.some(r => r === dto.role) && !dto.siteId) {
+      throw new BadRequestException({
+        code: 'ERR_VALIDATION',
+        message: 'Le site est obligatoire pour les rôles GERANT, AGENT et FORMATEUR',
+      });
+    }
+
     // Vérifier que le site existe si fourni
     if (dto.siteId) {
       const site = await this.prisma.site.findUnique({ where: { id: dto.siteId } });
@@ -130,6 +139,17 @@ export class UsersService {
       if (existing) {
         throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Cet email est déjà utilisé' });
       }
+    }
+
+    // Validation : si on change le rôle vers GERANT/AGENT/FORMATEUR, siteId doit être fourni
+    const finalRole = dto.role ?? user.role;
+    const finalSiteId = dto.siteId !== undefined ? dto.siteId : user.siteId;
+    const rolesRequiringSite = [Role.GERANT, Role.AGENT, Role.FORMATEUR] as const;
+    if (rolesRequiringSite.some(r => r === finalRole) && !finalSiteId) {
+      throw new BadRequestException({
+        code: 'ERR_VALIDATION',
+        message: 'Le site est obligatoire pour les rôles GERANT, AGENT et FORMATEUR',
+      });
     }
 
     if (dto.siteId) {
