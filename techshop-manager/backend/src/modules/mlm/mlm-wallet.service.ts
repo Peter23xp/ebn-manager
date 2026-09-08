@@ -451,6 +451,38 @@ export class MlmWalletService implements OnModuleInit {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Calculer le montant total des commissions
+      const montantTotal = commissions.reduce((sum, c) => sum + Number(c.montant), 0);
+
+      // Débiter le portefeuille
+      const portefeuille = await tx.portefeuille.findUnique({
+        where: { membreId: request.membreId },
+        select: { id: true, soldeDisponible: true },
+      });
+
+      if (!portefeuille) {
+        throw new NotFoundException(`Portefeuille introuvable pour le membre ${request.membreId}`);
+      }
+
+      const montantDecimal = new Prisma.Decimal(montantTotal);
+
+      await tx.portefeuille.update({
+        where: { id: portefeuille.id },
+        data: {
+          soldeDisponible: { decrement: montantDecimal },
+        },
+      });
+
+      await tx.transactionPortefeuille.create({
+        data: {
+          portefeuilleId: portefeuille.id,
+          type: 'DEBIT',
+          montant: montantDecimal,
+          description: `Retrait approuvé — ${commissionIds.length} commission(s)`,
+          referenceId: withdrawalRequestId,
+        },
+      });
+
       // Marquer les commissions comme payées
       await tx.commission.updateMany({
         where: { id: { in: commissionIds } },

@@ -481,11 +481,41 @@ export class MlmMatrixService {
     if (commission.statut !== 'VALIDEE')
       throw new BadRequestException(`La commission doit être validée avant d'être marquée comme payée`);
 
-    const updated = await this.prisma.commission.update({
-      where: { id: commissionId },
-      data: { statut: 'PAYEE', payeeAt: new Date() },
-    });
-    return { ...updated, montant: Number(updated.montant) };
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.commission.update({
+        where: { id: commissionId },
+        data: { statut: 'PAYEE', payeeAt: new Date() },
+      });
+
+      // Débiter le portefeuille maintenant que la commission est payée
+      const portefeuille = await tx.portefeuille.findUnique({
+        where: { membreId: commission.membreId },
+        select: { id: true, soldeDisponible: true },
+      });
+
+      if (portefeuille) {
+        const montantDecimal = new Prisma.Decimal(Number(commission.montant));
+        
+        await tx.portefeuille.update({
+          where: { id: portefeuille.id },
+          data: {
+            soldeDisponible: { decrement: montantDecimal },
+          },
+        });
+
+        await tx.transactionPortefeuille.create({
+          data: {
+            portefeuilleId: portefeuille.id,
+            type: 'DEBIT',
+            montant: montantDecimal,
+            description: `Paiement commission — ${commission.description}`,
+            referenceId: commission.id,
+          },
+        });
+      }
+
+      return { ...updated, montant: Number(updated.montant) };
+    }, { timeout: 30000, maxWait: 10000 });
   }
 
   async cancelCommission(commissionId: string, notes?: string): Promise<any> {
