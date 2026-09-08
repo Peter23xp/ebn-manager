@@ -29,6 +29,11 @@ enum StatutClient {
   ARCHIVE
 }
 
+enum ClaimStatut {
+  EN_ATTENTE
+  LIE
+}
+
 enum EtapeOnboarding {
   RECIT
   FORMATION
@@ -259,6 +264,8 @@ model Client {
   membre            Membre?
   parrainClient     Client?        @relation("ClientParrainage", fields: [parrainClientId], references: [id])
   filleulsParrainage Client[]      @relation("ClientParrainage")
+  filleulClaim    ParrainClaim?  @relation("ClaimFilleul")
+  parrainClaims   ParrainClaim[] @relation("ClaimParrain")
 
   @@map("clients")
 }
@@ -856,6 +863,28 @@ model Commission {
   @@index([membreId])
   @@index([statut])
   @@map("commissions")
+}
+
+// ── Réclamation de filleul : parrain non encore activé ──────────────
+// Créé quand un filleul est enregistré avec un parrain EN_COURS.
+// Passé à LIE quand le parrain active son compte et confirme avec le
+// code simplifié de sa facture d'activation (voir MlmClaimService).
+model ParrainClaim {
+  id                    String      @id @default(uuid())
+  filleulClientId       String      @unique
+  parrainClientId       String
+  statut                ClaimStatut @default(EN_ATTENTE)
+  telephoneParrainSaisi String
+  factureReclamee       String?
+  confirmedById         String?
+  createdAt             DateTime    @default(now())
+  confirmedAt           DateTime?
+
+  filleul Client @relation("ClaimFilleul", fields: [filleulClientId], references: [id])
+  parrain Client @relation("ClaimParrain", fields: [parrainClientId], references: [id])
+
+  @@index([parrainClientId, statut])
+  @@map("parrain_claims")
 }
 
 // ── Withdrawal Requests (Demandes de retrait) ─────────────────────
