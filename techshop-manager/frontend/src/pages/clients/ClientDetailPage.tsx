@@ -41,7 +41,7 @@ const ETAPE_ROUTE: Record<string, string> = {
   RECIT:      'recit',
   FORMATION:  'formation',
   FICHE:      'fiche',
-  ACTIVATION: 'activation',
+  ACTIVATION: 'activate',
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -177,9 +177,19 @@ export default function ClientDetailPage() {
     }, { replace: true });
   };
 
-  const missingStep = client?.statut === 'EN_COURS'
-    ? (client.onboardingEtapes ?? []).find((e) => e.statut !== 'COMPLETE')?.etape ?? null
-    : null;
+  // Étape manquante — progression RECIT → FICHE → ACTIVATION (comme la file
+  // d'attente). ⚠️ La step ACTIVATION n'existe en base qu'UNE FOIS l'achat fait :
+  // ne PAS chercher "statut !== COMPLETE" dans le tableau, sinon le client dont
+  // RECIT+FICHE sont complètes reste sans CTA et ne peut plus atteindre l'activation.
+  const missingStep = (() => {
+    if (client?.statut !== 'EN_COURS') return null;
+    const done = new Set(
+      (client.onboardingEtapes ?? []).filter((e) => e.statut === 'COMPLETE').map((e) => e.etape),
+    );
+    if (!done.has('RECIT')) return 'RECIT';
+    if (!done.has('FICHE')) return 'FICHE';
+    return 'ACTIVATION';
+  })();
 
   // ── Loading ──────────────────────────────────────────────────────
   if (isLoading) return <DetailSkeleton />;

@@ -14,11 +14,18 @@ export function invoiceCodeSeq(numeroVente: string): string {
   return String(seq).padStart(4, '0');
 }
 
-/** Vrai si le code saisi match la facture, en suffixe (0047) ou forme complète (GOM-202609-0047) */
+/** Vrai si le code saisi match la facture : suffixe (0047 / 47), forme complète
+ * (GOM-202609-0047 / gom2026090047) ou les chiffres sans le préfixe de site (2026090047) */
 export function matchesInvoiceCode(input: string, numeroVente: string): boolean {
   if (!input || !input.trim()) return false;
   const norm = normalizeInvoiceCode(input);
-  return norm === normalizeInvoiceCode(numeroVente) || norm === invoiceCodeSeq(numeroVente);
+  const full = normalizeInvoiceCode(numeroVente);          // GOM2026090047
+  const digitsOnly = full.replace(/^[A-Z]+/, '');          // 2026090047
+  const seq = invoiceCodeSeq(numeroVente);                 // 0047
+  if (norm === full || norm === digitsOnly || norm === seq) return true;
+  // tolérance au zéro de tête sur le suffixe : '47' == '0047'
+  const inputDigits = norm.replace(/\D/g, '');
+  return !!inputDigits && inputDigits.length <= 4 && Number(inputDigits) === Number(seq);
 }
 
 export interface ParrainResolution {

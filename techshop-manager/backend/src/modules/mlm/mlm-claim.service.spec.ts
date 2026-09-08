@@ -17,12 +17,16 @@ describe('code facture helpers', () => {
     expect(invoiceCodeSeq('sans-tirets')).toBe('0000');
   });
 
-  it('matchesInvoiceCode accepte le suffixe (0047) et la forme complète', () => {
+  it('matchesInvoiceCode accepte suffixe, forme complète, sans préfixe site et zéros omis', () => {
     expect(matchesInvoiceCode('0047', 'GOM-202609-0047')).toBe(true);
+    expect(matchesInvoiceCode('47', 'GOM-202609-0047')).toBe(true);   // zéros de tête omis
+    expect(matchesInvoiceCode('0047', 'EBN-202609-0047')).toBe(true); // autre code de site
     expect(matchesInvoiceCode('GOM-202609-0047', 'GOM-202609-0047')).toBe(true);
     expect(matchesInvoiceCode('gom2026090047', 'GOM-202609-0047')).toBe(true);
+    expect(matchesInvoiceCode('202609-0047', 'GOM-202609-0047')).toBe(true); // sans préfixe site
+    expect(matchesInvoiceCode(' 0047 ', 'GOM-202609-0047')).toBe(true);      // espaces
     expect(matchesInvoiceCode('0048', 'GOM-202609-0047')).toBe(false);
-    expect(matchesInvoiceCode('202609-0047', 'GOM-202609-0047')).toBe(false);
+    expect(matchesInvoiceCode('123456', 'GOM-202609-0047')).toBe(false);
     expect(matchesInvoiceCode('', 'GOM-202609-0047')).toBe(false);
   });
 });
