@@ -56,7 +56,7 @@ export class PortalService {
   async getPortalData(clientId: string) {
     const membre = await this.ensureMember(clientId);
 
-    const [client, dernierVentes] = await Promise.all([
+    const [client, dernierVentes, filleulsEnAttenteCount] = await Promise.all([
       this.prisma.client.findUnique({
         where: { id: clientId },
         select: {
@@ -78,6 +78,9 @@ export class PortalService {
           },
         },
       }),
+      this.prisma.parrainClaim.count({
+        where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
+      }),
     ]);
 
     if (!client) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
@@ -96,6 +99,7 @@ export class PortalService {
       niveauxConfig: [],
       nbFilleulsActifs: membre?.filleuls.filter((f) => f.statut === 'ACTIF').length ?? 0,
       nbFilleulsTotal: membre?.filleuls.length ?? 0,
+      filleulsEnAttenteCount,
       dernierAchats,
     };
   }

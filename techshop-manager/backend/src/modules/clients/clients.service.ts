@@ -317,6 +317,12 @@ export class ClientsService implements OnModuleInit {
           },
           orderBy: { createdAt: 'asc' },
         },
+        filleulClaim: {
+          select: {
+            statut: true,
+            parrain: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
+          },
+        },
 
         ventes: {
           select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
@@ -364,6 +370,12 @@ export class ClientsService implements OnModuleInit {
               },
               orderBy: { createdAt: 'asc' },
             },
+            filleulClaim: {
+              select: {
+                statut: true,
+                parrain: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
+              },
+            },
             ventes: {
               select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
               orderBy: { createdAt: 'desc' },
@@ -377,7 +389,19 @@ export class ClientsService implements OnModuleInit {
       }
     }
 
-    const { siteInscription, membre, parrainClient, ...rest } = currentClient;
+    const { siteInscription, membre, parrainClient, filleulClaim, ...rest } = currentClient;
+    // Réclamation en attente : visible tant que le lien MLM n'est pas effectif
+    const parrainClaim = filleulClaim && !membre?.parrainId
+      ? {
+          statut: filleulClaim.statut,
+          parrain: filleulClaim.parrain
+            ? {
+                ...filleulClaim.parrain,
+                nomComplet: `${filleulClaim.parrain.prenom} ${filleulClaim.parrain.nom}`,
+              }
+            : null,
+        }
+      : null;
     const parrain = membre?.parrain?.client
       ? {
           id: membre.parrain.client.id,
@@ -404,6 +428,7 @@ export class ClientsService implements OnModuleInit {
       site: siteInscription,
       membre,
       parrain,
+      parrainClaim,
     };
   }
 
