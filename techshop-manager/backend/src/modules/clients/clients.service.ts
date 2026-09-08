@@ -1367,7 +1367,18 @@ export class ClientsService implements OnModuleInit {
       }
     }
 
-    return this.findOne(activatedClient.id);
+    // Vérifier s'il y a des filleuls en attente à réclamer (info uniquement, pas de blocage)
+    const nbPendingClaims = await this.prisma.parrainClaim.count({
+      where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
+    });
+
+    const result = await this.findOne(activatedClient.id);
+    
+    // Ajouter l'info des claims pendants dans la réponse
+    return {
+      ...result,
+      ...(nbPendingClaims > 0 ? { pendingClaimsCount: nbPendingClaims } : {}),
+    };
   }
 
   async getOnboardingQueue(siteId?: string) {

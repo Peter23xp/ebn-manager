@@ -332,6 +332,25 @@ export default function OnboardingActivationPage() {
         nom:            c.nom,
         telephone:      c.telephone,
       });
+      
+      // Toast informatif si des filleuls sont en attente de réclamation
+      if (c.pendingClaimsCount && c.pendingClaimsCount > 0) {
+        setTimeout(() => {
+          toast(
+            `💡 ${c.prenom} a ${c.pendingClaimsCount} filleul(s) en attente. Rendez-vous sur la page "Réclamations MLM" pour les rattacher.`,
+            {
+              duration: 8000,
+              icon: '👥',
+              style: {
+                background: '#3b82f6',
+                color: '#fff',
+                fontWeight: '500',
+              },
+            }
+          );
+        }, 1500);
+      }
+      
       qc.invalidateQueries({ queryKey: ['client', id] });
       qc.invalidateQueries({ queryKey: ['clients'] });
       qc.invalidateQueries({ queryKey: ['stocks'] });
