@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -58,7 +59,7 @@ function StatCard({ label, value, icon: Icon, color, sub }: {
 
 // ── Toast ──────────────────────────────────────────────────────────
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
-  return (
+  return createPortal(
     <div role="alert" className={cn(
       'fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white max-w-sm',
       ok ? 'bg-success' : 'bg-danger',
@@ -68,7 +69,8 @@ function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: ()
       <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100">
         <X size={14} />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -80,7 +82,7 @@ function ConfirmDialog({
   danger?: boolean; onConfirm: () => void; onCancel: () => void; loading?: boolean;
 }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
         <h3 className="font-bold text-primary text-base">{title}</h3>
@@ -96,7 +98,8 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -148,7 +151,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       role="dialog" aria-modal="true" aria-label="Créer un utilisateur">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
@@ -246,7 +249,8 @@ function CreateUserDialog({ open, onClose, onCreated }: {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -295,7 +299,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
     },
   });
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       role="dialog"
@@ -385,7 +389,8 @@ function EditUserDialog({ user, onClose, onSaved }: {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
