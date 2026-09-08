@@ -483,8 +483,10 @@ export class ClientsService implements OnModuleInit {
   }
 
   /**
-   * Recherche un parrain actif par matricule (codeParrain) OU par prénom/nom.
-   * Utilisé par le formulaire d'inscription pour la saisie assistée.
+   * Recherche un parrain (ACTIF ou en cours d'onboarding) par matricule,
+   * codeParrain, prénom/nom OU téléphone. Un parrain EN_COURS n'a pas encore
+   * de codeParrain : c'est son téléphone qui sert d'identifiant de lien
+   * (résolu par MlmClaimService.resolveParrain → claim en attente).
    */
   async searchParrain(q: string) {
     if (!q || q.trim().length < 2) return { results: [] };
@@ -492,22 +494,24 @@ export class ClientsService implements OnModuleInit {
     const term = q.trim();
     const clients = await this.prisma.client.findMany({
       where: {
-        statut: StatutClient.ACTIF,
+        statut: { in: [StatutClient.ACTIF, StatutClient.EN_COURS] },
         OR: [
           { membre:      { matricule: { contains: term, mode: 'insensitive' } } },
           { codeParrain: { contains: term, mode: 'insensitive' } },
           { prenom:      { contains: term, mode: 'insensitive' } },
           { nom:         { contains: term, mode: 'insensitive' } },
+          { telephone:   { contains: term } },
         ],
       },
       take: 8,
-      orderBy: { nom: 'asc' },
+      orderBy: [{ statut: 'asc' }, { nom: 'asc' }],
       select: {
         id: true,
         prenom: true,
         nom: true,
         codeParrain: true,
         telephone: true,
+        statut: true,
         membre: { select: { matricule: true } },
       },
     });
@@ -516,9 +520,10 @@ export class ClientsService implements OnModuleInit {
       results: clients.map((c) => ({
         id: c.id,
         nom: `${c.prenom} ${c.nom}`,
-        codeParrain: c.membre?.matricule ?? c.codeParrain,
-        matricule: c.membre?.matricule ?? c.codeParrain,
+        codeParrain: c.membre?.matricule ?? c.codeParrain ?? c.telephone,
+        matricule: c.membre?.matricule ?? c.codeParrain ?? c.telephone,
         telephone: c.telephone,
+        statut: c.statut,
       })),
     };
   }
