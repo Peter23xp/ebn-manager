@@ -60,6 +60,7 @@ describe('ClientsService - Recit Resume', () => {
       mlmMatrixService,
       kpay,
       kpayWebhooks,
+      { resolveParrain: jest.fn() } as any, // mlmClaimService
     );
   });
 

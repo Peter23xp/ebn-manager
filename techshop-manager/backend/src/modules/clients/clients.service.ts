@@ -21,6 +21,7 @@ import { InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { PortalAuthService } from '../portal/portal-auth.service';
 import { MailerService } from '../mailer/mailer.service';
 import { MlmMatrixService } from '../mlm/mlm-matrix.service';
+import { MlmClaimService } from '../mlm/mlm-claim.service';
 
 @Injectable()
 export class ClientsService implements OnModuleInit {
@@ -31,6 +32,7 @@ export class ClientsService implements OnModuleInit {
     private mlmMatrixService: MlmMatrixService,
     private readonly kpay: KpayService,
     private readonly kpayWebhooks: KpayWebhookService,
+    private readonly mlmClaimService: MlmClaimService,
   ) {}
 
   onModuleInit() {
@@ -831,30 +833,27 @@ export class ClientsService implements OnModuleInit {
       }
     }
 
-    // Résoudre le parrain par code
+    // Résoudre le parrain par code parrain, matricule OU téléphone du client
     let parrainId: string | undefined;
+    let parrainEnCours: { id: string; telephone: string } | undefined;
     if (dto.codeParrain) {
-      const parrain = await this.prisma.client.findFirst({
-        where: {
-          OR: [
-            { codeParrain: dto.codeParrain },
-            { membre: { matricule: dto.codeParrain } },
-          ],
-        },
-      });
+      const parrain = await this.mlmClaimService.resolveParrain(dto.codeParrain);
       if (!parrain) {
         throw new BadRequestException({
-          code: 'ERR_BAD_REQUEST',
-          message: 'Parrain introuvable ou matricule invalide',
+          code: 'ERR_PARRAIN_NOT_FOUND',
+          message: 'Aucun client ne correspond à ce code parrain ou numéro de téléphone',
         });
       }
-      if (parrain.statut !== StatutClient.ACTIF) {
+      if (parrain.telephone === dto.telephone) {
         throw new BadRequestException({
           code: 'ERR_BAD_REQUEST',
-          message: 'Le parrain doit être un membre actif',
+          message: 'Un client ne peut pas se parrainer lui-même',
         });
       }
       parrainId = parrain.id;
+      if (parrain.statut !== StatutClient.ACTIF) {
+        parrainEnCours = { id: parrain.id, telephone: parrain.telephone };
+      }
     }
 
     // Vérifier que le site existe
@@ -894,11 +893,30 @@ export class ClientsService implements OnModuleInit {
         },
       });
 
+      // Parrain non encore activé → réclamation en attente de confirmation
+      // par le code facture du parrain à son activation (voir MlmClaimService)
+      if (parrainEnCours) {
+        await tx.parrainClaim.upsert({
+          where: { filleulClientId: newClient.id },
+          create: {
+            filleulClientId: newClient.id,
+            parrainClientId: parrainEnCours.id,
+            statut: 'EN_ATTENTE',
+            telephoneParrainSaisi: dto.codeParrain!,
+          },
+          update: {},
+        });
+      }
+
       return { newClient, etape };
     });
 
     const client = await this.findOne(newClient.id);
-    return { client, etapeId: etape.id };
+    return {
+      client,
+      etapeId: etape.id,
+      ...(parrainEnCours ? { warning: 'PARRAIN_NON_ACTIVE' as const } : {}),
+    };
   }
 
   async initKpayRecit(dto: {
@@ -947,13 +965,30 @@ export class ClientsService implements OnModuleInit {
     }
     const site = await this.prisma.site.findUnique({ where: { id: dto.siteId }, select: { id: true } });
     if (!site) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Site introuvable' });
+    let kpayParrainId: string | null = null;
+    let kpayParrainEnCours: { id: string; telephone: string } | undefined;
     if (dto.codeParrain) {
-      const parrain = await this.prisma.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true, statut: true } });
-      if (!parrain || parrain.statut !== StatutClient.ACTIF) throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Parrain introuvable ou inactif' });
+      const parrain = await this.mlmClaimService.resolveParrain(dto.codeParrain);
+      if (!parrain) throw new BadRequestException({ code: 'ERR_PARRAIN_NOT_FOUND', message: 'Aucun client ne correspond à ce code parrain ou numéro de téléphone' });
+      if (parrain.telephone === dto.telephone) throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Un client ne peut pas se parrainer lui-même' });
+      kpayParrainId = parrain.id;
+      if (parrain.statut !== StatutClient.ACTIF) kpayParrainEnCours = { id: parrain.id, telephone: parrain.telephone };
     }
     const externalId = `ONB-RECIT-${randomUUID()}`;
     const pending = await this.prisma.$transaction(async (tx) => {
-      const client = existingClient ?? await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: dto.codeParrain ? (await tx.client.findFirst({ where: { OR: [{ codeParrain: dto.codeParrain }, { membre: { matricule: dto.codeParrain } }] }, select: { id: true } }))?.id : null, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      const client = existingClient ?? await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: kpayParrainId, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      if (kpayParrainEnCours) {
+        await tx.parrainClaim.upsert({
+          where: { filleulClientId: client.id },
+          create: {
+            filleulClientId: client.id,
+            parrainClientId: kpayParrainEnCours.id,
+            statut: 'EN_ATTENTE',
+            telephoneParrainSaisi: dto.codeParrain!,
+          },
+          update: {},
+        });
+      }
       const etape = await tx.onboardingEtape.upsert({ where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.RECIT } }, create: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId }, update: { statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, agentId: dto.agentId, notes: null } });
       const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
       return { client, transaction };
@@ -966,7 +1001,10 @@ export class ClientsService implements OnModuleInit {
       throw error;
     }
     await this.prisma.kpayTransaction.update({ where: { id: pending.transaction.id }, data: { kpayPaymentId: payment.id, kpayReference: payment.reference, status: payment.status as KpayTransactionStatus } });
-    return { client: pending.client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
+    return {
+      client: pending.client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference,
+      ...(kpayParrainEnCours ? { warning: 'PARRAIN_NON_ACTIVE' as const } : {}),
+    };
   }
 
   async onboardingFormation(
