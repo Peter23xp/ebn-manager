@@ -355,3 +355,16 @@ export interface ApiError {
   timestamp: string;
   path: string;
 }
+
+// ── ParrainClaim (lien filleul en attente) ───────────────────────────────────
+export interface ParrainClaimInfo {
+  statut: 'EN_ATTENTE' | 'LIE';
+  parrain: {
+    id: string;
+    prenom: string;
+    nom: string;
+    telephone: string;
+    statut: string;
+    nomComplet: string;
+  } | null;
+}

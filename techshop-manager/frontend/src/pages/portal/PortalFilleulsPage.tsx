@@ -1,14 +1,78 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Check, Share2, Loader2, Gift, UserPlus, BadgeCheck, List, Network } from 'lucide-react';
+import { Copy, Check, Share2, Loader2, Gift, UserPlus, BadgeCheck, List, Network, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { PortalLayout } from '@/components/portal/PortalLayout';
 import { ReferralTree } from '@/components/portal/ReferralTree';
 import { usePortalReferrals, type ReferralFilter } from '@/hooks/usePortalReferrals';
 import { usePortalReferralTree } from '@/hooks/usePortalReferralTree';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
+
+// ── Carte filleuls en attente de rattachement (parrain claim) ─────────────────
+
+function PendingClaimsCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery<{ claims: Array<{ id: string; filleul: { id: string; prenom: string; nom: string; telephone: string } }>; count: number }>(
+    {
+      queryKey: ['portal-claims-pending'],
+      queryFn: () => api.get('/portal/claims/pending').then((r) => r.data),
+    },
+  );
+  const [code, setCode] = useState('');
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  const confirm = useMutation({
+    mutationFn: () => api.post('/portal/claims/confirm', { codeFacture: code }),
+    onSuccess: () => {
+      setCode('');
+      setClaimError(null);
+      toast.success('Filleuls rattachés avec succès.');
+      qc.invalidateQueries({ queryKey: ['portal-claims-pending'] });
+      qc.invalidateQueries({ queryKey: ['portal-referrals'] });
+    },
+    onError: (e: any) => setClaimError(e?.response?.data?.message ?? 'Code invalide.'),
+  });
+
+  if (!data?.count) return null;
+
+  return (
+    <div className="rounded-2xl border border-orange-300 bg-orange-50 p-4 space-y-3" data-testid="claims-card">
+      <div className="flex items-center gap-2">
+        <Clock size={15} className="text-orange-600 flex-shrink-0" />
+        <p className="text-[13px] font-semibold text-orange-800">
+          {data.count} filleul(s) en attente :{' '}
+          {data.claims.map((c) => `${c.filleul.prenom} ${c.filleul.nom}`).join(', ')}
+        </p>
+      </div>
+      <p className="text-[12px] text-orange-700">
+        Saisissez le code de votre facture d'activation (les 4 derniers chiffres ou le numéro complet)
+        pour rattacher vos filleuls et débloquer vos commissions.
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={(e) => { setCode(e.target.value); setClaimError(null); }}
+          placeholder="Code facture (ex. 0047)"
+          className="flex-1 px-3 py-2 rounded-xl border border-border text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-primary-accent/30"
+        />
+        <button
+          type="button"
+          onClick={() => confirm.mutate()}
+          disabled={!code.trim() || confirm.isPending}
+          className="px-4 py-2 rounded-xl bg-orange-600 text-white text-[13px] font-semibold disabled:opacity-50 transition-colors hover:bg-orange-700"
+        >
+          {confirm.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Confirmer'}
+        </button>
+      </div>
+      {claimError && <p className="text-[12px] text-red-600">{claimError}</p>}
+    </div>
+  );
+}
 
 // ── Carte de partage du code ──────────────────────────────────────────────────
 
@@ -274,6 +338,9 @@ export default function PortalFilleulsPage() {
   return (
     <PortalLayout title="Mes filleuls" showBackButton onBack={() => navigate('/portal/home')}>
       <div className="px-4 py-4 space-y-5">
+
+        {/* Filleuls en attente de rattachement */}
+        <PendingClaimsCard />
 
         {/* Code de partage */}
         {isLoading ? (

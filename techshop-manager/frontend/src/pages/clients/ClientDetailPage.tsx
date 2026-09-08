@@ -265,6 +265,24 @@ export default function ClientDetailPage() {
           </div>
         )}
 
+        {/* Bannière parrain en attente */}
+        {(client as any).parrainClaim?.statut === 'EN_ATTENTE' && (
+          <div
+            className="flex items-center gap-2 rounded-xl border border-orange-300 bg-orange-50 px-4 py-2.5"
+            role="alert"
+          >
+            <Clock size={14} className="text-orange-600 flex-shrink-0" aria-hidden />
+            <p className="text-[13px] text-orange-800 font-medium">
+              Parrain en attente d'activation — lien à confirmer par le code de sa facture d'activation.
+              {(client as any).parrainClaim?.parrain?.nomComplet && (
+                <span className="ml-1 font-semibold">
+                  ({(client as any).parrainClaim.parrain.nomComplet})
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Hero card */}
         <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
