@@ -99,7 +99,25 @@
       "Bash(grep -v \"test\\\\|//\")",
       "Bash(node -e \"console.log\\('vite cache check'\\)\")",
       "Bash(rm -rf node_modules/.vite/vitest)",
-      "Bash(grep -B30 \"0mOr$\")"
+      "Bash(grep -B30 \"0mOr$\")",
+      "Bash(git checkout *)",
+      "Bash(git -C .. show HEAD:techshop-manager/backend/prisma/schema.prisma)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(echo \"TSC=$?\")",
+      "Bash(grep -n \"const numeroVente = \\\\`\\\\${prefix}\\\\|const prixVente\\\\|const activatedClient = await\\\\|let mlmSuccess\\\\|return this.findOne\\(activatedClient.id\\)\\\\|initDefaultPin\" src/modules/clients/clients.service.ts)",
+      "Bash(awk 'NR>=330 && NR<=385' src/modules/clients/clients.service.ts)",
+      "Bash(echo \"FTSC=$?\")",
+      "Bash(echo \"DIFF_EXIT=$?\")",
+      "Bash(curl -s http://localhost:3005/api/v1/health)",
+      "Bash(curl -s -X POST http://localhost:3005/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"identifier\":\"+243902238740\",\"password\":\"Admin@2025\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); t=d.get\\('accessToken'\\) or d.get\\('access_token'\\) or \\(d.get\\('data'\\) or {}\\).get\\('accessToken'\\) or ''; print\\('LOGIN_KEYS:', list\\(d.keys\\(\\)\\)\\); open\\('/tmp/ebn_token','w'\\).write\\(t\\)\")",
+      "Bash(curl -s -X POST http://localhost:3005/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"identifier\":\"+243902238740\",\"password\":\"Admin@2025\"}' -o ebn_login.json)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('ebn_login.json'\\)\\); print\\('KEYS:', list\\(d.keys\\(\\)\\)\\); print\\(json.dumps\\(d, ensure_ascii=False\\)[:300]\\)\")",
+      "Bash(rm -f ebn_login.json)",
+      "Bash(grep -A4 \"PortalPointsPage > Solde card > 1\" /tmp/nest3005.log)",
+      "Bash(pkill -f \"start:dev\")",
+      "Bash(pkill -f \"nest start\")"
     ]
   }
 }

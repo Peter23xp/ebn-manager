@@ -178,24 +178,24 @@ enum MlmPayoutStatus {
 // ============================================
 
 model Site {
-  id          String   @id @default(uuid())
-  nom         String
-  ville       String
-  adresse     String?
-  actif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  nom       String
+  ville     String
+  adresse   String?
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  gerantId    String?
+  gerantId String?
 
-  utilisateurs    Utilisateur[]
-  clients         Client[]
-  stockSites      StockSite[]
-  ventesSource    Vente[]
-  mouvements      MouvementStock[]
-  transfertsSource    TransfertStock[] @relation("SiteSource")
-  transfertsDest      TransfertStock[] @relation("SiteDestination")
-  onboardingEtapes    OnboardingEtape[]
+  utilisateurs     Utilisateur[]
+  clients          Client[]
+  stockSites       StockSite[]
+  ventesSource     Vente[]
+  mouvements       MouvementStock[]
+  transfertsSource TransfertStock[]  @relation("SiteSource")
+  transfertsDest   TransfertStock[]  @relation("SiteDestination")
+  onboardingEtapes OnboardingEtape[]
 
   @@map("sites")
 }
@@ -205,28 +205,28 @@ model Site {
 // ============================================
 
 model Utilisateur {
-  id                String   @id @default(uuid())
-  nom               String
-  telephone         String   @unique
-  email             String?  @unique
-  passwordHash      String
-  role              Role
-  actif             Boolean  @default(true)
-  langue            String   @default("fr")
-  derniereConnexion DateTime?
-  tentativesConnexion Int    @default(0)
-  bloqueJusquA      DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  nom                 String
+  telephone           String    @unique
+  email               String?   @unique
+  passwordHash        String
+  role                Role
+  actif               Boolean   @default(true)
+  langue              String    @default("fr")
+  derniereConnexion   DateTime?
+  tentativesConnexion Int       @default(0)
+  bloqueJusquA        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  siteId  String?
-  site    Site?   @relation(fields: [siteId], references: [id])
+  siteId String?
+  site   Site?   @relation(fields: [siteId], references: [id])
 
-  ventesCreees    Vente[]
-  clientsCrees    Client[]
-  etapesValidees  OnboardingEtape[]
-  entreesStock    MouvementStock[]
-  transfertsInities TransfertStock[] @relation("TransfertInitiateur")
+  ventesCreees      Vente[]
+  clientsCrees      Client[]
+  etapesValidees    OnboardingEtape[]
+  entreesStock      MouvementStock[]
+  transfertsInities TransfertStock[]  @relation("TransfertInitiateur")
 
   @@map("utilisateurs")
 }
@@ -236,36 +236,36 @@ model Utilisateur {
 // ============================================
 
 model Client {
-  id                String         @id @default(uuid())
-  prenom            String
-  nom               String
-  telephone         String         @unique
-  email             String?        @unique
-  matriculeExterne  String?        @unique
-  codeParrain       String?        @unique
-  parrainClientId   String?
-  statut            StatutClient   @default(EN_COURS)
-  notes             String?
-  dateActivation    DateTime?
-  pinHash           String?
-  tentativesPin     Int            @default(0)
-  bloqueJusquA      DateTime?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id               String       @id @default(uuid())
+  prenom           String
+  nom              String
+  telephone        String       @unique
+  email            String?      @unique
+  matriculeExterne String?      @unique
+  codeParrain      String?      @unique
+  parrainClientId  String?
+  statut           StatutClient @default(EN_COURS)
+  notes            String?
+  dateActivation   DateTime?
+  pinHash          String?
+  tentativesPin    Int          @default(0)
+  bloqueJusquA     DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   siteInscriptionId String
-  siteInscription   Site          @relation(fields: [siteInscriptionId], references: [id])
+  siteInscription   Site   @relation(fields: [siteInscriptionId], references: [id])
 
   createdById String
   createdBy   Utilisateur @relation(fields: [createdById], references: [id])
 
-  onboardingEtapes  OnboardingEtape[]
-  ventes            Vente[]
-  membre            Membre?
-  parrainClient     Client?        @relation("ClientParrainage", fields: [parrainClientId], references: [id])
-  filleulsParrainage Client[]      @relation("ClientParrainage")
-  filleulClaim    ParrainClaim?  @relation("ClaimFilleul")
-  parrainClaims   ParrainClaim[] @relation("ClaimParrain")
+  onboardingEtapes   OnboardingEtape[]
+  ventes             Vente[]
+  membre             Membre?
+  parrainClient      Client?           @relation("ClientParrainage", fields: [parrainClientId], references: [id])
+  filleulsParrainage Client[]          @relation("ClientParrainage")
+  filleulClaim       ParrainClaim?     @relation("ClaimFilleul")
+  parrainClaims      ParrainClaim[]    @relation("ClaimParrain")
 
   @@map("clients")
 }
@@ -285,14 +285,14 @@ model OnboardingEtape {
   notes                String?
   createdAt            DateTime        @default(now())
 
-  clientId  String
-  client    Client      @relation(fields: [clientId], references: [id])
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
 
-  agentId   String
-  agent     Utilisateur @relation(fields: [agentId], references: [id])
+  agentId String
+  agent   Utilisateur @relation(fields: [agentId], references: [id])
 
-  siteId    String
-  site      Site        @relation(fields: [siteId], references: [id])
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
 
   kpayTransactions KpayTransaction[] @relation("OnboardingEtapeKpayTransactions")
 
@@ -316,11 +316,11 @@ model Produit {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  stockSites     StockSite[]
-  mouvements     MouvementStock[]
-  lignesVente    LigneVente[]
-  lignesRetour   LigneRetour[]
-  transferts     TransfertStock[]
+  stockSites   StockSite[]
+  mouvements   MouvementStock[]
+  lignesVente  LigneVente[]
+  lignesRetour LigneRetour[]
+  transferts   TransfertStock[]
 
   @@map("produits")
 }
@@ -330,10 +330,10 @@ model Produit {
 // ============================================
 
 model StockSite {
-  id           String       @id @default(uuid())
-  quantite     Int          @default(0)
-  seuilAlerte  Int          @default(5)
-  updatedAt    DateTime     @updatedAt
+  id          String   @id @default(uuid())
+  quantite    Int      @default(0)
+  seuilAlerte Int      @default(5)
+  updatedAt   DateTime @updatedAt
 
   produitId String
   produit   Produit @relation(fields: [produitId], references: [id])
@@ -350,13 +350,13 @@ model StockSite {
 // ============================================
 
 model MouvementStock {
-  id             String        @id @default(uuid())
-  type           TypeMouvement
-  quantite       Int
-  quantiteAvant  Int
-  quantiteApres  Int
-  reference      String?
-  createdAt      DateTime      @default(now())
+  id            String        @id @default(uuid())
+  type          TypeMouvement
+  quantite      Int
+  quantiteAvant Int
+  quantiteApres Int
+  reference     String?
+  createdAt     DateTime      @default(now())
 
   produitId String
   produit   Produit @relation(fields: [produitId], references: [id])
@@ -375,15 +375,15 @@ model MouvementStock {
 // ============================================
 
 model TransfertStock {
-  id               String          @id @default(uuid())
-  quantiteEnvoyee  Int
-  quantiteRecue    Int?
-  motif            String?
-  observations     String?
-  statut           StatutTransfert @default(EN_TRANSIT)
-  dateExpedition   DateTime        @default(now())
-  dateReception    DateTime?
-  createdAt        DateTime        @default(now())
+  id              String          @id @default(uuid())
+  quantiteEnvoyee Int
+  quantiteRecue   Int?
+  motif           String?
+  observations    String?
+  statut          StatutTransfert @default(EN_TRANSIT)
+  dateExpedition  DateTime        @default(now())
+  dateReception   DateTime?
+  createdAt       DateTime        @default(now())
 
   produitId String
   produit   Produit @relation(fields: [produitId], references: [id])
@@ -405,21 +405,21 @@ model TransfertStock {
 // ============================================
 
 model Vente {
-  id                  String      @id @default(uuid())
-  numeroVente         String      @unique
-  statut              StatutVente @default(VALIDE)
-  montantBrut         Decimal     @db.Decimal(12, 2)
-  remiseFidelite      Decimal     @default(0) @db.Decimal(12, 2)
-  remiseParrainage    Decimal     @default(0) @db.Decimal(12, 2)
-  montantNet          Decimal     @db.Decimal(12, 2)
-  modePaiement        ModePaiement
+  id                   String       @id @default(uuid())
+  numeroVente          String       @unique
+  statut               StatutVente  @default(VALIDE)
+  montantBrut          Decimal      @db.Decimal(12, 2)
+  remiseFidelite       Decimal      @default(0) @db.Decimal(12, 2)
+  remiseParrainage     Decimal      @default(0) @db.Decimal(12, 2)
+  montantNet           Decimal      @db.Decimal(12, 2)
+  modePaiement         ModePaiement
   referenceTransaction String?
-  montantRecu         Decimal?    @db.Decimal(12, 2)
-  monnaieRendue       Decimal?    @db.Decimal(12, 2)
-  pointsAttribues     Int         @default(0)
-  syncStatus          SyncStatus  @default(SYNCED)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  montantRecu          Decimal?     @db.Decimal(12, 2)
+  monnaieRendue        Decimal?     @db.Decimal(12, 2)
+  pointsAttribues      Int          @default(0)
+  syncStatus           SyncStatus   @default(SYNCED)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
@@ -430,8 +430,8 @@ model Vente {
   agentId String
   agent   Utilisateur @relation(fields: [agentId], references: [id])
 
-  lignes  LigneVente[]
-  retours Retour[]
+  lignes           LigneVente[]
+  retours          Retour[]
   kpayTransactions KpayTransaction[] @relation("VenteKpayTransactions")
 
   @@map("ventes")
@@ -442,13 +442,13 @@ model Vente {
 // ============================================
 
 model LigneVente {
-  id          String  @id @default(uuid())
-  quantite    Int
+  id           String  @id @default(uuid())
+  quantite     Int
   prixUnitaire Decimal @db.Decimal(12, 2)
-  sousTotal   Decimal @db.Decimal(12, 2)
+  sousTotal    Decimal @db.Decimal(12, 2)
 
-  venteId   String
-  vente     Vente   @relation(fields: [venteId], references: [id])
+  venteId String
+  vente   Vente  @relation(fields: [venteId], references: [id])
 
   produitId String
   produit   Produit @relation(fields: [produitId], references: [id])
@@ -461,22 +461,22 @@ model LigneVente {
 // ============================================
 
 model Retour {
-  id                   String   @id @default(uuid())
+  id                   String       @id @default(uuid())
   statut               StatutRetour @default(COMPLETE)
-  numeroAvoir          String?  @unique
+  numeroAvoir          String?      @unique
   motif                String
   motifDescription     String?
   modeRemboursement    String
   referenceTransaction String?
-  montantRembourse     Decimal  @db.Decimal(12, 2)
-  stockRemis           Boolean  @default(false)
+  montantRembourse     Decimal      @db.Decimal(12, 2)
+  stockRemis           Boolean      @default(false)
   agentId              String?
-  createdAt            DateTime @default(now())
+  createdAt            DateTime     @default(now())
 
   venteId String
   vente   Vente  @relation(fields: [venteId], references: [id])
 
-  lignes LigneRetour[]
+  lignes           LigneRetour[]
   kpayTransactions KpayTransaction[] @relation("RetourKpayTransactions")
 
   @@map("retours")
@@ -499,28 +499,27 @@ model LigneRetour {
   @@map("lignes_retour")
 }
 
-
 // ============================================
 // CONFIG GENERALE
 // ============================================
 
 model ConfigGenerale {
-  id                    String   @id @default(uuid())
-  smsApiKey             String?
-  smsUsername           String?
-  smsSenderId           String?
-  matriculeExterneActif Boolean  @default(false)
-  matriculeRegex        String?
-  dureeSectionHeures    Int      @default(8)
-  delaiRetourJours      Int      @default(7)
-  fraisRetourPct        Decimal  @default(0) @db.Decimal(5, 2)
-  kpayAutoPayoutActif  Boolean  @default(false)
+  id                     String   @id @default(uuid())
+  smsApiKey              String?
+  smsUsername            String?
+  smsSenderId            String?
+  matriculeExterneActif  Boolean  @default(false)
+  matriculeRegex         String?
+  dureeSectionHeures     Int      @default(8)
+  delaiRetourJours       Int      @default(7)
+  fraisRetourPct         Decimal  @default(0) @db.Decimal(5, 2)
+  kpayAutoPayoutActif    Boolean  @default(false)
   kpayAutoPayoutProvider String?
-  kpayAutoPayoutPhone  String?
-  kpayAdminMpesaPhone String?
-  kpayAdminAirtelPhone String?
-  kpayAdminOrangePhone String?
-  updatedAt             DateTime @updatedAt
+  kpayAutoPayoutPhone    String?
+  kpayAdminMpesaPhone    String?
+  kpayAdminAirtelPhone   String?
+  kpayAdminOrangePhone   String?
+  updatedAt              DateTime @updatedAt
 
   @@map("config_generale")
 }
@@ -584,7 +583,7 @@ enum AmbassadeurStatut {
 }
 
 model AmbassadeurApplication {
-  id          String              @id @default(uuid())
+  id          String            @id @default(uuid())
   prenom      String
   nom         String
   telephone   String
@@ -593,9 +592,9 @@ model AmbassadeurApplication {
   siteNom     String?
   codeParrain String?
   motivation  String?
-  statut      AmbassadeurStatut   @default(NOUVELLE)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  statut      AmbassadeurStatut @default(NOUVELLE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([statut])
   @@map("ambassadeur_applications")
@@ -641,20 +640,20 @@ model Membre {
   dateActivation  DateTime     @default(now())
   dateInscription DateTime     @default(now())
 
-  client      Client    @relation(fields: [clientId], references: [id])
-  level       MlmLevel  @relation(fields: [mlmLevelId], references: [id])
-  parrain     Membre?   @relation("ParrainFilleul", fields: [parrainId], references: [id])
-  filleuls    Membre[]  @relation("ParrainFilleul")
+  client   Client   @relation(fields: [clientId], references: [id])
+  level    MlmLevel @relation(fields: [mlmLevelId], references: [id])
+  parrain  Membre?  @relation("ParrainFilleul", fields: [parrainId], references: [id])
+  filleuls Membre[] @relation("ParrainFilleul")
 
   portefeuille         Portefeuille?
   matrices             Matrix[]
-  promotions           Promotion[]      @relation("MembrePromotion")
+  promotions           Promotion[]         @relation("MembrePromotion")
   bonusAttribues       BonusAttribue[]
   salairesVerses       SalaireVerse[]
-  bonusRetraites       BonusRetraite[]  @relation("MembreBonusRetraite")
-  bonusRetraitesDonnes BonusRetraite[]  @relation("FilleulCrownBonusRetraite")
-  commissionsRecues    Commission[]     @relation("CommissionBeneficiaire")
-  commissionsGenerees  Commission[]     @relation("CommissionFilleul")
+  bonusRetraites       BonusRetraite[]     @relation("MembreBonusRetraite")
+  bonusRetraitesDonnes BonusRetraite[]     @relation("FilleulCrownBonusRetraite")
+  commissionsRecues    Commission[]        @relation("CommissionBeneficiaire")
+  commissionsGenerees  Commission[]        @relation("CommissionFilleul")
   payouts              MlmPayout[]
   withdrawalRequests   WithdrawalRequest[]
 
@@ -663,16 +662,16 @@ model Membre {
 
 // ── Matrice de 4 positions par membre et par niveau ──────────
 model Matrix {
-  id             String    @id @default(uuid())
-  membreId       String
-  mlmLevelId     Int
-  filleulsValides Int      @default(0)
-  estComplete    Boolean   @default(false)
-  dateComplete   DateTime?
-  createdAt      DateTime  @default(now())
+  id              String    @id @default(uuid())
+  membreId        String
+  mlmLevelId      Int
+  filleulsValides Int       @default(0)
+  estComplete     Boolean   @default(false)
+  dateComplete    DateTime?
+  createdAt       DateTime  @default(now())
 
-  membre    Membre    @relation(fields: [membreId], references: [id])
-  level     MlmLevel  @relation(fields: [mlmLevelId], references: [id])
+  membre    Membre     @relation(fields: [membreId], references: [id])
+  level     MlmLevel   @relation(fields: [mlmLevelId], references: [id])
   positions Position[]
 
   @@unique([membreId, mlmLevelId])
@@ -696,13 +695,13 @@ model Position {
 
 // ── Portefeuille USD par membre ───────────────────────────────
 model Portefeuille {
-  id               String   @id @default(uuid())
-  membreId         String   @unique
-  soldeDisponible  Decimal  @default(0) @db.Decimal(12, 2)
-  soldeReserve     Decimal  @default(0) @db.Decimal(12, 2)
-  totalGagne       Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  membreId        String   @unique
+  soldeDisponible Decimal  @default(0) @db.Decimal(12, 2)
+  soldeReserve    Decimal  @default(0) @db.Decimal(12, 2)
+  totalGagne      Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   membre       Membre                    @relation(fields: [membreId], references: [id])
   transactions TransactionPortefeuille[]
@@ -726,18 +725,18 @@ model TransactionPortefeuille {
 }
 
 model MlmPayout {
-  id          String          @id @default(uuid())
-  montant     Decimal         @db.Decimal(12, 2)
-  provider    String
-  phoneNumber String
-  statut      MlmPayoutStatus @default(PENDING)
+  id            String          @id @default(uuid())
+  montant       Decimal         @db.Decimal(12, 2)
+  provider      String
+  phoneNumber   String
+  statut        MlmPayoutStatus @default(PENDING)
   failureReason String?
-  completedAt DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  completedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  membreId String
-  membre   Membre @relation(fields: [membreId], references: [id])
+  membreId        String
+  membre          Membre           @relation(fields: [membreId], references: [id])
   kpayTransaction KpayTransaction?
 
   @@index([membreId, statut])
@@ -762,14 +761,14 @@ model KpayTransaction {
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
 
-  venteId String?
-  vente   Vente? @relation("VenteKpayTransactions", fields: [venteId], references: [id])
+  venteId           String?
+  vente             Vente?           @relation("VenteKpayTransactions", fields: [venteId], references: [id])
   onboardingEtapeId String?
   onboardingEtape   OnboardingEtape? @relation("OnboardingEtapeKpayTransactions", fields: [onboardingEtapeId], references: [id])
-  retourId String?
-  retour   Retour? @relation("RetourKpayTransactions", fields: [retourId], references: [id])
-  payoutId String? @unique
-  payout   MlmPayout? @relation(fields: [payoutId], references: [id])
+  retourId          String?
+  retour            Retour?          @relation("RetourKpayTransactions", fields: [retourId], references: [id])
+  payoutId          String?          @unique
+  payout            MlmPayout?       @relation(fields: [payoutId], references: [id])
 
   @@index([venteId])
   @@index([onboardingEtapeId])
@@ -842,23 +841,23 @@ model BonusRetraite {
 
 // ── Commissions MLM (Option B : validation admin requise) ─────
 model Commission {
-  id          String            @id @default(uuid())
+  id          String           @id @default(uuid())
   membreId    String
   filleulId   String
   mlmLevelId  Int
-  montant     Decimal           @db.Decimal(12, 2)
-  statut      CommissionStatut  @default(EN_ATTENTE)
-  referenceId String            @unique
+  montant     Decimal          @db.Decimal(12, 2)
+  statut      CommissionStatut @default(EN_ATTENTE)
+  referenceId String           @unique
   description String
   notes       String?
   valideeAt   DateTime?
   payeeAt     DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  membre   Membre   @relation("CommissionBeneficiaire", fields: [membreId], references: [id])
-  filleul  Membre   @relation("CommissionFilleul", fields: [filleulId], references: [id])
-  level    MlmLevel @relation(fields: [mlmLevelId], references: [id])
+  membre  Membre   @relation("CommissionBeneficiaire", fields: [membreId], references: [id])
+  filleul Membre   @relation("CommissionFilleul", fields: [filleulId], references: [id])
+  level   MlmLevel @relation(fields: [mlmLevelId], references: [id])
 
   @@index([membreId])
   @@index([statut])
@@ -889,23 +888,23 @@ model ParrainClaim {
 
 // ── Withdrawal Requests (Demandes de retrait) ─────────────────────
 model WithdrawalRequest {
-  id                String                   @id @default(uuid())
-  membreId          String
-  montant           Decimal                  @db.Decimal(12, 2)
-  type              WithdrawalRequestType
-  provider          String?
-  phoneNumber       String?
-  statut            WithdrawalRequestStatut  @default(EN_ATTENTE)
-  commissionIds     Json
-  notes             String?
-  rejectReason      String?
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-  approvedAt        DateTime?
-  approvedById      String?
-  paidAt            DateTime?
+  id            String                  @id @default(uuid())
+  membreId      String
+  montant       Decimal                 @db.Decimal(12, 2)
+  type          WithdrawalRequestType
+  provider      String?
+  phoneNumber   String?
+  statut        WithdrawalRequestStatut @default(EN_ATTENTE)
+  commissionIds Json
+  notes         String?
+  rejectReason  String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  approvedAt    DateTime?
+  approvedById  String?
+  paidAt        DateTime?
 
-  membre            Membre                   @relation(fields: [membreId], references: [id])
+  membre Membre @relation(fields: [membreId], references: [id])
 
   @@index([membreId])
   @@index([statut])
