@@ -105,6 +105,11 @@ describe('MlmWalletService — withdrawal requests (commissions)', () => {
     const tx = {
       commission: { updateMany: jest.fn() },
       withdrawalRequest: { update: resolved({ statut: 'PAYE' }) },
+      portefeuille: {
+        findUnique: resolved({ id: 'pf-1', soldeDisponible: { toNumber: () => 200 } }),
+        update: jest.fn(),
+      },
+      transactionPortefeuille: { create: jest.fn() },
     };
     const prisma = {
       withdrawalRequest: {
@@ -113,7 +118,7 @@ describe('MlmWalletService — withdrawal requests (commissions)', () => {
           commissionIds: ['c-1', 'c-2'],
         }),
       },
-      commission: { findMany: resolved([{ id: 'c-1' }, { id: 'c-2' }]) },
+      commission: { findMany: resolved([{ id: 'c-1', montant: '100' }, { id: 'c-2', montant: '100' }]) },
       $transaction: jest.fn(async (cb: any) => cb(tx)),
     };
     const service = buildService(prisma);
@@ -125,6 +130,18 @@ describe('MlmWalletService — withdrawal requests (commissions)', () => {
     );
     expect(tx.commission.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ statut: 'PAYEE' }) }),
+    );
+    // Débiter le portefeuille au moment de l'approbation (retrait payé en CASH)
+    expect(tx.portefeuille.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pf-1' },
+        data: { soldeDisponible: { decrement: expect.anything() } },
+      }),
+    );
+    expect(tx.transactionPortefeuille.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'DEBIT', portefeuilleId: 'pf-1' }),
+      }),
     );
     expect(result.statut).toBe('PAYE');
   });
