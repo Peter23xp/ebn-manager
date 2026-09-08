@@ -21,7 +21,7 @@ import { InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { PortalAuthService } from '../portal/portal-auth.service';
 import { MailerService } from '../mailer/mailer.service';
 import { MlmMatrixService } from '../mlm/mlm-matrix.service';
-import { MlmClaimService } from '../mlm/mlm-claim.service';
+import { MlmClaimService, invoiceCodeSeq, matchesInvoiceCode } from '../mlm/mlm-claim.service';
 
 @Injectable()
 export class ClientsService implements OnModuleInit {
@@ -1205,6 +1205,29 @@ export class ClientsService implements OnModuleInit {
       : 1;
     const numeroVente = `${prefix}${String(seq).padStart(4, '0')}`;
 
+    // Confirmation des filleuls en attente : si ce client a des claims EN_ATTENTE,
+    // il doit prouver son identité avec le code simplifié de sa facture d'activation
+    // (vérifié AVANT toute mutation — sans ça le client reste EN_COURS).
+    const nbClaims = await this.prisma.parrainClaim.count({
+      where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
+    });
+    if (nbClaims > 0) {
+      if (!dto.codeFacture || !dto.codeFacture.trim()) {
+        throw new ConflictException({
+          code: 'ERR_CLAIM_CODE_REQUIRED',
+          message: `Ce parrain a ${nbClaims} filleul(s) en attente. Saisissez le code de sa facture d'activation (ex. ${invoiceCodeSeq(numeroVente)}) pour confirmer.`,
+          nbFilleulsEnAttente: nbClaims,
+          factureHint: invoiceCodeSeq(numeroVente),
+        });
+      }
+      if (!matchesInvoiceCode(dto.codeFacture, numeroVente)) {
+        throw new BadRequestException({
+          code: 'ERR_CLAIM_CODE_INVALID',
+          message: 'Code de facture invalide. Utilisez les 4 derniers chiffres du n° de facture ou le numéro complet.',
+        });
+      }
+    }
+
     const prixVente = Number(produit.prixVente);
 
     const activatedClient = await this.prisma.$transaction(async (tx) => {
@@ -1326,6 +1349,16 @@ export class ClientsService implements OnModuleInit {
         if (attempt < 3) {
           await new Promise((res) => setTimeout(res, 500 * attempt));
         }
+      }
+    }
+
+    // Rattacher les filleuls réclamés (idempotent — voir MlmClaimService)
+    if (nbClaims > 0) {
+      try {
+        const attach = await this.mlmClaimService.attachConfirmedClaims(clientId, numeroVente, agentId);
+        console.log(`[CLAIM ATTACH] Parrain ${clientId}: ${attach.attachés} rattaché(s), ${attach.conflits} conflit(s)`);
+      } catch (err) {
+        console.error(`[CLAIM ATTACH AFTER ACTIVATION] ${clientId}:`, err);
       }
     }
 

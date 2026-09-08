@@ -146,6 +146,11 @@ export class OnboardingActivateDto {
   @IsOptional()
   @IsString()
   referenceTransaction?: string;
+
+  /** Code simplifié de la facture d'activation — requis si le client a des filleuls en attente (claims) */
+  @IsOptional()
+  @IsString()
+  codeFacture?: string;
 }
 
 export class InitKpayActivationDto {
