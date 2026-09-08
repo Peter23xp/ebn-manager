@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, XCircle, Loader2, Search, X } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, Loader2, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 
@@ -8,6 +8,7 @@ interface ParrainResult {
   nom: string;
   codeParrain: string;
   telephone: string;
+  statut?: string;
 }
 
 interface CodeParrainInputProps {
@@ -107,13 +108,25 @@ export function CodeParrainInput({
         <div
           className={cn(
             'flex items-center gap-2 px-3 py-2 rounded-lg border text-[13px]',
-            'border-success bg-success/5',
+            selected.statut && selected.statut !== 'ACTIF'
+              ? 'border-warning bg-warning/5'
+              : 'border-success bg-success/5',
           )}
         >
-          <CheckCircle2 size={15} className="text-success flex-shrink-0" />
-          <span className="font-semibold text-success">{selected.codeParrain}</span>
+          {selected.statut && selected.statut !== 'ACTIF'
+            ? <Clock size={15} className="text-warning flex-shrink-0" />
+            : <CheckCircle2 size={15} className="text-success flex-shrink-0" />}
+          <span className={cn(
+            'font-semibold',
+            selected.statut && selected.statut !== 'ACTIF' ? 'text-warning' : 'text-success',
+          )}>
+            {selected.codeParrain}
+          </span>
           <span className="text-text-muted">—</span>
           <span className="text-text truncate">{selected.nom}</span>
+          {selected.statut && selected.statut !== 'ACTIF' && (
+            <span className="text-[10px] text-text-muted whitespace-nowrap">en attente d'activation</span>
+          )}
           {!disabled && (
             <button
               type="button"
@@ -134,7 +147,7 @@ export function CodeParrainInput({
           />
           <input
             type="text"
-            placeholder="Matricule ou nom du parrain…"
+            placeholder="Matricule, téléphone ou nom du parrain…"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSelfError(false); }}
             onFocus={() => { if (results.length > 0) setOpen(true); }}
@@ -175,7 +188,7 @@ export function CodeParrainInput({
 
       {/* Aucun résultat */}
       {open && !loading && query.trim().length >= 2 && results.length === 0 && (
-        <p className="mt-1 text-[11px] text-text-muted">Aucun parrain actif trouvé.</p>
+        <p className="mt-1 text-[11px] text-text-muted">Aucun parrain trouvé.</p>
       )}
 
       {/* Auto-parrainage */}
