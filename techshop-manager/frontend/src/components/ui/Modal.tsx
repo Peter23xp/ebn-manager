@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +40,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
 
   if (!open) return null;
 
-  return (
+  // Portal sur <body> : un ancêtre avec `transform` (ex. `animate-fade-up`,
+  // fill both) capture les descendants `position: fixed` — le modal serait
+  // centré sur le conteneur (décalé par sidebar/scroll) au lieu du viewport.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -79,6 +83,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
