@@ -104,4 +104,13 @@ describe('Activation du parrain — confirmation des claims par code facture', (
       } as any, 'agent-1'),
     ).rejects.toThrow(/NEVER/); // a passé la validation → atteint $transaction
   });
+
+  it('deferClaims (voie webhook) → pas de 409 même avec des claims', async () => {
+    prisma.parrainClaim.count.mockResolvedValue(3);
+    await expect(
+      service.onboardingActivate('parrain-1', {
+        produitId: 'p-1', modePaiement: 'CASH' as any,
+      } as any, 'agent-1', { deferClaims: true }),
+    ).rejects.toThrow(/NEVER/); // la validation du code est court-circuitée
+  });
 });

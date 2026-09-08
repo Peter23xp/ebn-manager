@@ -125,7 +125,15 @@ export class ClientsService implements OnModuleInit {
     const transaction = await this.prisma.kpayTransaction.findUnique({ where: { id: transactionId }, select: { onboardingEtapeId: true, metadata: true } });
     const metadata = (transaction?.metadata ?? {}) as Record<string, unknown>;
     if (metadata.activation && metadata.clientId && metadata.produitId && metadata.agentId) {
-      await this.onboardingActivate(String(metadata.clientId), { produitId: String(metadata.produitId), modePaiement: ModePaiement.MPESA, referenceTransaction: transactionId }, String(metadata.agentId));
+      // Voie webhook (paiement déjà effectué) : on n'interrompt jamais l'activation
+      // pour un code facture — les claims éventuels restent EN_ATTENTE et seront
+      // réclamés plus tard (portail / POST /mlm/claims/confirm).
+      await this.onboardingActivate(
+        String(metadata.clientId),
+        { produitId: String(metadata.produitId), modePaiement: ModePaiement.MPESA, referenceTransaction: transactionId },
+        String(metadata.agentId),
+        { deferClaims: true },
+      );
       await this.initiateConfiguredAutoPayout(transactionId);
       return;
     }
@@ -1139,7 +1147,7 @@ export class ClientsService implements OnModuleInit {
     });
   }
 
-  async onboardingActivate(clientId: string, dto: OnboardingActivateDto, agentId: string) {
+  async onboardingActivate(clientId: string, dto: OnboardingActivateDto, agentId: string, opts: { deferClaims?: boolean } = {}) {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: { onboardingEtapes: true },
@@ -1211,7 +1219,7 @@ export class ClientsService implements OnModuleInit {
     const nbClaims = await this.prisma.parrainClaim.count({
       where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
     });
-    if (nbClaims > 0) {
+    if (nbClaims > 0 && !opts.deferClaims) {
       if (!dto.codeFacture || !dto.codeFacture.trim()) {
         throw new ConflictException({
           code: 'ERR_CLAIM_CODE_REQUIRED',
@@ -1352,8 +1360,9 @@ export class ClientsService implements OnModuleInit {
       }
     }
 
-    // Rattacher les filleuls réclamés (idempotent — voir MlmClaimService)
-    if (nbClaims > 0) {
+    // Rattacher les filleuls réclamés (idempotent — voir MlmClaimService).
+    // La voie webhook (deferClaims) ne rattache jamais : le code facture manque.
+    if (nbClaims > 0 && !opts.deferClaims) {
       try {
         const attach = await this.mlmClaimService.attachConfirmedClaims(clientId, numeroVente, agentId);
         console.log(`[CLAIM ATTACH] Parrain ${clientId}: ${attach.attachés} rattaché(s), ${attach.conflits} conflit(s)`);
