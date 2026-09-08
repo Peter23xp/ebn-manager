@@ -65,7 +65,9 @@ export default function MlmConfigPage() {
             <thead>
               <tr>
                 <th className="px-6 py-3.5">Niveau</th>
-                <th className="px-6 py-3.5">Com. / filleul</th>
+                <th className="px-6 py-3.5">Total / filleul</th>
+                <th className="px-6 py-3.5 text-text-muted">Système (60%)</th>
+                <th className="px-6 py-3.5 text-emerald-700">↻ Retour (40%)</th>
                 <th className="px-6 py-3.5">Com. totale</th>
                 <th className="px-6 py-3.5">Bonus physique</th>
                 <th className="px-6 py-3.5">Salaire mensuel</th>
@@ -93,6 +95,12 @@ export default function MlmConfigPage() {
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-text">
                       {formatUSD(l.commissionParFilleul)}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-sm text-text-muted">
+                      {l.commissionSysteme ? formatUSD(l.commissionSysteme) : '—'}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-sm text-emerald-700 font-semibold">
+                      {l.commissionRetour ? `+${formatUSD(l.commissionRetour)}` : '—'}
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-success">
                       {formatUSD(l.commissionTotale)}

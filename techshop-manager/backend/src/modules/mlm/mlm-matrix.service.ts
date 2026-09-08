@@ -238,23 +238,61 @@ export class MlmMatrixService {
         },
       });
 
-      // OPTION B: Create Commission EN_ATTENTE (no automatic wallet credit)
+      // OPTION B + AUTO-REINVESTISSEMENT: Create Commission EN_ATTENTE with split amounts.
+      // montantSysteme (60%) stays pending until admin validates.
+      // montantRetour (40%) is credited IMMEDIATELY to the member's wallet.
       const commissionRef = `commission-${membreId}-level${completedLevel.ordre}-${triggerFilleulId}`;
       const existingCommission = await tx.commission.findUnique({
         where: { referenceId: commissionRef },
       });
       if (!existingCommission) {
-        await tx.commission.create({
+        const montantTotal = Number(completedLevel.commissionTotale);
+        const montantSysteme = Number(completedLevel.commissionSysteme);
+        const montantRetour = Number(completedLevel.commissionRetour);
+
+        const commission = await tx.commission.create({
           data: {
             membreId,
             filleulId: triggerFilleulId,
             mlmLevelId: completedLevelId,
-            montant: completedLevel.commissionTotale,
+            montant: montantTotal,
+            montantSysteme,
+            montantRetour,
             statut: 'EN_ATTENTE',
             referenceId: commissionRef,
             description: `Commission niveau ${completedLevel.nom} — 4 filleuls complétés`,
           },
         });
+
+        // Crédit automatique du montantRetour (40%) — réinvestissement immédiat
+        if (montantRetour > 0) {
+          let portefeuille = await tx.portefeuille.findUnique({
+            where: { membreId },
+            select: { id: true },
+          });
+          if (!portefeuille) {
+            portefeuille = await tx.portefeuille.create({
+              data: { membreId, soldeDisponible: 0, totalGagne: 0 },
+            });
+          }
+          const montantRetourDecimal = new Prisma.Decimal(montantRetour);
+          await tx.portefeuille.update({
+            where: { id: portefeuille.id },
+            data: {
+              soldeDisponible: { increment: montantRetourDecimal },
+              totalGagne: { increment: montantRetourDecimal },
+            },
+          });
+          await tx.transactionPortefeuille.create({
+            data: {
+              portefeuilleId: portefeuille.id,
+              type: 'REINVESTISSEMENT',
+              montant: montantRetourDecimal,
+              description: `Réinvestissement auto niveau ${completedLevel.nom} — ${montantRetour} USD crédités`,
+              referenceId: commission.id,
+            },
+          });
+        }
       }
 
       // Create BonusAttribue (physical bonus — also EN_ATTENTE by default)
@@ -461,11 +499,16 @@ export class MlmMatrixService {
         data: { statut: 'VALIDEE', valideeAt: new Date() },
       });
 
-      // Credit wallet now that it's validated
+      // Credit wallet with montantSysteme only: montantRetour was already auto-credited
+      // at commission creation (réinvestissement automatique).
+      const montantACrediter = Number(commission.montantSysteme) > 0
+        ? Number(commission.montantSysteme)
+        : Number(commission.montant); // fallback pour commissions antérieures sans split
+
       await this.walletService.creditWalletInTx(
         tx,
         commission.membreId,
-        Number(commission.montant),
+        montantACrediter,
         'COMMISSION',
         commission.description,
         commission.referenceId,

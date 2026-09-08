@@ -212,6 +212,8 @@ export interface MlmLevel {
   filleulsRequis: number;
   commissionParFilleul: number;
   commissionTotale: number;
+  commissionSysteme: number;  // part système EBN (60%)
+  commissionRetour: number;   // retour automatique membre (40%)
   bonusDescription: string;
   salaireMensuel: number;
   salaireActif: boolean;
@@ -312,26 +314,26 @@ export interface SalaireVerse {
 }
 
 export const MLM_LEVELS_REF = [
-  { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10, commissionTotale: 40, bonusDescription: 'Accès au système', salaireMensuel: 0, salaireActif: false, couleur: '#cbd5e1', icone: 'star' },
-  { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 15, commissionTotale: 60, bonusDescription: 'Bonus niveau 2', salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'award' },
-  { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 25, commissionTotale: 100, bonusDescription: 'Bonus niveau 3', salaireMensuel: 0, salaireActif: false, couleur: '#64748b', icone: 'shield' },
-  { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Bonus niveau 4', salaireMensuel: 0, salaireActif: false, couleur: '#334155', icone: 'zap' },
-  { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 100, commissionTotale: 400, bonusDescription: 'Bonus niveau 5', salaireMensuel: 100, salaireActif: true, couleur: '#f59e0b', icone: 'crown' },
-  { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Bonus niveau 6', salaireMensuel: 250, salaireActif: true, couleur: '#d97706', icone: 'gem' },
-  { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: 'Bonus niveau 7', salaireMensuel: 500, salaireActif: true, couleur: '#b45309', icone: 'trending-up' },
-  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 1250, commissionTotale: 5000, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
+  { ordre: 1, nom: 'Niveau 1', filleulsRequis: 4, commissionParFilleul: 10,     commissionTotale: 40,     commissionSysteme: 6,     commissionRetour: 4,     bonusDescription: 'Accès au système',      salaireMensuel: 0, salaireActif: false, couleur: '#cbd5e1', icone: 'star' },
+  { ordre: 2, nom: 'Niveau 2', filleulsRequis: 4, commissionParFilleul: 20.83,  commissionTotale: 83.32, commissionSysteme: 12.5,  commissionRetour: 8.33,  bonusDescription: 'Bonus niveau 2',          salaireMensuel: 0, salaireActif: false, couleur: '#94a3b8', icone: 'award' },
+  { ordre: 3, nom: 'Niveau 3', filleulsRequis: 4, commissionParFilleul: 33.33,  commissionTotale: 133.32, commissionSysteme: 20,   commissionRetour: 13.33, bonusDescription: 'Bonus niveau 3',          salaireMensuel: 0, salaireActif: false, couleur: '#64748b', icone: 'shield' },
+  { ordre: 4, nom: 'Niveau 4', filleulsRequis: 4, commissionParFilleul: 83.33,  commissionTotale: 333.32, commissionSysteme: 50,   commissionRetour: 33.33, bonusDescription: 'Bonus niveau 4',          salaireMensuel: 0, salaireActif: false, couleur: '#334155', icone: 'zap' },
+  { ordre: 5, nom: 'Niveau 5', filleulsRequis: 4, commissionParFilleul: 416.67, commissionTotale: 1666.68, commissionSysteme: 250, commissionRetour: 166.67, bonusDescription: 'Bonus niveau 5',         salaireMensuel: 100, salaireActif: true,  couleur: '#f59e0b', icone: 'crown' },
+  { ordre: 6, nom: 'Niveau 6', filleulsRequis: 4, commissionParFilleul: 833.33, commissionTotale: 3333.32, commissionSysteme: 500, commissionRetour: 333.33, bonusDescription: 'Bonus niveau 6',         salaireMensuel: 250, salaireActif: true,  couleur: '#d97706', icone: 'gem' },
+  { ordre: 7, nom: 'Niveau 7', filleulsRequis: 4, commissionParFilleul: 8333.33, commissionTotale: 33333.32, commissionSysteme: 5000, commissionRetour: 3333.33, bonusDescription: 'Bonus niveau 7',     salaireMensuel: 500, salaireActif: true,  couleur: '#b45309', icone: 'trending-up' },
+  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 20833.33, commissionTotale: 83333.32, commissionSysteme: 12500, commissionRetour: 8333.33, bonusDescription: 'Bonus Retraite 50000$', salaireMensuel: 1000, salaireActif: true, couleur: '#78350f', icone: 'award' },
 ];
 
 // Canonical published MLM scheme used whenever the API is unavailable.
 MLM_LEVELS_REF.splice(0, MLM_LEVELS_REF.length,
-  { ordre: 1, nom: 'Builder', filleulsRequis: 4, commissionParFilleul: 6, commissionTotale: 24, bonusDescription: '2 pagnes', salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
-  { ordre: 2, nom: 'Sapphire', filleulsRequis: 4, commissionParFilleul: 12.5, commissionTotale: 50, bonusDescription: '1er kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
-  { ordre: 3, nom: 'Ruby', filleulsRequis: 4, commissionParFilleul: 20, commissionTotale: 80, bonusDescription: '2e kit alimentaire', salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
-  { ordre: 4, nom: 'Emerald', filleulsRequis: 4, commissionParFilleul: 50, commissionTotale: 200, bonusDescription: 'Écran plat 52 pouces', salaireMensuel: 0, salaireActif: false, couleur: '#10b981', icone: 'tv' },
-  { ordre: 5, nom: 'Diamond', filleulsRequis: 4, commissionParFilleul: 250, commissionTotale: 1000, bonusDescription: 'Moto de luxe de 2 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#06b6d4', icone: 'bike' },
-  { ordre: 6, nom: 'Crown Diamond', filleulsRequis: 4, commissionParFilleul: 500, commissionTotale: 2000, bonusDescription: '1re voiture de 6 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#8b5cf6', icone: 'crown' },
-  { ordre: 7, nom: 'Ambassadeur', filleulsRequis: 4, commissionParFilleul: 5000, commissionTotale: 20000, bonusDescription: '1re maison de 30 000 USD + 2e voiture de 15 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#6366f1', icone: 'globe' },
-  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 12500, commissionTotale: 50000, bonusDescription: '2e maison + 3e voiture', salaireMensuel: 0, salaireActif: false, couleur: '#d97706', icone: 'award' },
+  { ordre: 1, nom: 'Builder',           filleulsRequis: 4, commissionParFilleul: 10.00,     commissionTotale: 40.00,      commissionSysteme: 6.00,     commissionRetour: 4.00,     bonusDescription: '2 pagnes',                                           salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
+  { ordre: 2, nom: 'Sapphire',          filleulsRequis: 4, commissionParFilleul: 20.83,     commissionTotale: 83.32,      commissionSysteme: 12.50,    commissionRetour: 8.33,     bonusDescription: '1er kit alimentaire',                               salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
+  { ordre: 3, nom: 'Ruby',              filleulsRequis: 4, commissionParFilleul: 33.33,     commissionTotale: 133.32,     commissionSysteme: 20.00,    commissionRetour: 13.33,    bonusDescription: '2e kit alimentaire',                                salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
+  { ordre: 4, nom: 'Emerald',           filleulsRequis: 4, commissionParFilleul: 83.33,     commissionTotale: 333.32,     commissionSysteme: 50.00,    commissionRetour: 33.33,    bonusDescription: 'Écran plat 52 pouces',                              salaireMensuel: 0, salaireActif: false, couleur: '#10b981', icone: 'tv' },
+  { ordre: 5, nom: 'Diamond',           filleulsRequis: 4, commissionParFilleul: 416.67,    commissionTotale: 1666.68,    commissionSysteme: 250.00,   commissionRetour: 166.67,   bonusDescription: 'Moto de luxe de 2 000 USD',                         salaireMensuel: 0, salaireActif: false, couleur: '#06b6d4', icone: 'bike' },
+  { ordre: 6, nom: 'Crown Diamond',     filleulsRequis: 4, commissionParFilleul: 833.33,    commissionTotale: 3333.32,    commissionSysteme: 500.00,   commissionRetour: 333.33,   bonusDescription: '1re voiture de 6 000 USD',                          salaireMensuel: 0, salaireActif: false, couleur: '#8b5cf6', icone: 'crown' },
+  { ordre: 7, nom: 'Ambassadeur',       filleulsRequis: 4, commissionParFilleul: 8333.33,   commissionTotale: 33333.32,   commissionSysteme: 5000.00,  commissionRetour: 3333.33,  bonusDescription: '1re maison de 30 000 USD + 2e voiture de 15 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#6366f1', icone: 'globe' },
+  { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 20833.33,  commissionTotale: 83333.32,   commissionSysteme: 12500.00, commissionRetour: 8333.33,  bonusDescription: '2e maison + 3e voiture',                            salaireMensuel: 0, salaireActif: false, couleur: '#d97706', icone: 'award' },
 );
 
 // ============================================

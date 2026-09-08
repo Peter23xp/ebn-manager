@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, ArrowDownRight, ArrowUpRight, Wallet } from 'lucide-react';
+import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { PortalLayout } from '@/components/portal/PortalLayout';
@@ -11,24 +11,34 @@ import { cn } from '@/lib/utils';
 import type { PortalWalletTransaction } from '@/lib/portal.api';
 import { portalApi } from '@/lib/portal.api';
 
+const TX_LABEL: Record<string, string> = {
+  COMMISSION:       'Commission MLM',
+  BONUS:            'Bonus',
+  SALAIRE:          'Salaire mensuel',
+  BONUS_RETRAITE:   'Bonus retraite',
+  REINVESTISSEMENT: 'Réinvestissement auto',
+  DEBIT:            'Retrait / débit',
+};
+
 // ── Transaction row ───────────────────────────────────────────────────────────
 
 function TransactionRow({ tx }: { tx: PortalWalletTransaction }) {
-  const isGain = tx.type === 'COMMISSION' || tx.type === 'BONUS' || tx.type === 'SALAIRE';
-  const Icon = isGain ? ArrowDownRight : ArrowUpRight;
+  const isReinvest = tx.type === 'REINVESTISSEMENT';
+  const isGain = isReinvest || tx.type === 'COMMISSION' || tx.type === 'BONUS' || tx.type === 'SALAIRE' || tx.type === 'BONUS_RETRAITE';
+  const Icon = isReinvest ? RefreshCw : isGain ? ArrowDownRight : ArrowUpRight;
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <span
         className={cn(
           'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
-          isGain ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-[#2E86C1]',
+          isReinvest ? 'bg-green-50 text-green-600' : isGain ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-[#2E86C1]',
         )}
       >
         <Icon size={16} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-primary">{tx.type}</p>
+        <p className="truncate text-sm font-semibold text-primary">{TX_LABEL[tx.type] ?? tx.type}</p>
         <p className="truncate text-xs text-text-subtle">
           {tx.description ?? 'Transaction MLM'}
         </p>

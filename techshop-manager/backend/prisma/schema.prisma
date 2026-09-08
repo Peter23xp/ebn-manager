@@ -114,6 +114,7 @@ enum TransactionType {
   SALAIRE
   BONUS_RETRAITE
   DEBIT
+  REINVESTISSEMENT  // 🆕 Retour automatique au membre (40%)
 }
 
 enum BonusStatut {
@@ -612,6 +613,9 @@ model MlmLevel {
   filleulsRequis       Int      @default(4)
   commissionParFilleul Decimal  @db.Decimal(12, 2)
   commissionTotale     Decimal  @db.Decimal(12, 2)
+  // 🆕 Split système (60%) / retour membre (40%)
+  commissionSysteme    Decimal  @default(0) @db.Decimal(12, 2)
+  commissionRetour     Decimal  @default(0) @db.Decimal(12, 2)
   bonusDescription     String
   salaireMensuel       Decimal  @default(0) @db.Decimal(12, 2)
   salaireActif         Boolean  @default(false)
@@ -841,19 +845,22 @@ model BonusRetraite {
 
 // ── Commissions MLM (Option B : validation admin requise) ─────
 model Commission {
-  id          String           @id @default(uuid())
-  membreId    String
-  filleulId   String
-  mlmLevelId  Int
-  montant     Decimal          @db.Decimal(12, 2)
-  statut      CommissionStatut @default(EN_ATTENTE)
-  referenceId String           @unique
-  description String
-  notes       String?
-  valideeAt   DateTime?
-  payeeAt     DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id               String           @id @default(uuid())
+  membreId         String
+  filleulId        String
+  mlmLevelId       Int
+  montant          Decimal          @db.Decimal(12, 2)
+  // 🆕 Split : partie reçue par le système EBN vs retour automatique au membre
+  montantSysteme   Decimal          @default(0) @db.Decimal(12, 2)
+  montantRetour    Decimal          @default(0) @db.Decimal(12, 2)
+  statut           CommissionStatut @default(EN_ATTENTE)
+  referenceId      String           @unique
+  description      String
+  notes            String?
+  valideeAt        DateTime?
+  payeeAt          DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   membre  Membre   @relation("CommissionBeneficiaire", fields: [membreId], references: [id])
   filleul Membre   @relation("CommissionFilleul", fields: [filleulId], references: [id])
