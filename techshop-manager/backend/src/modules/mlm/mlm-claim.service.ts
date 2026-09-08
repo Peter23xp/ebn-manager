@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { StatutClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MlmMatrixService } from './mlm-matrix.service';
@@ -115,5 +115,94 @@ export class MlmClaimService {
       }
     }
     return { attachés, conflits };
+  }
+
+  /** Les filleuls en attente rattachables à ce parrain */
+  async pendingClaimsForParrain(parrainClientId: string) {
+    return this.prisma.parrainClaim.findMany({
+      where: { parrainClientId, statut: 'EN_ATTENTE' },
+      include: {
+        filleul: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Réclamation différée : le parrain est déjà ACTIF mais n'a pas présenté son
+   * code à l'activation (voie Kpay/webhook, ou code manquant au guichet).
+   * Le code est vérifié UNIQUEMENT contre la vente d'ACTIVATION du parrain
+   * (son premier achat), pas une vente ultérieure.
+   */
+  async confirmClaims(parrainClientId: string, codeFacture: string, agentId?: string) {
+    const parrain = await this.prisma.client.findUnique({
+      where: { id: parrainClientId },
+      select: { id: true, statut: true },
+    });
+    if (!parrain) {
+      throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Parrain introuvable' });
+    }
+    if (parrain.statut !== 'ACTIF') {
+      throw new BadRequestException({
+        code: 'ERR_PARRAIN_NOT_ACTIVE',
+        message: "Le parrain doit d'abord activer son compte (le code facture est demandé à l'activation)",
+      });
+    }
+
+    const nbPending = await this.prisma.parrainClaim.count({
+      where: { parrainClientId, statut: 'EN_ATTENTE' },
+    });
+    if (nbPending === 0) {
+      throw new ConflictException({
+        code: 'ERR_CLAIM_ALREADY_LIE',
+        message: 'Aucun filleul en attente pour ce parrain (déjà liés ou réclamation inconnue)',
+      });
+    }
+
+    // Vente d'activation = étape ACTIVATION complétée + premier achat du client
+    const etapeActivation = await this.prisma.onboardingEtape.findFirst({
+      where: { clientId: parrainClientId, etape: 'ACTIVATION', statut: 'COMPLETE' },
+      select: { id: true },
+    });
+    const venteActivation = etapeActivation
+      ? await this.prisma.vente.findFirst({
+          where: { clientId: parrainClientId },
+          orderBy: { createdAt: 'asc' },
+          select: { numeroVente: true },
+        })
+      : null;
+    if (!venteActivation) {
+      throw new BadRequestException({
+        code: 'ERR_ACTIVATION_SALE_NOT_FOUND',
+        message: "Vente d'activation introuvable pour ce parrain",
+      });
+    }
+
+    if (!matchesInvoiceCode(codeFacture, venteActivation.numeroVente)) {
+      throw new BadRequestException({
+        code: 'ERR_CLAIM_CODE_INVALID',
+        message: 'Code de facture invalide',
+      });
+    }
+
+    const { attachés, conflits } = await this.attachConfirmedClaims(
+      parrainClientId, venteActivation.numeroVente, agentId,
+    );
+    return { attachés, conflits, facture: venteActivation.numeroVente };
+  }
+
+  /** File admin des réclamations en attente */
+  async listPendingClaims(siteId?: string) {
+    return this.prisma.parrainClaim.findMany({
+      where: {
+        statut: 'EN_ATTENTE',
+        ...(siteId ? { parrain: { siteInscriptionId: siteId } } : {}),
+      },
+      include: {
+        filleul: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
+        parrain: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }

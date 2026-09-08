@@ -12,13 +12,17 @@ import {
   HttpCode,
   HttpStatus,
   DefaultValuePipe,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { MlmService, UpdateMlmConfigDto } from './mlm.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 import { MlmWalletService } from './mlm-wallet.service';
+import { MlmClaimService } from './mlm-claim.service';
 import { KpayProvider } from '../kpay/kpay.types';
 import {
   ApproveWithdrawalRequestDto,
@@ -33,6 +37,7 @@ export class MlmController {
     private readonly mlmService: MlmService,
     private readonly matrixService: MlmMatrixService,
     private readonly walletService: MlmWalletService,
+    private readonly mlmClaimService: MlmClaimService,
   ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -329,6 +334,35 @@ export class MlmController {
   @HttpCode(HttpStatus.OK)
   validateRetirement(@Param('bonusId') bonusId: string) {
     return this.matrixService.validateRetirement(bonusId);
+  }
+
+  // ── Réclamations de filleuls (parrain non activé à l'enregistrement) ─────────
+
+  @Get('claims')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  async listClaims(@Query('siteId') siteId?: string) {
+    return this.mlmClaimService.listPendingClaims(siteId);
+  }
+
+  @Post('claims/confirm')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
+  @HttpCode(HttpStatus.OK)
+  async confirmClaims(
+    @Body() body: { parrainClientId?: string; telephoneParrain?: string; codeFacture: string },
+    @CurrentUser() user: any,
+  ) {
+    let parrainClientId = body.parrainClientId;
+    if (!parrainClientId && body.telephoneParrain) {
+      const parrain = await this.mlmClaimService.resolveParrain(body.telephoneParrain.trim());
+      if (!parrain) {
+        throw new NotFoundException({ code: 'ERR_PARRAIN_NOT_FOUND', message: 'Aucun client avec ce téléphone' });
+      }
+      parrainClientId = parrain.id;
+    }
+    if (!parrainClientId) {
+      throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'parrainClientId ou telephoneParrain requis' });
+    }
+    return this.mlmClaimService.confirmClaims(parrainClientId, body.codeFacture, user?.id);
   }
 
   // ── Internal: activate member (called from clients module) ────────────────────

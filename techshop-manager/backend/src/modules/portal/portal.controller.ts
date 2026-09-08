@@ -3,6 +3,7 @@ import {
   ParseIntPipe, DefaultValuePipe, Post, Body, Patch,
 } from '@nestjs/common';
 import { PortalService } from './portal.service';
+import { MlmClaimService } from '../mlm/mlm-claim.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { KpayProvider } from '../kpay/kpay.types';
@@ -11,7 +12,10 @@ import { CreateWithdrawalRequestDto } from './dto/withdrawal.dto';
 @Controller('portal')
 @UseGuards(JwtAuthGuard)
 export class PortalController {
-  constructor(private readonly portalService: PortalService) {}
+  constructor(
+    private readonly portalService: PortalService,
+    private readonly mlmClaimService: MlmClaimService,
+  ) {}
 
   @Get('me')
   getPortalData(@CurrentUser() user: any) {
@@ -69,6 +73,17 @@ export class PortalController {
   @Get('filleuls')
   getFilleuls(@CurrentUser() user: any) {
     return this.portalService.getReferrals(user.id, {});
+  }
+
+  @Get('claims/pending')
+  async getPendingClaims(@CurrentUser() user: any) {
+    const claims = await this.mlmClaimService.pendingClaimsForParrain(user.id);
+    return { claims, count: claims.length };
+  }
+
+  @Post('claims/confirm')
+  async confirmClaims(@CurrentUser() user: any, @Body() body: { codeFacture: string }) {
+    return this.mlmClaimService.confirmClaims(user.id, body.codeFacture);
   }
 
   @Get('commissions/validated')

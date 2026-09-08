@@ -164,3 +164,71 @@ describe('attachConfirmedClaims', () => {
     errSpy.mockRestore();
   });
 });
+
+describe('confirmClaims — réclamation différée', () => {
+  let prisma: any;
+  let svc: MlmClaimService;
+
+  beforeEach(() => {
+    prisma = {
+      client: { findUnique: jest.fn<any>() },
+      parrainClaim: { count: jest.fn<any>() },
+      onboardingEtape: { findFirst: jest.fn<any>() },
+      vente: { findFirst: jest.fn<any>() },
+    };
+    svc = new MlmClaimService(prisma as any, { onClientActivated: jest.fn<any>() } as any);
+    jest.spyOn(svc, 'attachConfirmedClaims').mockResolvedValue({ attachés: 1, conflits: 0 });
+  });
+
+  it('parrain encore EN_COURS → 400 ERR_PARRAIN_NOT_ACTIVE', async () => {
+    prisma.client.findUnique.mockResolvedValue({ id: 'p1', statut: 'EN_COURS' });
+    await expect(svc.confirmClaims('p1', '0047')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ERR_PARRAIN_NOT_ACTIVE' }),
+    });
+  });
+
+  it('parrain introuvable → 404', async () => {
+    prisma.client.findUnique.mockResolvedValue(null);
+    await expect(svc.confirmClaims('p1', '0047')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ERR_NOT_FOUND' }),
+    });
+  });
+
+  it('pas de vente d\'activation → 400 ERR_ACTIVATION_SALE_NOT_FOUND', async () => {
+    prisma.client.findUnique.mockResolvedValue({ id: 'p1', statut: 'ACTIF' });
+    prisma.parrainClaim.count.mockResolvedValue(1);
+    prisma.onboardingEtape.findFirst.mockResolvedValue(null);
+    prisma.vente.findFirst.mockResolvedValue(null);
+    await expect(svc.confirmClaims('p1', '0047')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ERR_ACTIVATION_SALE_NOT_FOUND' }),
+    });
+  });
+
+  it('code facture qui ne match pas la VENTE D\'ACTIVATION → 400 ERR_CLAIM_CODE_INVALID', async () => {
+    prisma.client.findUnique.mockResolvedValue({ id: 'p1', statut: 'ACTIF' });
+    prisma.parrainClaim.count.mockResolvedValue(1);
+    prisma.onboardingEtape.findFirst.mockResolvedValue({ id: 'etape-1', referenceTransaction: 'ref-act-1' });
+    prisma.vente.findFirst.mockResolvedValue({ numeroVente: 'GOM-202609-0047' });
+    await expect(svc.confirmClaims('p1', '0048')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ERR_CLAIM_CODE_INVALID' }),
+    });
+  });
+
+  it('aucun claim en attente → 409 ERR_CLAIM_ALREADY_LIE', async () => {
+    prisma.client.findUnique.mockResolvedValue({ id: 'p1', statut: 'ACTIF' });
+    prisma.parrainClaim.count.mockResolvedValue(0);
+    await expect(svc.confirmClaims('p1', '0047')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ERR_CLAIM_ALREADY_LIE' }),
+    });
+  });
+
+  it('happy path → attachConfirmedClaims appelé avec la facture d\'activation', async () => {
+    prisma.client.findUnique.mockResolvedValue({ id: 'p1', statut: 'ACTIF' });
+    prisma.parrainClaim.count.mockResolvedValue(1);
+    prisma.onboardingEtape.findFirst.mockResolvedValue({ id: 'etape-1', referenceTransaction: 'ref-act-1' });
+    prisma.vente.findFirst.mockResolvedValue({ numeroVente: 'GOM-202609-0047' });
+    const res = await svc.confirmClaims('p1', 'GOM-202609-0047', 'agent-1');
+    expect(svc.attachConfirmedClaims).toHaveBeenCalledWith('p1', 'GOM-202609-0047', 'agent-1');
+    expect(res).toEqual({ attachés: 1, conflits: 0, facture: 'GOM-202609-0047' });
+  });
+});
