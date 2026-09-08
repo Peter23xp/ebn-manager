@@ -57,6 +57,7 @@ const MlmConfigPage      = lazy(() => import('@/pages/mlm/MlmConfigPage'));
 const MlmLevelsPage      = lazy(() => import('@/pages/mlm/MlmLevelsPage'));
 const MlmTreePage        = lazy(() => import('@/pages/mlm/MlmTreePage'));
 const MlmCommissionsPage = lazy(() => import('@/pages/mlm/MlmCommissionsPage'));
+const MlmClaimsPage = lazy(() => import('@/pages/mlm/MlmClaimsPage'));
 const MlmWithdrawalRequestsPage = lazy(() => import('@/pages/mlm/MlmWithdrawalRequestsPage'));
 
 // Rapports
@@ -172,6 +173,7 @@ export default function App() {
             <Route path="mlm/levels" element={<RoleGuard minRole="AGENT"><MlmLevelsPage /></RoleGuard>} />
             <Route path="mlm/tree" element={<RoleGuard minRole="GERANT"><MlmTreePage /></RoleGuard>} />
             <Route path="mlm/commissions" element={<RoleGuard minRole="GERANT"><MlmCommissionsPage /></RoleGuard>} />
+            <Route path="mlm/claims" element={<RoleGuard minRole="GERANT"><MlmClaimsPage /></RoleGuard>} />
             <Route path="mlm/withdrawal-requests" element={<RoleGuard minRole="GERANT"><MlmWithdrawalRequestsPage /></RoleGuard>} />
             <Route path="mlm/members" element={<RoleGuard minRole="GERANT"><MlmMembersPage /></RoleGuard>} />
             <Route path="mlm/members/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />

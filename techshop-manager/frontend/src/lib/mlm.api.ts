@@ -169,4 +169,19 @@ export const MlmApi = {
     const { data } = await api.put(`/mlm/retirement/${bonusId}/validate`);
     return data;
   },
+
+  // ── Réclamations de filleuls (parrain non activé) ──────────────────────────
+  listPendingClaims: async (params?: { siteId?: string }) => {
+    const { data } = await api.get('/mlm/claims', { params });
+    return data as Array<{
+      id: string;
+      createdAt: string;
+      filleul: { id: string; prenom: string; nom: string; telephone: string; statut: string };
+      parrain: { id: string; prenom: string; nom: string; telephone: string; statut: string };
+    }>;
+  },
+  confirmClaim: async (body: { parrainClientId?: string; telephoneParrain?: string; codeFacture: string }) => {
+    const { data } = await api.post('/mlm/claims/confirm', body);
+    return data as { attachés: number; conflits: number; facture: string };
+  },
 };
