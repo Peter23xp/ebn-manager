@@ -117,7 +117,8 @@
       "Bash(rm -f ebn_login.json)",
       "Bash(grep -A4 \"PortalPointsPage > Solde card > 1\" /tmp/nest3005.log)",
       "Bash(pkill -f \"start:dev\")",
-      "Bash(pkill -f \"nest start\")"
+      "Bash(pkill -f \"nest start\")",
+      "Bash(awk 'NR>=215 && NR<=245' src/components/clients/EditClientModal.tsx)"
     ]
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -85,7 +86,7 @@ export function EditClientModal({
 
   const apiError = extractApiError(error);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -267,6 +268,7 @@ export function EditClientModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

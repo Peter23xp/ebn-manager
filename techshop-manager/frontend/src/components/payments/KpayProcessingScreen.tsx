@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Loader2, ShieldCheck, Smartphone } from 'lucide-react';
 
 type KpayProcessingScreenProps = {
@@ -7,7 +8,7 @@ type KpayProcessingScreenProps = {
 };
 
 export function KpayProcessingScreen({ amount, currency, waiting = false }: KpayProcessingScreenProps) {
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm"
       role="dialog"
@@ -54,6 +55,7 @@ export function KpayProcessingScreen({ amount, currency, waiting = false }: Kpay
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

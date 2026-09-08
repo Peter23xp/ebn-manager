@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Wallet, ArrowRight, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 
@@ -78,7 +79,7 @@ export function WalletCard({ solde, gainsTotaux }: WalletCardProps) {
         </div>
       </div>
 
-      {showWithdraw && (
+      {showWithdraw && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A1628]/60"
           onClick={() => setShowWithdraw(false)}

@@ -128,14 +128,14 @@ const PRODUITS = [
 ];
 
 const OPPORTUNITE = [
-  { niveau: 'Builder', filleuls: 4, commission: '24 USD', bonus: '2 pagnes' },
-  { niveau: 'Sapphire', filleuls: 4, commission: '50 USD', bonus: '1er kit alimentaire' },
-  { niveau: 'Ruby', filleuls: 4, commission: '80 USD', bonus: '2e kit alimentaire' },
-  { niveau: 'Emerald', filleuls: 4, commission: '200 USD', bonus: 'Écran plat 52 pouces' },
-  { niveau: 'Diamond', filleuls: 4, commission: '1 000 USD', bonus: 'Moto de luxe de 2 000 USD' },
-  { niveau: 'Crown Diamond', filleuls: 4, commission: '2 000 USD', bonus: '1re voiture de 6 000 USD' },
-  { niveau: 'Ambassadeur', filleuls: 4, commission: '20 000 USD', bonus: '1re maison de 30 000 USD + 2e voiture de 15 000 USD' },
-  { niveau: 'Crown Ambassadeur', filleuls: 4, commission: '50 000 USD', bonus: '2e maison + 3e voiture' },
+  { niveau: 'Builder',           filleuls: 4, commission: '40 USD',        systeme: '24 USD',     retour: '16 USD',     bonus: '2 pagnes' },
+  { niveau: 'Sapphire',          filleuls: 4, commission: '83.32 USD',     systeme: '50 USD',     retour: '33.32 USD',  bonus: '1er kit alimentaire' },
+  { niveau: 'Ruby',              filleuls: 4, commission: '133.32 USD',    systeme: '80 USD',     retour: '53.32 USD',  bonus: '2e kit alimentaire' },
+  { niveau: 'Emerald',           filleuls: 4, commission: '333.32 USD',    systeme: '200 USD',    retour: '133.32 USD', bonus: 'Écran plat 52 pouces' },
+  { niveau: 'Diamond',           filleuls: 4, commission: '1 666.68 USD',  systeme: '1 000 USD',  retour: '666.68 USD', bonus: 'Moto de luxe de 2 000 USD' },
+  { niveau: 'Crown Diamond',     filleuls: 4, commission: '3 333.32 USD',  systeme: '2 000 USD',  retour: '1 333.32 USD', bonus: '1re voiture de 6 000 USD' },
+  { niveau: 'Ambassadeur',       filleuls: 4, commission: '33 333.32 USD', systeme: '20 000 USD', retour: '13 333.32 USD', bonus: '1re maison de 30 000 USD + 2e voiture de 15 000 USD' },
+  { niveau: 'Crown Ambassadeur', filleuls: 4, commission: '83 333.32 USD', systeme: '50 000 USD', retour: '33 333.32 USD', bonus: '2e maison + 3e voiture' },
 ];
 
 const TEMOIGNAGES = [
@@ -450,13 +450,13 @@ export default function HomePage() {
 
         /* OPPORTUNITE */
         .lp-opp-ladder { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; padding: 14px 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
-        @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr 90px; } .lp-opp-hide { display: none; } }
-        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) 110px; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; transition: background .15s; }
+        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) minmax(140px, 190px); padding: 14px 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
+        @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr minmax(120px, 160px); } .lp-opp-hide { display: none; } }
+        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) minmax(140px, 190px); align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; transition: background .15s; }
         .lp-opp-row:hover { background: #f8fafc; }
         .lp-opp-row.crown { background: #eff6ff; }
         .lp-opp-row.crown:hover { background: #dbeafe; }
-        @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr 90px; } }
+        @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr minmax(120px, 160px); } }
         .lp-opp-nom { font-size: 15px; font-weight: 700; color: #0f172a; }
         .lp-opp-nom.crown-nom { color: #1d4ed8; }
         .lp-opp-note { font-size: 11px; color: #94a3b8; margin-top: 2px; }
@@ -933,7 +933,7 @@ export default function HomePage() {
               8 niveaux de carriere,<br /><em>un parcours clair.</em>
             </h2>
             <p className="lp-sec-sub">
-              Chaque niveau demande 4 filleuls actifs. Matrice complete = commission versee + promotion.
+              Chaque niveau demande 4 filleuls actifs. Matrice complete = commission versee (60% Systeme retirable + 40% Auto-reinvestissement) + promotion.
               Les montants sont configures dans le systeme - rien n'est negocie a part, rien n'est cache.
             </p>
           </Reveal>
@@ -942,9 +942,9 @@ export default function HomePage() {
               <div className="lp-opp-head" role="row" aria-hidden>
                 <span>Niveau</span>
                 <span className="lp-opp-hide">Bonus d'incitation</span>
-                <span style={{ textAlign: 'right' }}>Gains USD</span>
+                <span style={{ textAlign: 'right' }}>Gains & Split</span>
               </div>
-              {OPPORTUNITE.map(({ niveau, filleuls, commission, bonus }) => (
+              {OPPORTUNITE.map(({ niveau, filleuls, commission, systeme, retour, bonus }) => (
                 <div key={niveau} className={`lp-opp-row${niveau === 'Crown Ambassadeur' ? ' crown' : ''}`} role="row">
                   <div>
                     <div className={`lp-opp-nom${niveau === 'Crown Ambassadeur' ? ' crown-nom' : ''}`}>
@@ -956,12 +956,17 @@ export default function HomePage() {
                     <div className="lp-opp-note">{filleuls} filleuls par matrice</div>
                   </div>
                   <span className="lp-opp-val lp-opp-hide">{bonus}</span>
-                  <span className="lp-opp-total">{commission}</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="lp-opp-total">{commission}</span>
+                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      <span style={{ color: '#2563eb', fontWeight: 600 }}>{systeme}</span> (60%) + <span style={{ color: '#059669', fontWeight: 600 }}>{retour}</span> (40%)
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
             <p className="lp-opp-footnote">
-              Les 8 étapes représentent un total calculé de <strong>73 354 USD</strong>.
+              Les 8 étapes représentent un total calculé de <strong>122 256.60 USD</strong> (dont <strong>73 354 USD</strong> Système retirable et <strong>48 902.60 USD</strong> réinvestis automatiquement dans le réseau).
               Chaque étape nécessite 4 filleuls directs ; les bonus d'incitation sont ceux indiqués ci-dessus.
             </p>
             <p className="lp-disclaimer">

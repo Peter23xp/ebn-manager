@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +15,7 @@ import { getErrorMessage } from '@/lib/api';
 
 // ── Toast ──────────────────────────────────────────────────────────
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
-  return (
+  return createPortal(
     <div role="alert" className={cn(
       'fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-auto sm:right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white sm:max-w-sm',
       ok ? 'bg-success' : 'bg-danger',
@@ -22,7 +23,8 @@ function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: ()
       {ok ? <CheckCircle size={16} className="flex-shrink-0" /> : <AlertCircle size={16} className="flex-shrink-0" />}
       <span className="flex-1">{msg}</span>
       <button onClick={onDismiss} aria-label="Fermer la notification" className="ml-1 flex min-h-8 min-w-8 items-center justify-center rounded-md opacity-70 hover:opacity-100"><X size={14} /></button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -49,7 +51,7 @@ function ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, 
   danger?: boolean; onConfirm: () => void; onCancel: () => void; loading?: boolean;
 }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <h3 className="font-bold text-primary">{title}</h3>
@@ -61,7 +63,8 @@ function ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -100,7 +103,7 @@ function SiteDialog({ mode, site, onClose, onSaved }: {
 
   const title = mode === 'create' ? 'Nouveau site' : `Modifier — ${site?.nom}`;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       role="dialog" aria-modal="true" aria-label={title}>
         <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto">
@@ -168,7 +171,8 @@ function SiteDialog({ mode, site, onClose, onSaved }: {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
