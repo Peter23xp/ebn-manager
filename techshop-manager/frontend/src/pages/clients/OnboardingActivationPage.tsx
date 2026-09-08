@@ -53,6 +53,7 @@ const MODE_PAIEMENT = [
   { value: 'CASH',         label: 'Cash' },
 ] as const;
 
+
 const ETAPE_REQUIRED: Array<{ key: 'RECIT' | 'FICHE'; label: string }> = [
   { key: 'RECIT', label: 'Récit de vente' },
   { key: 'FICHE', label: 'Fiche client' },
@@ -69,6 +70,9 @@ function ConfirmModal({
   nextCode,
   produit,
   modePaiement,
+  claimRequired,
+  codeFacture,
+  onCodeFactureChange,
   onConfirm,
   onCancel,
   isLoading,
@@ -77,6 +81,9 @@ function ConfirmModal({
   nextCode: string | null;
   produit: Produit;
   modePaiement: string;
+  claimRequired: { nbFilleulsEnAttente: number; factureHint: string } | null;
+  codeFacture: string;
+  onCodeFactureChange: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -116,6 +123,27 @@ function ConfirmModal({
           <p className="text-orange-600 text-[11px] font-medium mt-1">⚠ 1 unité sera retirée du stock.</p>
         </div>
 
+        {/* Champ code facture — affiché après 409 ERR_CLAIM_CODE_REQUIRED */}
+        {claimRequired && (
+          <div className="rounded-lg border border-orange-300 bg-orange-50 p-3 space-y-2">
+            <p className="text-[13px] text-text font-medium">
+              Ce parrain a {claimRequired.nbFilleulsEnAttente} filleul(s) en attente.
+              Saisissez le code de sa facture d'activation
+              {claimRequired.factureHint && <> (ex.&nbsp;<span className="font-mono font-semibold">{claimRequired.factureHint}</span>)</>}
+              {' '}pour confirmer le lien.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={codeFacture}
+              onChange={(e) => onCodeFactureChange(e.target.value)}
+              placeholder="Code facture (ex. 0047)"
+              className="w-full px-3 py-2 rounded-lg border border-border text-[13px] focus:outline-none focus:ring-2 focus:ring-primary-accent/30"
+              data-testid="input-code-facture"
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
           <button
             type="button"
@@ -128,7 +156,7 @@ function ConfirmModal({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isLoading || (!!claimRequired && !codeFacture.trim())}
             className="btn-primary text-[13px] flex items-center gap-2"
           >
             {isLoading && <Loader2 size={14} className="animate-spin" aria-hidden />}
@@ -298,6 +326,10 @@ export default function OnboardingActivationPage() {
   const [selectedProduit, setSelectedProduit] = useState<Produit | null>(null);
   const [modePaiement, setModePaiement] = useState<string>('CASH');
 
+  // Code facture — requis si des filleuls EN_ATTENTE sont attachés au parrain (409)
+  const [codeFacture, setCodeFacture] = useState('');
+  const [claimRequired, setClaimRequired] = useState<{ nbFilleulsEnAttente: number; factureHint: string } | null>(null);
+
   const { data: client, isLoading } = useQuery<ClientActivation>({
     queryKey: ['client-activation', id],
     queryFn: () => api.get(`/clients/${id}`).then(r => r.data),
@@ -318,9 +350,12 @@ export default function OnboardingActivationPage() {
     mutationFn: () => api.post(`/clients/${id}/onboarding/activate`, {
       produitId: selectedProduit!.id,
       modePaiement,
+      ...(codeFacture.trim() ? { codeFacture: codeFacture.trim() } : {}),
     }),
     onSuccess: (res) => {
       setConfirmOpen(false);
+      setClaimRequired(null);
+      setCodeFacture('');
       const c = res.data;
       setSuccessResult({
         id:             c.id,
@@ -336,10 +371,23 @@ export default function OnboardingActivationPage() {
       qc.invalidateQueries({ queryKey: ['stocks'] });
     },
     onError: (error: any) => {
-      setConfirmOpen(false);
       const status = error?.response?.status;
       const code = error?.response?.data?.code;
       const msg = error?.response?.data?.message;
+      // 409 — le parrain a des filleuls en attente : demander le code facture
+      if (status === 409 && code === 'ERR_CLAIM_CODE_REQUIRED') {
+        setClaimRequired({
+          nbFilleulsEnAttente: error.response.data.nbFilleulsEnAttente ?? 0,
+          factureHint: error.response.data.factureHint ?? '',
+        });
+        return; // on reste dans la modale
+      }
+      // 400 — code facture fourni mais invalide
+      if (status === 400 && code === 'ERR_CLAIM_CODE_INVALID') {
+        toast.error("Code de facture invalide. Vérifiez les 4 derniers chiffres de la facture d'activation.");
+        return;
+      }
+      setConfirmOpen(false);
       if (code === 'ERR_CONFLICT' || code === 'ERR_ALREADY_ACTIVE') {
         toast.error('Ce client est déjà activé.');
       } else if (code === 'ERR_STOCK_INSUFFISANT') {
@@ -654,8 +702,11 @@ export default function OnboardingActivationPage() {
           nextCode={nextCode}
           produit={selectedProduit}
           modePaiement={modePaiement}
+          claimRequired={claimRequired}
+          codeFacture={codeFacture}
+          onCodeFactureChange={setCodeFacture}
           onConfirm={() => mutation.mutate()}
-          onCancel={() => setConfirmOpen(false)}
+          onCancel={() => { setConfirmOpen(false); setClaimRequired(null); setCodeFacture(''); }}
           isLoading={mutation.isPending}
         />
       )}
