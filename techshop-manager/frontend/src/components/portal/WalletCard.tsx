@@ -117,7 +117,8 @@ export function WalletCard({ solde, gainsTotaux }: WalletCardProps) {
               Fermer
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
