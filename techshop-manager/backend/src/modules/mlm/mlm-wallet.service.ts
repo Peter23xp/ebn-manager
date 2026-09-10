@@ -42,6 +42,7 @@ export class MlmWalletService implements OnModuleInit {
       membreId: wallet.membreId,
       soldeDisponible: Number(wallet.soldeDisponible),
       soldeReserve: Number(wallet.soldeReserve),
+      soldeReinvesti: Number(wallet.soldeReinvesti),
       soldeDisponibleRetrait: Number(wallet.soldeDisponible) - Number(wallet.soldeReserve),
       totalGagne: Number(wallet.totalGagne),
       membre: wallet.membre,

@@ -38,6 +38,9 @@ describe('PortalService', () => {
         findUnique: jest.fn<any>(),
         update: jest.fn<any>(),
       },
+      reinvestLote: {
+        findMany: jest.fn<any>().mockResolvedValue([]),
+      },
       $transaction: jest.fn<any>(async (cb: any) => cb(prisma)),
     };
 
@@ -102,6 +105,7 @@ describe('PortalService', () => {
           portefeuille: {
             soldeDisponible: 120,
             soldeReserve: 20,
+            soldeReinvesti: 80,
             totalGagne: 200,
           },
         });
@@ -117,8 +121,28 @@ describe('PortalService', () => {
       expect(mlmMatrix.onClientActivated).toHaveBeenCalledWith(clientId, 'parrain-uuid');
       expect(res.wallet?.soldeDisponible).toBe(120);
       expect(res.wallet?.soldeDisponibleRetrait).toBe(100);
+      expect(res.wallet?.soldeReinvesti).toBe(80);
       expect(res.wallet?.totalGagne).toBe(200);
       expect(res.stats?.gainsTotaux).toBe(200);
+    });
+  });
+
+  describe('getWallet — lots de réinvestissement', () => {
+    it('retourne les lots non libérés triés par date', async () => {
+      prisma.membre.findUnique.mockResolvedValue({
+        id: 'm-1', clientId: 'c-1',
+        portefeuille: { soldeDisponible: 50, soldeReserve: 0, soldeReinvesti: 40, totalGagne: 90 },
+      });
+      prisma.reinvestLote.findMany.mockResolvedValueOnce([
+        { id: 'l-1', amount: 40, releasedAt: new Date('2026-10-12') },
+      ]);
+
+      const res = await service.getWallet('c-1');
+
+      expect(res.reinvestLots).toEqual([{ id: 'l-1', amount: 40, releasedAt: '2026-10-12T00:00:00.000Z' }]);
+      expect(prisma.reinvestLote.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { membreId: 'm-1', released: false } }),
+      );
     });
   });
 

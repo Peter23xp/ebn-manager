@@ -115,23 +115,34 @@ export class PortalService {
           soldeDisponible: 0,
           soldeReserve: 0,
           soldeDisponibleRetrait: 0,
+          soldeReinvesti: 0,
           totalGagne: 0,
         },
+        reinvestLots: [],
         stats: {
           gainsTotaux: 0,
         },
       };
     }
 
+    const pf = membre.portefeuille;
+    const lots = await this.prisma.reinvestLote.findMany({
+      where: { membreId: membre.id, released: false },
+      orderBy: { releasedAt: 'asc' },
+      select: { id: true, amount: true, releasedAt: true },
+    });
+
     return {
       wallet: {
-        soldeDisponible: Number(membre.portefeuille.soldeDisponible),
-        soldeReserve: Number(membre.portefeuille.soldeReserve),
-        soldeDisponibleRetrait: Number(membre.portefeuille.soldeDisponible) - Number(membre.portefeuille.soldeReserve),
-        totalGagne: Number(membre.portefeuille.totalGagne),
+        soldeDisponible: Number(pf.soldeDisponible),
+        soldeReserve: Number(pf.soldeReserve),
+        soldeDisponibleRetrait: Number(pf.soldeDisponible) - Number(pf.soldeReserve),
+        soldeReinvesti: Number(pf.soldeReinvesti),
+        totalGagne: Number(pf.totalGagne),
       },
+      reinvestLots: lots.map((l) => ({ id: l.id, amount: Number(l.amount), releasedAt: l.releasedAt.toISOString() })),
       stats: {
-        gainsTotaux: Number(membre.portefeuille.totalGagne),
+        gainsTotaux: Number(pf.totalGagne),
       },
     };
   }
