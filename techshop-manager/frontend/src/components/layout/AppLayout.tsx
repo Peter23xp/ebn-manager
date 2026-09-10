@@ -302,7 +302,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const siteName = user?.siteName ?? (selectedSiteId ? `Site ${selectedSiteId}` : null);

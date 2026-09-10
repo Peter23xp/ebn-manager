@@ -19,7 +19,7 @@ export function PortalHeader({
   const handleLogout = () => {
     if (!window.confirm('Voulez-vous vous déconnecter ?')) return;
     logout();
-    navigate('/portal/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const handleBack = () => {
