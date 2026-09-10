@@ -34,6 +34,11 @@ describe('PortalService', () => {
         findUnique: jest.fn<any>(),
         update: jest.fn<any>(),
       },
+      portefeuille: {
+        findUnique: jest.fn<any>(),
+        update: jest.fn<any>(),
+      },
+      $transaction: jest.fn<any>(async (cb: any) => cb(prisma)),
     };
 
     mlmWallet = {
@@ -152,24 +157,48 @@ describe('PortalService', () => {
     });
   });
 
-  describe('createWithdrawalRequest — normalisation téléphone', () => {
-    const baseMembre = { id: 'membre-1', clientId: 'client-1', portefeuille: { id: 'w-1' } };
+  describe('createWithdrawalRequest — plafond au solde retirable + réserve', () => {
+    // portefeuille: dispo 120, réservé 20 → retirable = 100
+    const membreAvecPortefeuille = {
+      id: 'membre-1', clientId: 'client-1',
+      portefeuille: { id: 'w-1', soldeDisponible: 120, soldeReserve: 20 },
+    };
 
-    function setupHappyPath(phoneNumber: string) {
-      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
-      prisma.commission.findMany.mockResolvedValueOnce([
-        { id: 'c-1', montant: 25, statut: 'VALIDEE' },
-      ]);
-      prisma.withdrawalRequest.create.mockResolvedValueOnce({
+    function mockHappy() {
+      prisma.membre.findUnique.mockResolvedValue(membreAvecPortefeuille);
+      prisma.portefeuille.update.mockResolvedValue({ id: 'w-1' });
+      prisma.withdrawalRequest.create.mockResolvedValue({
         id: 'wr-1', montant: 25, type: 'MOBILE_MONEY', provider: 'AIRTEL_COD',
-        phoneNumber, statut: 'EN_ATTENTE', commissionIds: ['c-1'], notes: null, createdAt: new Date(),
+        phoneNumber: '+243812345678', statut: 'EN_ATTENTE', commissionIds: [], notes: null, createdAt: new Date(),
       });
-      return { montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD', phoneNumber, commissionIds: ['c-1'] };
     }
 
-    it('normalizes 243XXXXXXXXX to +243XXXXXXXXX', async () => {
-      const dto = setupHappyPath('243812345678');
-      await service.createWithdrawalRequest('client-1', dto);
+    it('normalise 243XXXXXXXXX en +243XXXXXXXXX et réserve le montant', async () => {
+      mockHappy();
+      await service.createWithdrawalRequest('client-1', {
+        montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD', phoneNumber: '243812345678',
+      } as never);
+      expect(prisma.withdrawalRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            phoneNumber: '+243812345678',
+            commissionIds: [],
+          }),
+        }),
+      );
+      expect(prisma.portefeuille.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'w-1' },
+          data: { soldeReserve: { increment: expect.anything() } },
+        }),
+      );
+    });
+
+    it('normalise 0XXXXXXXXX (préfixe local) en +243XXXXXXXXX', async () => {
+      mockHappy();
+      await service.createWithdrawalRequest('client-1', {
+        montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD', phoneNumber: '0812345678',
+      } as never);
       expect(prisma.withdrawalRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ phoneNumber: '+243812345678' }),
@@ -177,57 +206,73 @@ describe('PortalService', () => {
       );
     });
 
-    it('normalizes 0XXXXXXXXX (prefixe local) to +243XXXXXXXXX', async () => {
-      const dto = setupHappyPath('0812345678');
-      await service.createWithdrawalRequest('client-1', dto);
-      expect(prisma.withdrawalRequest.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ phoneNumber: '+243812345678' }),
-        }),
-      );
+    it('refuse un montant supérieur au solde retirable', async () => {
+      prisma.membre.findUnique.mockResolvedValue(membreAvecPortefeuille);
+      await expect(
+        service.createWithdrawalRequest('client-1', { montant: 100.01, type: 'CASH' } as never),
+      ).rejects.toMatchObject({ response: expect.objectContaining({ code: 'ERR_INSUFFICIENT_WITHDRAWABLE' }) });
+      expect(prisma.withdrawalRequest.create).not.toHaveBeenCalled();
+      expect(prisma.portefeuille.update).not.toHaveBeenCalled();
     });
 
-    it('rejects a phone that is not a valid DRC number', async () => {
-      prisma.membre.findUnique.mockResolvedValueOnce(baseMembre);
-      prisma.commission.findMany.mockResolvedValueOnce([{ id: 'c-1', montant: 25, statut: 'VALIDEE' }]);
+    it('refuse sans portefeuille (retirable = 0)', async () => {
+      // ensureMember: membre sans portefeuille → tentative auto-heal → client non ACTIF → membre sans portefeuille
+      prisma.membre.findUnique.mockResolvedValue({ id: 'membre-1', clientId: 'client-1', portefeuille: null });
+      prisma.client.findUnique.mockResolvedValue({ id: 'client-1', statut: 'EN_COURS', parrainClientId: null });
+      await expect(
+        service.createWithdrawalRequest('client-1', { montant: 1, type: 'CASH' } as never),
+      ).rejects.toMatchObject({ response: expect.objectContaining({ code: 'ERR_INSUFFICIENT_WITHDRAWABLE' }) });
+    });
+
+    it('rejette un téléphone invalide', async () => {
+      prisma.membre.findUnique.mockResolvedValue(membreAvecPortefeuille);
       await expect(
         service.createWithdrawalRequest('client-1', {
-          montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD',
-          phoneNumber: '12345', commissionIds: ['c-1'],
-        }),
+          montant: 25, type: 'MOBILE_MONEY' as never, provider: 'AIRTEL_COD', phoneNumber: '12345',
+        } as never),
       ).rejects.toThrow();
+      expect(prisma.withdrawalRequest.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelWithdrawalRequest', () => {
+    it('annule et restitue la réserve', async () => {
+      prisma.membre.findUnique.mockResolvedValue({
+        id: 'membre-1', clientId: 'client-1', portefeuille: { id: 'w-1' },
+      });
+      prisma.withdrawalRequest.findUnique.mockResolvedValue({
+        id: 'wr-1', membreId: 'membre-1', montant: 25, statut: 'EN_ATTENTE',
+      });
+      prisma.portefeuille.update.mockResolvedValue({ id: 'w-1' });
+      prisma.withdrawalRequest.update.mockResolvedValue({ id: 'wr-1', statut: 'ANNULE' });
+
+      const res = await service.cancelWithdrawalRequest('client-1', 'wr-1');
+
+      expect(res.statut).toBe('ANNULE');
+      expect(prisma.portefeuille.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'w-1' },
+          data: { soldeReserve: { decrement: expect.anything() } },
+        }),
+      );
     });
 
-    describe('cancelWithdrawalRequest', () => {
-      it('cancels own pending request', async () => {
-        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
-        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
-          id: 'wr-1', membreId: 'membre-1', statut: 'EN_ATTENTE',
-        });
-        prisma.withdrawalRequest.update.mockResolvedValueOnce({ id: 'wr-1', statut: 'ANNULE' });
-
-        const res = await service.cancelWithdrawalRequest('client-1', 'wr-1');
-        expect(res.statut).toBe('ANNULE');
-        expect(prisma.withdrawalRequest.update).toHaveBeenCalledWith(
-          expect.objectContaining({ where: { id: 'wr-1' }, data: expect.objectContaining({ statut: 'ANNULE' }) }),
-        );
+    it("refuse d'annuler la demande d'un autre", async () => {
+      prisma.membre.findUnique.mockResolvedValue({ id: 'membre-1', clientId: 'client-1', portefeuille: null });
+      prisma.client.findUnique.mockResolvedValue({ id: 'client-1', statut: 'ACTIF', parrainClientId: null });
+      prisma.membre.findUnique.mockResolvedValue({ id: 'membre-1', clientId: 'client-1', portefeuille: null });
+      prisma.withdrawalRequest.findUnique.mockResolvedValue({
+        id: 'wr-2', membreId: 'membre-AUTRE', statut: 'EN_ATTENTE',
       });
+      await expect(service.cancelWithdrawalRequest('client-1', 'wr-2')).rejects.toThrow();
+    });
 
-      it('refuses to cancel someone else’s request (404-like)', async () => {
-        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
-        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
-          id: 'wr-2', membreId: 'membre-AUTRE', statut: 'EN_ATTENTE',
-        });
-        await expect(service.cancelWithdrawalRequest('client-1', 'wr-2')).rejects.toThrow();
+    it("refuse d'annuler une demande non EN_ATTENTE", async () => {
+      prisma.membre.findUnique.mockResolvedValue({ id: 'membre-1', clientId: 'client-1', portefeuille: null });
+      prisma.withdrawalRequest.findUnique.mockResolvedValue({
+        id: 'wr-1', membreId: 'membre-1', statut: 'APPROUVE',
       });
-
-      it('refuses to cancel a non-pending request', async () => {
-        prisma.membre.findUnique.mockResolvedValueOnce({ id: 'membre-1', clientId: 'client-1' });
-        prisma.withdrawalRequest.findUnique.mockResolvedValueOnce({
-          id: 'wr-1', membreId: 'membre-1', statut: 'APPROUVE',
-        });
-        await expect(service.cancelWithdrawalRequest('client-1', 'wr-1')).rejects.toThrow();
-      });
+      await expect(service.cancelWithdrawalRequest('client-1', 'wr-1')).rejects.toThrow();
     });
   });
 });

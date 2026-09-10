@@ -389,29 +389,14 @@ export class PortalService {
       throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Compte MLM introuvable' });
     }
 
-    // Vérifier que les commissions existent et sont validées
-    const commissions = await this.prisma.commission.findMany({
-      where: {
-        id: { in: dto.commissionIds },
-        membreId: membre.id,
-        statut: 'VALIDEE',
-      },
-    });
-
-    if (commissions.length !== dto.commissionIds.length) {
+    // Plafond : uniquement la poche « retirable » (60 % validés + lots J+30 libérés),
+    // déduction faite de la réserve des demandes en attente.
+    const pf = membre.portefeuille;
+    const retirable = pf ? Number(pf.soldeDisponible) - Number(pf.soldeReserve) : 0;
+    if (dto.montant > retirable) {
       throw new BadRequestException({
-        code: 'ERR_INVALID_COMMISSIONS',
-        message: 'Certaines commissions sont invalides ou déjà utilisées',
-      });
-    }
-
-    // Calculer le montant total des commissions
-    const montantTotal = commissions.reduce((sum, c) => sum + Number(c.montant), 0);
-
-    if (dto.montant > montantTotal) {
-      throw new BadRequestException({
-        code: 'ERR_AMOUNT_EXCEEDS',
-        message: 'Le montant demandé dépasse le total des commissions sélectionnées',
+        code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
+        message: `Retrait maximum : ${retirable.toFixed(2)} USD`,
       });
     }
 
@@ -427,25 +412,33 @@ export class PortalService {
       phoneNumber = this.normalizeDrcPhone(dto.phoneNumber);
     }
 
-    // Créer la demande de retrait
-    const request = await this.prisma.withdrawalRequest.create({
-      data: {
-        membreId: membre.id,
-        montant: new Prisma.Decimal(dto.montant),
-        type: dto.type,
-        provider: dto.provider,
-        phoneNumber,
-        commissionIds: dto.commissionIds,
-        notes: dto.notes,
-        statut: 'EN_ATTENTE',
-      },
-      include: {
-        membre: {
-          include: {
-            client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+    // Réserver le montant + créer la demande (empêche deux demandes cumulées sur le même argent)
+    const request = await this.prisma.$transaction(async (tx) => {
+      if (pf) {
+        await tx.portefeuille.update({
+          where: { id: pf.id },
+          data: { soldeReserve: { increment: new Prisma.Decimal(dto.montant) } },
+        });
+      }
+      return tx.withdrawalRequest.create({
+        data: {
+          membreId: membre.id,
+          montant: new Prisma.Decimal(dto.montant),
+          type: dto.type,
+          provider: dto.provider,
+          phoneNumber,
+          commissionIds: [],
+          notes: dto.notes,
+          statut: 'EN_ATTENTE',
+        },
+        include: {
+          membre: {
+            include: {
+              client: { select: { id: true, prenom: true, nom: true, telephone: true } },
+            },
           },
         },
-      },
+      });
     });
 
     return {
@@ -537,10 +530,19 @@ export class PortalService {
       });
     }
 
-    return this.prisma.withdrawalRequest.update({
-      where: { id: requestId },
-      data: { statut: 'ANNULE' },
-      select: { id: true, statut: true },
+    return this.prisma.$transaction(async (tx) => {
+      // Restituer la réserve prise à la création de la demande
+      if (membre.portefeuille) {
+        await tx.portefeuille.update({
+          where: { id: membre.portefeuille.id },
+          data: { soldeReserve: { decrement: new Prisma.Decimal(request.montant) } },
+        });
+      }
+      return tx.withdrawalRequest.update({
+        where: { id: requestId },
+        data: { statut: 'ANNULE' },
+        select: { id: true, statut: true },
+      });
     });
   }
 
