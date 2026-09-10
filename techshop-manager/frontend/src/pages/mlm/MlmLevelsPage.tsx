@@ -91,7 +91,7 @@ export default function MlmLevelsPage() {
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-success">
               <span className="text-xs font-bold">2</span>
             </div>
-            <p>Une fois les 4 positions remplies, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> et <strong className="font-semibold text-emerald-600">40% (Auto-réinvestissement)</strong> sont crédités immédiatement.</p>
+            <p>Une fois les 4 positions remplies, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> et <strong className="font-semibold text-emerald-600">40% (Auto-réinvestissement)</strong> sont crédités immédiatement — <strong className="font-semibold text-emerald-600">retirables après 30 jours</strong>.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-warning">
@@ -153,7 +153,7 @@ function LevelCard({ level }: { level: any }) {
             <span className="font-bold text-slate-800 font-mono text-xs">{formatUSD(level.commissionSysteme)}</span>
           </div>
           <div className="rounded-lg bg-emerald-50/70 border border-emerald-100 p-2 text-center">
-            <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">↻ Auto 40%</span>
+            <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">↻ Auto 40% · 30j</span>
             <span className="font-bold text-emerald-800 font-mono text-xs">{formatUSD(level.commissionRetour)}</span>
           </div>
         </div>
