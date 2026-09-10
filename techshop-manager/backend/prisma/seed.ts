@@ -20,21 +20,22 @@ async function main() {
         langue: 'fr',
       },
     });
+    // Matrice en vigueur (migration 20260908120000) : split Système 60 % / Auto-réinvest 40 %
     const mlmLevels = [
-      ['Builder', 4, 6, 24, '#f59e0b', 'hammer'],
-      ['Sapphire', 4, 12.5, 50, '#3b82f6', 'gem'],
-      ['Ruby', 4, 20, 80, '#ef4444', 'sparkles'],
-      ['Emerald', 4, 50, 200, '#10b981', 'tv'],
-      ['Diamond', 4, 250, 1000, '#06b6d4', 'bike'],
-      ['Crown Diamond', 4, 500, 2000, '#8b5cf6', 'crown'],
-      ['Ambassadeur', 4, 5000, 20000, '#6366f1', 'globe'],
-      ['Crown Ambassadeur', 4, 12500, 50000, '#d97706', 'award'],
+      ['Builder', 4, 10, 40, 6, 4, '#f59e0b', 'hammer'],
+      ['Sapphire', 4, 20.83, 83.32, 12.5, 8.33, '#3b82f6', 'gem'],
+      ['Ruby', 4, 33.33, 133.32, 20, 13.33, '#ef4444', 'sparkles'],
+      ['Emerald', 4, 83.33, 333.32, 50, 33.33, '#10b981', 'tv'],
+      ['Diamond', 4, 416.67, 1666.68, 250, 166.67, '#06b6d4', 'bike'],
+      ['Crown Diamond', 4, 833.33, 3333.32, 500, 333.33, '#8b5cf6', 'crown'],
+      ['Ambassadeur', 4, 8333.33, 33333.32, 5000, 3333.33, '#6366f1', 'globe'],
+      ['Crown Ambassadeur', 4, 20833.33, 83333.32, 12500, 8333.33, '#d97706', 'award'],
     ] as const;
-    for (const [index, [nom, filleulsRequis, commissionParFilleul, commissionTotale, couleur, icone]] of mlmLevels.entries()) {
+    for (const [index, [nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, couleur, icone]] of mlmLevels.entries()) {
       await prisma.mlmLevel.upsert({
         where: { ordre: index + 1 },
-        update: { nom, filleulsRequis, commissionParFilleul, commissionTotale, bonusDescription: '', couleur, icone, isActive: true },
-        create: { ordre: index + 1, nom, filleulsRequis, commissionParFilleul, commissionTotale, bonusDescription: '', couleur, icone, isActive: true },
+        update: { nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, bonusDescription: '', couleur, icone, isActive: true },
+        create: { ordre: index + 1, nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, bonusDescription: '', couleur, icone, isActive: true },
       });
     }
     console.log('Mode admin uniquement : 8 niveaux MLM configurés, aucune donnée de démonstration créée.');
