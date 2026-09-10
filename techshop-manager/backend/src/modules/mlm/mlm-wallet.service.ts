@@ -353,6 +353,42 @@ export class MlmWalletService implements OnModuleInit {
     });
   }
 
+  /** Crédit 40 % réinvestissement — bloqué jusqu'à releasedAt (J+30). */
+  async creditReinvestInTx(
+    tx: Prisma.TransactionClient,
+    memberId: string,
+    montant: number,
+    commissionId: string | null,
+    levelNom: string,
+    now: Date = new Date(),
+  ) {
+    const pf = await tx.portefeuille.findUnique({ where: { membreId: memberId }, select: { id: true } });
+    if (!pf) throw new NotFoundException(`Portefeuille introuvable pour membre ${memberId}`);
+    const montantDecimal = new Prisma.Decimal(montant);
+    await tx.portefeuille.update({
+      where: { id: pf.id },
+      data: { soldeReinvesti: { increment: montantDecimal }, totalGagne: { increment: montantDecimal } },
+    });
+    await tx.reinvestLote.create({
+      data: {
+        membreId: memberId,
+        amount: montantDecimal,
+        releasedAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        released: false,
+        commissionId,
+      },
+    });
+    await tx.transactionPortefeuille.create({
+      data: {
+        portefeuilleId: pf.id,
+        type: 'REINVESTISSEMENT',
+        montant: montantDecimal,
+        description: `Réinvestissement auto niveau ${levelNom} — ${montant} USD bloqués 30 jours`,
+        referenceId: commissionId,
+      },
+    });
+  }
+
   // ── Withdrawal Requests Management (Admin) ──────────────────────────────────
 
   async listWithdrawalRequests(params: {

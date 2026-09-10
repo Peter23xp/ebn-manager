@@ -195,3 +195,52 @@ describe('MlmWalletService — withdrawal requests (commissions)', () => {
     await expect(service.markWithdrawalAsPaid('wr-1')).rejects.toThrow();
   });
 });
+
+describe('MlmWalletService.creditReinvestInTx — 40 % bloqué J+30', () => {
+  const resolved = (value: any) => {
+    const mock = jest.fn();
+    (mock as any).mockResolvedValue(value);
+    return mock;
+  };
+
+  it('crédite soldeReinvesti+totalGagne, crée le lot à +30j et journalise REINVESTISSEMENT', async () => {
+    const tx = {
+      portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
+      reinvestLote: { create: jest.fn() },
+      transactionPortefeuille: { create: jest.fn() },
+    };
+    const service = new MlmWalletService({} as never, {} as never, {} as never);
+    const now = new Date('2026-09-10T12:00:00Z');
+
+    await service.creditReinvestInTx(tx as never, 'm-1', 40, 'c-1', 'Argent', now);
+
+    expect(tx.portefeuille.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pf-1' },
+        data: { soldeReinvesti: { increment: expect.anything() }, totalGagne: { increment: expect.anything() } },
+      }),
+    );
+    expect(tx.reinvestLote.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          membreId: 'm-1',
+          amount: expect.anything(),
+          releasedAt: new Date('2026-10-10T12:00:00Z'),
+          commissionId: 'c-1',
+          released: false,
+        }),
+      }),
+    );
+    expect(tx.transactionPortefeuille.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: 'REINVESTISSEMENT', portefeuilleId: 'pf-1' }),
+      }),
+    );
+  });
+
+  it('lève une erreur si le portefeuille du membre est introuvable', async () => {
+    const tx = { portefeuille: { findUnique: resolved(null) } };
+    const service = new MlmWalletService({} as never, {} as never, {} as never);
+    await expect(service.creditReinvestInTx(tx as never, 'm-x', 40, null, 'Bronze')).rejects.toThrow();
+  });
+});

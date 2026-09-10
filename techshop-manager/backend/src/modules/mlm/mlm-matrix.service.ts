@@ -264,34 +264,18 @@ export class MlmMatrixService {
           },
         });
 
-        // Crédit automatique du montantRetour (40%) — réinvestissement immédiat
+        // Crédit 40 % → poche réinvestissement bloquée J+30 (voir creditReinvestInTx)
         if (montantRetour > 0) {
           let portefeuille = await tx.portefeuille.findUnique({
             where: { membreId },
             select: { id: true },
           });
           if (!portefeuille) {
-            portefeuille = await tx.portefeuille.create({
+            await tx.portefeuille.create({
               data: { membreId, soldeDisponible: 0, totalGagne: 0 },
             });
           }
-          const montantRetourDecimal = new Prisma.Decimal(montantRetour);
-          await tx.portefeuille.update({
-            where: { id: portefeuille.id },
-            data: {
-              soldeDisponible: { increment: montantRetourDecimal },
-              totalGagne: { increment: montantRetourDecimal },
-            },
-          });
-          await tx.transactionPortefeuille.create({
-            data: {
-              portefeuilleId: portefeuille.id,
-              type: 'REINVESTISSEMENT',
-              montant: montantRetourDecimal,
-              description: `Réinvestissement auto niveau ${completedLevel.nom} — ${montantRetour} USD crédités`,
-              referenceId: commission.id,
-            },
-          });
+          await this.walletService.creditReinvestInTx(tx, membreId, montantRetour, commission.id, completedLevel.nom);
         }
       }
 
