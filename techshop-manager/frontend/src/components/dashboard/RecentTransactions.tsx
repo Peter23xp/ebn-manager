@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
-import { formatUSD, formatRelative } from '@/lib/utils';
+import { formatUSD, formatRelative, initials } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/hooks/useDashboard';
 
@@ -17,11 +17,8 @@ const statutStyle: Record<string, { cls: string; label: string }> = {
 };
 
 function ClientAvatar({ name }: { name: string }) {
-  const parts = name.trim().split(' ');
-  const ini =
-    parts.length >= 2
-      ? (parts[0][0] + parts[1][0]).toUpperCase()
-      : name.slice(0, 2).toUpperCase();
+  // initials() gère les espaces multiples ("KEVIN  MUYA" → "KM")
+  const ini = initials(name) || '?';
   return (
     <span
       className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold bg-primary-light text-primary-accent select-none"

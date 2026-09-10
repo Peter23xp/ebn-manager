@@ -89,7 +89,8 @@ export function truncate(str: string, maxLen = 30): string {
 }
 
 export function initials(nom: string, prenom?: string): string {
-  if (prenom) return (prenom[0] + nom[0]).toUpperCase();
-  const parts = nom.split(' ');
-  return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : nom.slice(0, 2).toUpperCase();
+  // Robuste aux espaces multiples / trailing (ex: "KEVIN  MUYA" → "KM", pas "KUNDEFINED")
+  const parts = `${prenom?.trim() ?? ''} ${nom?.trim() ?? ''}`.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0] ?? '').slice(0, 2).toUpperCase();
 }
