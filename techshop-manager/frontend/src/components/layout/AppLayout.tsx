@@ -26,6 +26,7 @@ import {
   Award,
   DollarSign,
   UserPlus,
+  Landmark,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
@@ -59,6 +60,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Dashboard MLM',        icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
   { label: '8 Niveaux MLM',        icon: <Award size={16} />,         to: '/mlm/levels',         minRole: 'AGENT' },
   { label: 'Commissions',          icon: <DollarSign size={16} />,    to: '/mlm/commissions',    minRole: 'GERANT' },
+  { label: 'Retraits',             icon: <Landmark size={16} />,      to: '/mlm/withdrawal-requests', minRole: 'GERANT' },
   { label: 'Réclamations parrain', icon: <UserPlus size={16} />,      to: '/mlm/claims',         minRole: 'GERANT' },
   { label: 'Membres MLM',          icon: <Users size={16} />,         to: '/mlm/members',        minRole: 'GERANT' },
   { label: 'Mon Portefeuille',     icon: <Wallet size={16} />,        to: '/mlm/wallet',         minRole: 'AGENT' },
