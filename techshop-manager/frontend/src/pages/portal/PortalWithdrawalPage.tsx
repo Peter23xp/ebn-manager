@@ -5,71 +5,9 @@ import { Loader2, CheckCircle2, XCircle, Clock, DollarSign, Smartphone, Banknote
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { PortalLayout } from '@/components/portal/PortalLayout';
-import { portalApi, type ValidatedCommission, type WithdrawalRequest } from '@/lib/portal.api';
+import { portalApi, type WithdrawalRequest } from '@/lib/portal.api';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-
-// ── Carte commission ──────────────────────────────────────────────────────────
-
-function CommissionCard({
-  commission,
-  isSelected,
-  onToggle,
-}: {
-  commission: ValidatedCommission;
-  isSelected: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={isSelected}
-      className={cn(
-        'flex w-full items-start justify-between gap-3 rounded-2xl border p-4 text-left transition-all duration-150',
-        isSelected
-          ? 'border-[#b45309] bg-amber-50/60 shadow-card'
-          : 'border-border bg-bg-card shadow-card hover:border-border-strong',
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="h-2 w-2 flex-shrink-0 rounded-full"
-            style={{ backgroundColor: commission.level?.nom === 'Bronze' ? '#cd7f32' : '#1a3260' }}
-          />
-          <p className="text-xs font-bold text-primary">
-            {commission.level?.nom ?? 'Niveau inconnu'}
-          </p>
-        </div>
-        <p className="mt-1 text-sm text-text">{commission.description}</p>
-        {commission.filleul && (
-          <p className="mt-1 text-[11px] text-text-muted">
-            Filleul : {commission.filleul.client.prenom} {commission.filleul.client.nom}
-          </p>
-        )}
-        <p className="mt-1 text-[10px] text-text-subtle">
-          Validée le {format(new Date(commission.valideeAt || commission.createdAt), 'd MMM yyyy', { locale: fr })}
-        </p>
-      </div>
-      <div className="flex flex-col items-end gap-2">
-        <p className="whitespace-nowrap text-base font-bold tabular-nums text-[#b45309]">
-          ${commission.montant.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-        </p>
-        <span
-          aria-hidden
-          className={cn(
-            'flex h-5 w-5 items-center justify-center rounded-full border-2',
-            isSelected ? 'border-[#b45309] bg-[#b45309]' : 'border-border-strong',
-          )}
-        >
-          {isSelected && <CheckCircle2 size={13} className="text-white" />}
-        </span>
-      </div>
-    </button>
-  );
-}
 
 // ── Carte demande de retrait ──────────────────────────────────────────────────
 
@@ -153,10 +91,6 @@ function WithdrawalRequestCard({
           Annuler la demande
         </button>
       )}
-
-      <p className="mt-2 text-[10px] text-text-subtle">
-        {request.commissionIds.length} commission{request.commissionIds.length > 1 ? 's' : ''} incluse{request.commissionIds.length > 1 ? 's' : ''}
-      </p>
     </div>
   );
 }
@@ -166,18 +100,19 @@ function WithdrawalRequestCard({
 export default function PortalWithdrawalPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [montant, setMontant] = useState('');
   const [withdrawalType, setWithdrawalType] = useState<'MOBILE_MONEY' | 'CASH'>('MOBILE_MONEY');
   const [provider, setProvider] = useState<'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD'>('VODACOM_MPESA_COD');
   const [phoneNumber, setPhoneNumber] = useState('243');
   const [notes, setNotes] = useState('');
   const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
 
-  // Commissions validées
-  const { data: commissionsData, isLoading: isLoadingCommissions } = useQuery({
-    queryKey: ['portal', 'commissions', 'validated'],
-    queryFn: () => portalApi.getValidatedCommissions(),
+  // Solde retirable (poche 60 % + lots J+30 libérés, réserve déduite)
+  const { data: walletData, isLoading: isLoadingWallet } = useQuery({
+    queryKey: ['portal', 'wallet'],
+    queryFn: () => portalApi.getWallet(),
   });
+  const maxRetirable = walletData?.wallet?.soldeDisponibleRetrait ?? 0;
 
   // Demandes de retrait
   const { data: requestsData, isLoading: isLoadingRequests } = useQuery({
@@ -188,12 +123,12 @@ export default function PortalWithdrawalPage() {
   const createWithdrawalMutation = useMutation({
     mutationFn: portalApi.createWithdrawalRequest,
     onSuccess: () => {
-      toast.success('Demande de retrait créée avec succès !');
-      setSelectedIds([]);
+      toast.success('Demande de retrait envoyée à l\'administration !');
+      setMontant('');
       setNotes('');
       setPhoneNumber('243');
       setActiveTab('history');
-      queryClient.invalidateQueries({ queryKey: ['portal', 'commissions', 'validated'] });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'wallet'] });
       queryClient.invalidateQueries({ queryKey: ['portal', 'withdrawal-requests'] });
     },
     onError: (error: any) => {
@@ -204,52 +139,44 @@ export default function PortalWithdrawalPage() {
   const cancelWithdrawalMutation = useMutation({
     mutationFn: (requestId: string) => portalApi.cancelWithdrawalRequest(requestId),
     onSuccess: () => {
-      toast.success('Demande annulée');
-      queryClient.invalidateQueries({ queryKey: ['portal', 'commissions', 'validated'] });
+      toast.success('Demande annulée — le montant est de nouveau disponible');
+      queryClient.invalidateQueries({ queryKey: ['portal', 'wallet'] });
       queryClient.invalidateQueries({ queryKey: ['portal', 'withdrawal-requests'] });
     },
     onError: (error: any) =>
       toast.error(error?.response?.data?.message ?? 'Erreur lors de l\'annulation'),
   });
 
-  const commissions = commissionsData?.commissions ?? [];
-  const totalDisponible = commissionsData?.totalDisponible ?? 0;
   const requests = requestsData?.requests ?? [];
-
-  const selectedCommissions = commissions.filter((c) => selectedIds.includes(c.id));
-  const selectedTotal = selectedCommissions.reduce((sum, c) => sum + c.montant, 0);
-
-  const toggleCommission = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((cid) => cid !== id) : [...prev, id],
-    );
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedIds.length === 0) {
-      toast.error('Veuillez sélectionner au moins une commission');
+    const value = Number(montant);
+    if (!value || value <= 0) {
+      toast.error('Entrez un montant valide');
       return;
     }
-
-    if (withdrawalType === 'MOBILE_MONEY' && (!provider || !phoneNumber || phoneNumber.length < 12)) {
+    if (value > maxRetirable) {
+      toast.error(`Retrait maximum : $${maxRetirable.toFixed(2)}`);
+      return;
+    }
+    if (withdrawalType === 'MOBILE_MONEY' && (!provider || phoneNumber.length < 12)) {
       toast.error('Veuillez fournir un numéro de téléphone valide');
       return;
     }
 
     createWithdrawalMutation.mutate({
-      montant: selectedTotal,
+      montant: value,
       type: withdrawalType,
       provider: withdrawalType === 'MOBILE_MONEY' ? provider : undefined,
       phoneNumber: withdrawalType === 'MOBILE_MONEY' ? phoneNumber : undefined,
-      commissionIds: selectedIds,
       notes: notes || undefined,
     });
   };
 
   return (
-    <PortalLayout title="Mes commissions" showBackButton onBack={() => navigate('/portal/home')}>
+    <PortalLayout title="Retirer mes gains" showBackButton onBack={() => navigate('/portal/home')}>
       <div className="px-4 py-4">
 
         {/* Solde disponible */}
@@ -269,14 +196,16 @@ export default function PortalWithdrawalPage() {
             <div className="flex items-center gap-1.5">
               <DollarSign size={13} />
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
-                Commissions disponibles
+                Disponible au retrait
               </p>
             </div>
             <p className="mt-2 font-mono text-[26px] font-bold leading-none tabular-nums">
-              ${totalDisponible.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${maxRetirable.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className="mt-1.5 text-xs text-white/60">
-              {commissions.length} commission{commissions.length > 1 ? 's' : ''} validée{commissions.length > 1 ? 's' : ''}
+              {walletData?.wallet?.soldeReinvesti
+                ? <>Réinvesti : <strong className="text-white/80 tabular-nums">${walletData.wallet.soldeReinvesti.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> — libéré 30 jours après attribution</>
+                : '60 % de vos gains sont retirables immédiatement'}
             </p>
           </div>
         </div>
@@ -308,59 +237,55 @@ export default function PortalWithdrawalPage() {
         {/* Onglet : nouvelle demande */}
         {activeTab === 'new' && (
           <div className="space-y-4">
-            {isLoadingCommissions ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="skeleton h-24 rounded-2xl" />
-                ))}
-              </div>
-            ) : commissions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border py-10 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-bg-inset">
-                  <DollarSign size={20} className="text-text-subtle" />
-                </div>
-                <p className="mb-0.5 text-sm font-medium text-text">
-                  Aucune commission disponible
-                </p>
-                <p className="text-xs text-text-muted">
-                  Vos commissions validées apparaîtront ici.
-                </p>
-              </div>
+            {isLoadingWallet ? (
+              <div className="skeleton h-48 rounded-2xl" />
             ) : (
               <>
-                <div>
-                  <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-text-subtle">
-                    Sélectionnez les commissions à retirer
+                <div className="rounded-2xl border border-[#b45309]/40 bg-amber-50/40 p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
+                    Vous pouvez retirer jusqu'à
                   </p>
-                  <div className="space-y-2.5">
-                    {commissions.map((commission) => (
-                      <CommissionCard
-                        key={commission.id}
-                        commission={commission}
-                        isSelected={selectedIds.includes(commission.id)}
-                        onToggle={() => toggleCommission(commission.id)}
-                      />
-                    ))}
-                  </div>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-[#b45309]">
+                    ${maxRetirable.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+
+                  {maxRetirable === 0 ? (
+                    <p className="mt-3 text-xs text-text-muted">
+                      Aucun solde retirable pour l'instant — vos gains réinvestis (40 %) se libèrent
+                      30 jours après leur attribution.
+                    </p>
+                  ) : (
+                    <div className="mt-3 flex items-end gap-2">
+                      <div className="form-group flex-1">
+                        <label htmlFor="wd-montant" className="form-label">Montant (USD)</label>
+                        <input
+                          id="wd-montant"
+                          type="number"
+                          inputMode="decimal"
+                          min="0.01"
+                          max={maxRetirable}
+                          step="0.01"
+                          value={montant}
+                          onChange={(e) => setMontant(e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMontant(String(maxRetirable))}
+                        className="h-10 rounded-xl border border-[#b45309]/50 px-3 text-xs font-bold text-[#b45309] hover:bg-[#b45309]/10"
+                      >
+                        Tout
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {selectedIds.length > 0 && (
+                {maxRetirable > 0 && (
                   <form
                     onSubmit={handleSubmit}
-                    className="animate-fade-in space-y-4 rounded-2xl border border-[#b45309]/40 bg-amber-50/40 p-5 shadow-card"
+                    className="animate-fade-in space-y-4 rounded-2xl border border-border bg-bg-card p-5 shadow-card"
                   >
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-subtle">
-                        Montant sélectionné
-                      </p>
-                      <p className="mt-1 text-2xl font-bold tabular-nums text-[#b45309]">
-                        ${selectedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                      <p className="mt-0.5 text-xs text-text-muted">
-                        {selectedIds.length} commission{selectedIds.length > 1 ? 's' : ''} sélectionnée{selectedIds.length > 1 ? 's' : ''}
-                      </p>
-                    </div>
-
                     <div>
                       <p className="mb-2 text-xs font-semibold text-text">Mode de retrait</p>
                       <div className="grid grid-cols-2 gap-2">
@@ -435,7 +360,7 @@ export default function PortalWithdrawalPage() {
                       <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                         <p className="text-xs text-blue-800">
                           <AlertCircle size={13} className="mr-1 inline" />
-                          Vous devrez vous présenter au bureau pour retirer vos commissions en espèces après approbation.
+                          Vous devrez vous présenter au bureau pour retirer vos gains en espèces après approbation.
                         </p>
                       </div>
                     )}
@@ -456,7 +381,7 @@ export default function PortalWithdrawalPage() {
 
                     <button
                       type="submit"
-                      disabled={createWithdrawalMutation.isPending}
+                      disabled={createWithdrawalMutation.isPending || !montant}
                       className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#b45309] text-sm font-bold text-white transition-colors duration-150 hover:bg-[#92400e] disabled:opacity-50"
                     >
                       {createWithdrawalMutation.isPending && <Loader2 size={16} className="animate-spin" />}
