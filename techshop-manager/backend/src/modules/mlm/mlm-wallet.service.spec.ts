@@ -92,7 +92,7 @@ describe('MlmWalletService withdrawals', () => {
   });
 });
 
-describe('MlmWalletService — withdrawal requests (commissions)', () => {
+describe('MlmWalletService — withdrawal requests (solde)', () => {
   const resolved = (value: any) => {
     const mock = jest.fn();
     (mock as any).mockResolvedValue(value);
@@ -101,88 +101,116 @@ describe('MlmWalletService — withdrawal requests (commissions)', () => {
   const buildService = (prisma: any) =>
     new MlmWalletService(prisma as never, {} as never, {} as never);
 
-  it('approves a CASH request: commissions PAYEE + request directly PAYE', async () => {
+  const demande = (over: any = {}) => ({
+    id: 'wr-1', membreId: 'm-1', type: 'CASH', statut: 'EN_ATTENTE',
+    montant: 150, commissionIds: [], notes: null, ...over,
+  });
+
+  it('approuve CASH: débit montant + réserve, journalise DEBIT, statut PAYE', async () => {
     const tx = {
-      commission: { updateMany: jest.fn() },
-      withdrawalRequest: { update: resolved({ statut: 'PAYE' }) },
       portefeuille: {
-        findUnique: resolved({ id: 'pf-1', soldeDisponible: { toNumber: () => 200 } }),
+        findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
         update: jest.fn(),
       },
       transactionPortefeuille: { create: jest.fn() },
+      withdrawalRequest: {
+        update: jest.fn<any>()
+          .mockResolvedValueOnce({ statut: 'APPROUVE', montant: 150 }) // APPROUVE
+          .mockResolvedValueOnce({ statut: 'PAYE' }),                   // CASH → PAYE
+      },
     };
     const prisma = {
-      withdrawalRequest: {
-        findUnique: resolved({
-          id: 'wr-1', membreId: 'm-1', type: 'CASH', statut: 'EN_ATTENTE',
-          commissionIds: ['c-1', 'c-2'],
-        }),
-      },
-      commission: { findMany: resolved([{ id: 'c-1', montant: '100' }, { id: 'c-2', montant: '100' }]) },
+      withdrawalRequest: { findUnique: resolved(demande()) },
       $transaction: jest.fn(async (cb: any) => cb(tx)),
     };
     const service = buildService(prisma);
 
     const result = await service.approveWithdrawalRequest('wr-1', 'user-1', 'note');
 
-    expect(prisma.commission.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ statut: 'VALIDEE', membreId: 'm-1' }) }),
-    );
-    expect(tx.commission.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ statut: 'PAYEE' }) }),
-    );
-    // Débiter le portefeuille au moment de l'approbation (retrait payé en CASH)
     expect(tx.portefeuille.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'pf-1' },
-        data: { soldeDisponible: { decrement: expect.anything() } },
+        data: expect.objectContaining({
+          soldeDisponible: { decrement: expect.anything() },
+          soldeReserve: { decrement: expect.anything() },
+        }),
       }),
     );
     expect(tx.transactionPortefeuille.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ type: 'DEBIT', portefeuilleId: 'pf-1' }),
+        data: expect.objectContaining({ type: 'DEBIT', portefeuilleId: 'pf-1', referenceId: 'wr-1' }),
       }),
     );
     expect(result.statut).toBe('PAYE');
   });
 
-  it('rejects approval when a commission is no longer VALIDEE', async () => {
-    const prisma = {
-      withdrawalRequest: {
-        findUnique: resolved({
-          id: 'wr-1', membreId: 'm-1', type: 'CASH', statut: 'EN_ATTENTE',
-          commissionIds: ['c-1', 'c-2'],
-        }),
+  it('approuve MOBILE_MONEY: statut APPROUVE (payé manuellement ensuite)', async () => {
+    const tx = {
+      portefeuille: {
+        findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
+        update: jest.fn(),
       },
-      commission: { findMany: resolved([{ id: 'c-1' }]) }, // 1 sur 2 → invalide
-      $transaction: jest.fn(),
+      transactionPortefeuille: { create: jest.fn() },
+      withdrawalRequest: { update: resolved({ statut: 'APPROUVE', montant: 150 }) },
+    };
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved(demande({ type: 'MOBILE_MONEY' })) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
     };
     const service = buildService(prisma);
 
+    const result = await service.approveWithdrawalRequest('wr-1', 'user-1');
+    expect(result.statut).toBe('APPROUVE');
+    // Un seul update de statut (APPROUVE), pas de PAYE auto
+    expect(tx.withdrawalRequest.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuse si soldeDisponible < montant au moment de l'approbation", async () => {
+    const tx = {
+      portefeuille: { findUnique: resolved({ id: 'pf-1', soldeDisponible: 100, soldeReserve: 150 }), update: jest.fn() },
+      transactionPortefeuille: { create: jest.fn() },
+      withdrawalRequest: { update: jest.fn() },
+    };
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved(demande()) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+    };
+    const service = buildService(prisma);
     await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.portefeuille.update).not.toHaveBeenCalled();
   });
 
-  it('rejects a pending request with a reason', async () => {
-    const updated = { id: 'wr-1', statut: 'REJETE', rejectReason: 'Documents manquants' };
+  it('refuse une demande déjà traitée', async () => {
+    const prisma = { withdrawalRequest: { findUnique: resolved(demande({ statut: 'APPROUVE' })) } };
+    const service = buildService(prisma);
+    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
+  });
+
+  it('rejet: REJETE + restitution de la réserve', async () => {
+    const tx = {
+      portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
+      withdrawalRequest: { update: resolved({ id: 'wr-1', statut: 'REJETE', rejectReason: 'Coordonnées invalides' }) },
+    };
     const prisma = {
-      withdrawalRequest: {
-        findUnique: resolved({ id: 'wr-1', statut: 'EN_ATTENTE' }),
-        update: resolved(updated),
-      },
+      withdrawalRequest: { findUnique: resolved(demande()) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
     };
     const service = buildService(prisma);
 
-    const result = await service.rejectWithdrawalRequest('wr-1', 'Documents manquants');
+    const result = await service.rejectWithdrawalRequest('wr-1', 'Coordonnées invalides');
+
     expect(result.statut).toBe('REJETE');
+    expect(tx.portefeuille.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pf-1' },
+        data: { soldeReserve: { decrement: expect.anything() } },
+      }),
+    );
   });
 
-  it('refuses to reject an already-processed request', async () => {
-    const prisma = {
-      withdrawalRequest: { findUnique: resolved({ id: 'wr-1', statut: 'APPROUVE' }) },
-    };
+  it('refuse de rejeter une demande déjà traitée', async () => {
+    const prisma = { withdrawalRequest: { findUnique: resolved({ id: 'wr-1', statut: 'APPROUVE' }) } };
     const service = buildService(prisma);
-
     await expect(service.rejectWithdrawalRequest('wr-1', 'x')).rejects.toThrow();
   });
 

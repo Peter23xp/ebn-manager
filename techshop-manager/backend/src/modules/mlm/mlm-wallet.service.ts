@@ -431,7 +431,7 @@ export class MlmWalletService implements OnModuleInit {
         provider: r.provider,
         phoneNumber: r.phoneNumber,
         statut: r.statut,
-        commissionIds: r.commissionIds as string[],
+        commissionIds: (r.commissionIds as string[]) ?? [],
         notes: r.notes,
         rejectReason: r.rejectReason,
         createdAt: r.createdAt,
@@ -470,27 +470,9 @@ export class MlmWalletService implements OnModuleInit {
       );
     }
 
-    // Vérifier que les commissions sont toujours valides
-    const commissionIds = request.commissionIds as string[];
-    const commissions = await this.prisma.commission.findMany({
-      where: {
-        id: { in: commissionIds },
-        membreId: request.membreId,
-        statut: 'VALIDEE',
-      },
-    });
-
-    if (commissions.length !== commissionIds.length) {
-      throw new BadRequestException(
-        `Certaines commissions ne sont plus valides ou disponibles`,
-      );
-    }
-
     return this.prisma.$transaction(async (tx) => {
-      // Calculer le montant total des commissions
-      const montantTotal = commissions.reduce((sum, c) => sum + Number(c.montant), 0);
+      const montant = new Prisma.Decimal(Number(request.montant));
 
-      // Débiter le portefeuille
       const portefeuille = await tx.portefeuille.findUnique({
         where: { membreId: request.membreId },
         select: { id: true, soldeDisponible: true },
@@ -500,29 +482,24 @@ export class MlmWalletService implements OnModuleInit {
         throw new NotFoundException(`Portefeuille introuvable pour le membre ${request.membreId}`);
       }
 
-      const montantDecimal = new Prisma.Decimal(montantTotal);
+      if (Number(portefeuille.soldeDisponible) < Number(request.montant)) {
+        throw new BadRequestException('Solde disponible insuffisant pour valider ce retrait');
+      }
 
+      // Débiter la poche dispo ET consommer la réserve prise à la création
       await tx.portefeuille.update({
         where: { id: portefeuille.id },
-        data: {
-          soldeDisponible: { decrement: montantDecimal },
-        },
+        data: { soldeDisponible: { decrement: montant }, soldeReserve: { decrement: montant } },
       });
 
       await tx.transactionPortefeuille.create({
         data: {
           portefeuilleId: portefeuille.id,
           type: 'DEBIT',
-          montant: montantDecimal,
-          description: `Retrait approuvé — ${commissionIds.length} commission(s)`,
+          montant,
+          description: 'Retrait approuvé',
           referenceId: withdrawalRequestId,
         },
-      });
-
-      // Marquer les commissions comme payées
-      await tx.commission.updateMany({
-        where: { id: { in: commissionIds } },
-        data: { statut: 'PAYEE', payeeAt: new Date() },
       });
 
       // Approuver la demande de retrait
@@ -545,14 +522,13 @@ export class MlmWalletService implements OnModuleInit {
 
       // Si c'est un retrait CASH, marquer comme payé immédiatement
       if (request.type === 'CASH') {
-        const paid = await tx.withdrawalRequest.update({
+        return tx.withdrawalRequest.update({
           where: { id: withdrawalRequestId },
           data: {
             statut: 'PAYE',
             paidAt: new Date(),
           },
         });
-        return paid;
       }
 
       return approved;
@@ -574,13 +550,23 @@ export class MlmWalletService implements OnModuleInit {
       );
     }
 
-    return this.prisma.withdrawalRequest.update({
-      where: { id: withdrawalRequestId },
-      data: {
-        statut: 'REJETE',
-        rejectReason,
-        updatedAt: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // Restituer la réserve : l'argent redevient retirable
+      const pf = await tx.portefeuille.findUnique({ where: { membreId: request.membreId }, select: { id: true } });
+      if (pf) {
+        await tx.portefeuille.update({
+          where: { id: pf.id },
+          data: { soldeReserve: { decrement: new Prisma.Decimal(Number(request.montant)) } },
+        });
+      }
+      return tx.withdrawalRequest.update({
+        where: { id: withdrawalRequestId },
+        data: {
+          statut: 'REJETE',
+          rejectReason,
+          updatedAt: new Date(),
+        },
+      });
     });
   }
 
