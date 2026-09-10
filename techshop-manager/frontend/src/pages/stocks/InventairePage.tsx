@@ -212,7 +212,7 @@ export default function InventairePage() {
           <select
             value={categorie}
             onChange={e => handleCategorie(e.target.value)}
-            className={cn('text-sm pr-8', categorie && 'border-primary-accent bg-primary-light/20')}
+            className={cn('appearance-none text-sm pr-8', categorie && 'border-primary-accent bg-primary-light/20')}
           >
             <option value="">Catégorie</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -224,7 +224,7 @@ export default function InventairePage() {
           <select
             value={statut}
             onChange={e => handleStatut(e.target.value as StatutStock | '')}
-            className={cn('text-sm pr-8', statut && 'border-primary-accent bg-primary-light/20')}
+            className={cn('appearance-none text-sm pr-8', statut && 'border-primary-accent bg-primary-light/20')}
           >
             <option value="">Statut</option>
             <option value="OK">OK</option>

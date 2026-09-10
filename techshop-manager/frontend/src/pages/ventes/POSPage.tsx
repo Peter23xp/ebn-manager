@@ -448,7 +448,7 @@ export default function POSPage() {
 
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="text-sm pr-8">
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)} className="appearance-none text-sm pr-8">
               <option value="">Toutes catégories</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>

@@ -275,7 +275,7 @@ export default function VentesHistoriquePage() {
             <select
               value={modePaiement}
               onChange={(e) => handleChangeMode(e.target.value)}
-              className="text-sm pr-8"
+              className="appearance-none text-sm pr-8"
             >
               {MODES_OPTIONS.map((m) => (
                 <option key={m.value} value={m.value}>
