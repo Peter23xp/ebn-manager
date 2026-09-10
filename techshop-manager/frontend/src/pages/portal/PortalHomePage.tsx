@@ -34,7 +34,7 @@ export default function PortalHomePage() {
   } = usePortalHome();
 
   // Données MLM (portefeuille et gains)
-  const { wallet, stats, isLoading: isMlmLoading } = usePortalMlm();
+  const { wallet, stats, lots, isLoading: isMlmLoading } = usePortalMlm();
 
   const displayName = user
     ? `${user.prenom ?? user.name?.split(' ')[0] ?? 'Partenaire'}`
@@ -84,8 +84,11 @@ export default function PortalHomePage() {
             <Skeleton className="h-44 rounded-2xl" />
           ) : (
             <WalletCard
-              solde={wallet?.soldeDisponible ?? 0}
+              solde={wallet?.soldeDisponibleRetrait ?? 0}
               gainsTotaux={stats?.gainsTotaux ?? 0}
+              soldeReinvesti={wallet?.soldeReinvesti ?? 0}
+              lots={lots}
+              onWithdraw={() => navigate('/portal/commissions')}
             />
           )}
         </div>

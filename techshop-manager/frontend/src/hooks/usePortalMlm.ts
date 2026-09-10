@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
-import { portalApi } from '@/lib/portal.api';
+import { portalApi, type ReinvestLot } from '@/lib/portal.api';
 
 export function usePortalMlm() {
   const user = useAuthStore((s) => s.user);
@@ -17,6 +17,7 @@ export function usePortalMlm() {
   return {
     wallet: walletData?.wallet ?? null,
     stats: walletData?.stats ?? null,
+    lots: (walletData?.reinvestLots ?? []) as ReinvestLot[],
     isLoading: isWalletLoading,
   };
 }

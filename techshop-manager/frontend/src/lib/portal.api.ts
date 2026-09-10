@@ -152,12 +152,29 @@ export interface WithdrawalRequestsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
+export interface ReinvestLot {
+  id: string;
+  amount: number;
+  releasedAt: string; // ISO
+}
+
+export interface PortalWalletResponse {
+  wallet: {
+    soldeDisponible: number;
+    soldeReserve: number;
+    soldeDisponibleRetrait: number;
+    soldeReinvesti: number;
+    totalGagne: number;
+  };
+  reinvestLots: ReinvestLot[];
+  stats: { gainsTotaux: number };
+}
+
 export interface CreateWithdrawalRequestInput {
   montant: number;
   type: 'MOBILE_MONEY' | 'CASH';
   provider?: string;
   phoneNumber?: string;
-  commissionIds: string[];
   notes?: string;
 }
 
@@ -215,7 +232,7 @@ export const portalApi = {
   }): Promise<PortalReferralsResponse> =>
     api.get('/portal/referrals', { params: { ...params, limit: params.limit ?? 20 } }).then((r) => r.data),
 
-  getWallet: () =>
+  getWallet: (): Promise<PortalWalletResponse> =>
     api.get('/portal/wallet').then((r) => r.data),
 
   initPayout: (input: PortalPayoutInput) =>
