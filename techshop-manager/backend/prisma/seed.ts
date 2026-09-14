@@ -4,8 +4,29 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  if (process.env.SEED_ADMIN_ONLY === 'true') {
+  // ============================================================
+  // 🔒 GARDE DE SÉCURITÉ — PRODUCTION
+  //
+  // Par défaut (aucune variable), ce seed est SÉCURISÉ :
+  //   → Crée uniquement le Super Admin, les 8 niveaux MLM et les catégories de produits.
+  //   → Aucun site, aucun client, aucun produit, aucune vente ni stock.
+  //
+  // Pour activer les données de démonstration (DEV uniquement) :
+  //   SEED_DEMO_DATA=true npx prisma db seed
+  // ============================================================
+
+  const isDemoMode = process.env.SEED_DEMO_DATA === 'true';
+
+  if (!isDemoMode) {
+    console.log('');
+    console.log('🔒 ============================================================');
+    console.log('🔒  SEED PRODUCTION — Mode sécurisé (SEED_DEMO_DATA non défini)');
+    console.log('🔒 ============================================================');
+    console.log('');
+
     const passwordHash = await bcrypt.hash('Admin@2025', 10);
+
+    // ── Super Admin ──────────────────────────────────────────────
     await prisma.utilisateur.upsert({
       where: { telephone: '+243902238740' },
       update: { passwordHash, nom: 'Peter AKILIMALI', role: Role.SUPER_ADMIN, actif: true, langue: 'fr' },
@@ -20,16 +41,18 @@ async function main() {
         langue: 'fr',
       },
     });
-    // Matrice en vigueur (migration 20260908120000) : split Système 60 % / Auto-réinvest 40 %
+    console.log('  ✓ Super Admin : Peter AKILIMALI (+243902238740)');
+
+    // ── 8 Niveaux MLM (split Système 60% / Auto-réinvest 40%) ────
     const mlmLevels = [
-      ['Builder', 4, 10, 40, 6, 4, '#f59e0b', 'hammer'],
-      ['Sapphire', 4, 20.83, 83.32, 12.5, 8.33, '#3b82f6', 'gem'],
-      ['Ruby', 4, 33.33, 133.32, 20, 13.33, '#ef4444', 'sparkles'],
-      ['Emerald', 4, 83.33, 333.32, 50, 33.33, '#10b981', 'tv'],
-      ['Diamond', 4, 416.67, 1666.68, 250, 166.67, '#06b6d4', 'bike'],
-      ['Crown Diamond', 4, 833.33, 3333.32, 500, 333.33, '#8b5cf6', 'crown'],
-      ['Ambassadeur', 4, 8333.33, 33333.32, 5000, 3333.33, '#6366f1', 'globe'],
-      ['Crown Ambassadeur', 4, 20833.33, 83333.32, 12500, 8333.33, '#d97706', 'award'],
+      ['Builder',           4, 10,       40,       6,      4,       '#f59e0b', 'hammer'],
+      ['Sapphire',          4, 20.83,    83.32,    12.5,   8.33,    '#3b82f6', 'gem'],
+      ['Ruby',              4, 33.33,    133.32,   20,     13.33,   '#ef4444', 'sparkles'],
+      ['Emerald',           4, 83.33,    333.32,   50,     33.33,   '#10b981', 'tv'],
+      ['Diamond',           4, 416.67,   1666.68,  250,    166.67,  '#06b6d4', 'bike'],
+      ['Crown Diamond',     4, 833.33,   3333.32,  500,    333.33,  '#8b5cf6', 'crown'],
+      ['Ambassadeur',       4, 8333.33,  33333.32, 5000,   3333.33, '#6366f1', 'globe'],
+      ['Crown Ambassadeur', 4, 20833.33, 83333.32, 12500,  8333.33, '#d97706', 'award'],
     ] as const;
     for (const [index, [nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, couleur, icone]] of mlmLevels.entries()) {
       await prisma.mlmLevel.upsert({
@@ -38,9 +61,32 @@ async function main() {
         create: { ordre: index + 1, nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, bonusDescription: '', couleur, icone, isActive: true },
       });
     }
-    console.log('Mode admin uniquement : 8 niveaux MLM configurés, aucune donnée de démonstration créée.');
+    console.log('  ✓ 8 niveaux MLM configurés');
+
+    // ── Catégories de produits ────────────────────────────────────
+    const categories = ['Adhésion', 'Packs', 'Compléments', 'Cosmétiques', 'Équipements'];
+    for (const nom of categories) {
+      await prisma.categorie.upsert({ where: { nom }, update: {}, create: { nom } });
+    }
+    console.log(`  ✓ ${categories.length} catégories de produits configurées`);
+
+    console.log('');
+    console.log('✅ SEED PRODUCTION TERMINÉ — Aucune donnée de démo créée.');
+    console.log('   → Pour ajouter des données de démonstration : SEED_DEMO_DATA=true npx prisma db seed');
+    console.log('');
     return;
   }
+
+  // ============================================================
+  // ⚠️  MODE DÉMONSTRATION — NE PAS UTILISER EN PRODUCTION
+  //     Activé uniquement si SEED_DEMO_DATA=true
+  // ============================================================
+  console.log('');
+  console.log('⚠️  ============================================================');
+  console.log('⚠️   SEED DÉMO — SEED_DEMO_DATA=true détecté');
+  console.log('⚠️   NE PAS EXÉCUTER EN PRODUCTION !');
+  console.log('⚠️  ============================================================');
+  console.log('');
   console.log('🌱 Démarrage du seed enrichi EBN Network (Format Matricule AAAAMJXXXX)...');
 
   // ============================================
@@ -270,9 +316,31 @@ async function main() {
   console.log(`  ✓ ${mlmLevelsData.length} niveaux MLM validés`);
 
   // ============================================
-  // 4. PRODUITS & CATALOGUE
+  // 4. CATÉGORIES DE PRODUITS
   // ============================================
-  console.log('📦 4. Création des produits et gestion des stocks...');
+  console.log('🏷️  4. Création des catégories de produits...');
+
+  const categoriesData = [
+    { nom: 'Adhésion' },
+    { nom: 'Packs' },
+    { nom: 'Compléments' },
+    { nom: 'Cosmétiques' },
+    { nom: 'Équipements' },
+  ];
+
+  for (const cat of categoriesData) {
+    await prisma.categorie.upsert({
+      where: { nom: cat.nom },
+      update: {},
+      create: { nom: cat.nom },
+    });
+  }
+  console.log(`  ✓ ${categoriesData.length} catégories créées : ${categoriesData.map(c => c.nom).join(', ')}`);
+
+  // ============================================
+  // 5. PRODUITS & CATALOGUE
+  // ============================================
+  console.log('📦 5. Création des produits et gestion des stocks...');
 
   const produitsData = [
     { sku: 'PROD-RECIT-01', nom: 'Récit d\'Adhésion EBN Network', categorie: 'Adhésion', description: 'Livret d\'adhésion officiel et carte membre EBN', prixAchat: 10000, prixVente: 25000 },
