@@ -176,6 +176,11 @@ export class MlmMatrixService {
       },
     });
 
+    // ── Rémunération À CHAQUE filleul validé (règle « X USD / filleul ») ──
+    // Le parrain n'attend pas 4/4 : chaque filleul qui occupe une position
+    // génère sa propre commission, avec le split 60/40 du niveau.
+    await this._creditFilleulCommission(tx, parrainId, filleulId, mlmLevelId);
+
     const newFilleulsValides = matrix.filleulsValides + 1;
     const isNowComplete = newFilleulsValides >= 4;
 
@@ -190,6 +195,59 @@ export class MlmMatrixService {
 
     if (isNowComplete) {
       await this._triggerPromotion(tx, parrainId, mlmLevelId, filleulId);
+    }
+  }
+
+  /**
+   * Rémunération à CHAQUE filleul validé : crée une Commission EN_ATTENTE de
+   * `commissionParFilleul` avec le split du niveau (montantSysteme 60 % /
+   * montantRetour 40 %) et crédite immédiatement les 40 % en réinvestissement
+   * bloqué J+30. Les 60 % attendent la validation admin.
+   * Idempotent via referenceId unique (parrain + niveau + filleul).
+   */
+  private async _creditFilleulCommission(
+    tx: Prisma.TransactionClient,
+    parrainId: string,
+    filleulId: string,
+    mlmLevelId: number,
+  ): Promise<void> {
+    const level = await tx.mlmLevel.findUnique({ where: { id: mlmLevelId } });
+    if (!level) return;
+
+    const commissionRef = `commission-${parrainId}-level${level.ordre}-${filleulId}`;
+    const existing = await tx.commission.findUnique({ where: { referenceId: commissionRef } });
+    if (existing) return;
+
+    const montantParFilleul = Number(level.commissionParFilleul);
+    const montantSysteme = Number(level.commissionSysteme);
+    const montantRetour = Number(level.commissionRetour);
+
+    const commission = await tx.commission.create({
+      data: {
+        membreId: parrainId,
+        filleulId,
+        mlmLevelId,
+        montant: montantParFilleul,
+        montantSysteme,
+        montantRetour,
+        statut: 'EN_ATTENTE',
+        referenceId: commissionRef,
+        description: `Commission niveau ${level.nom} — filleul validé (${montantParFilleul} USD/filleul, split 60/40)`,
+      },
+    });
+
+    // Crédit 40 % → poche réinvestissement bloquée J+30 (voir creditReinvestInTx)
+    if (montantRetour > 0) {
+      let portefeuille = await tx.portefeuille.findUnique({
+        where: { membreId: parrainId },
+        select: { id: true },
+      });
+      if (!portefeuille) {
+        await tx.portefeuille.create({
+          data: { membreId: parrainId, soldeDisponible: 0, totalGagne: 0 },
+        });
+      }
+      await this.walletService.creditReinvestInTx(tx, parrainId, montantRetour, commission.id, level.nom);
     }
   }
 
@@ -238,46 +296,10 @@ export class MlmMatrixService {
         },
       });
 
-      // OPTION B + AUTO-REINVESTISSEMENT: Create Commission EN_ATTENTE with split amounts.
-      // montantSysteme (60%) stays pending until admin validates.
-      // montantRetour (40%) is credited IMMEDIATELY to the member's wallet.
-      const commissionRef = `commission-${membreId}-level${completedLevel.ordre}-${triggerFilleulId}`;
-      const existingCommission = await tx.commission.findUnique({
-        where: { referenceId: commissionRef },
-      });
-      if (!existingCommission) {
-        const montantTotal = Number(completedLevel.commissionTotale);
-        const montantSysteme = Number(completedLevel.commissionSysteme);
-        const montantRetour = Number(completedLevel.commissionRetour);
-
-        const commission = await tx.commission.create({
-          data: {
-            membreId,
-            filleulId: triggerFilleulId,
-            mlmLevelId: completedLevelId,
-            montant: montantTotal,
-            montantSysteme,
-            montantRetour,
-            statut: 'EN_ATTENTE',
-            referenceId: commissionRef,
-            description: `Commission niveau ${completedLevel.nom} — 4 filleuls complétés`,
-          },
-        });
-
-        // Crédit 40 % → poche réinvestissement bloquée J+30 (voir creditReinvestInTx)
-        if (montantRetour > 0) {
-          let portefeuille = await tx.portefeuille.findUnique({
-            where: { membreId },
-            select: { id: true },
-          });
-          if (!portefeuille) {
-            await tx.portefeuille.create({
-              data: { membreId, soldeDisponible: 0, totalGagne: 0 },
-            });
-          }
-          await this.walletService.creditReinvestInTx(tx, membreId, montantRetour, commission.id, completedLevel.nom);
-        }
-      }
+      // NOTE : la rémunération est versée À CHAQUE FILLEUL validé (voir
+      // _creditFilleulPosition → _creditFilleulCommission), pas à la complétion.
+      // Les 4 filleuls du niveau ont donc déjà généré 4 × montantParFilleul
+      // (= commissionTotale), split 60/40. Ne PAS re-créditer ici.
 
       // Create BonusAttribue (physical bonus — also EN_ATTENTE by default)
       await tx.bonusAttribue.create({

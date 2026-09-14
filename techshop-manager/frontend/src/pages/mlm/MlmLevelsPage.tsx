@@ -85,19 +85,19 @@ export default function MlmLevelsPage() {
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-primary-accent">
               <span className="text-xs font-bold">1</span>
             </div>
-            <p>Recrutez <strong className="font-semibold text-text">4 filleuls directs</strong> pour compléter votre matrice au niveau actuel.</p>
+            <p>Chaque <strong className="font-semibold text-text">filleul validé</strong> occupe une position dans votre matrice et génère immédiatement sa commission (montant « Com. / personne » du niveau).</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-success">
               <span className="text-xs font-bold">2</span>
             </div>
-            <p>Une fois les 4 positions remplies, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> et <strong className="font-semibold text-emerald-600">40% (Auto-réinvestissement)</strong> sont crédités immédiatement — <strong className="font-semibold text-emerald-600">retirables après 30 jours</strong>.</p>
+            <p>Sur chaque commission, <strong className="font-semibold text-emerald-600">40% (Auto-réinvestissement)</strong> sont crédités immédiatement — <strong className="font-semibold text-emerald-600">retirables après 30 jours</strong>.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-warning">
               <span className="text-xs font-bold">3</span>
             </div>
-            <p>Les <strong className="font-semibold text-text">60% restants (Système)</strong> sont validés par l'administration avant d'être retirables.</p>
+            <p>Les <strong className="font-semibold text-text">60% restants (Système)</strong> sont validés par l'administration avant d'être retirables. À 4/4, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> — avec des montants plus élevés.</p>
           </div>
         </div>
       </div>

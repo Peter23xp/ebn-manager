@@ -21,9 +21,18 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
       },
       mlmLevel: {
         findFirst: jest.fn<any>().mockResolvedValue({ id: 1, ordre: 1, nom: 'Niveau 1' }),
+        findUnique: jest.fn<any>().mockResolvedValue({
+          id: 1, ordre: 1, nom: 'Niveau 1',
+          commissionParFilleul: 10, commissionTotale: 40, commissionSysteme: 6, commissionRetour: 4,
+        }),
       },
       portefeuille: {
         create: jest.fn<any>(),
+        findUnique: jest.fn<any>().mockResolvedValue({ id: 'pf-1' }),
+      },
+      commission: {
+        findUnique: jest.fn<any>().mockResolvedValue(null),
+        create: jest.fn<any>().mockResolvedValue({ id: 'com-1' }),
       },
       matrix: {
         create: jest.fn<any>().mockResolvedValue({ id: 'matrix-1', estComplete: false, positions: [], filleulsValides: 0 }),
@@ -37,7 +46,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
       $transaction: jest.fn<any>(async (cb: any) => cb(prisma)),
     };
 
-    walletService = {};
+    walletService = { creditReinvestInTx: jest.fn<any>(), creditWalletInTx: jest.fn<any>() };
     service = new MlmMatrixService(prisma, walletService);
   });
 
