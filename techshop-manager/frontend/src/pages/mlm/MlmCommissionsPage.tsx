@@ -113,7 +113,7 @@ export default function MlmCommissionsPage() {
         </button>
         <div>
           <h1 className="text-page-title text-primary">Gestion des commissions</h1>
-          <p className="text-xs text-text-muted mt-0.5">Validation et suivi des commissions MLM (Option B)</p>
+          <p className="text-xs text-text-muted mt-0.5">Suivi des commissions MLM — créditées automatiquement au portefeuille (retraits approuvés dans « Retraits »)</p>
         </div>
       </div>
 

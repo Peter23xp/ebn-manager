@@ -34,7 +34,7 @@ function buildTx(over: Record<string, any> = {}) {
     position: { update: jest.fn() },
     mlmLevel: { findUnique: resolved(LEVEL1), findFirst: resolved(null) },
     membre: { findUnique: resolved({ id: 'p-1', parrainId: null, level: LEVEL1, parrain: null }), update: jest.fn(), create: jest.fn() },
-    commission: { findUnique: resolved(null), create: jest.fn<any>().mockResolvedValue({ id: 'com-1' }) },
+    commission: { findUnique: resolved(null), create: jest.fn<any>().mockResolvedValue({ id: 'com-1', description: 'Commission niveau Builder — filleul validé (10 USD/filleul, split 60/40)' }) },
     portefeuille: { findUnique: resolved({ id: 'pf-1' }), create: jest.fn() },
     promotion: { create: jest.fn() },
     bonusAttribue: { create: jest.fn() },
@@ -55,7 +55,7 @@ function buildService(tx: any) {
 }
 
 describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $/filleul)', () => {
-  it('crée une commission 10 $ (6/4) et crédite les 4 $ dès qu\'un filleul occupe une position', async () => {
+  it('crée une commission VALIDEE 10 $ et crédite 100 % (6 $ dispo + 4 $ bloqué) dès qu\'un filleul occupe une position', async () => {
     const tx = buildTx();
     const { service, walletService } = buildService(tx);
 
@@ -73,10 +73,14 @@ describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $
           montant: 10,
           montantSysteme: 6,
           montantRetour: 4,
-          statut: 'EN_ATTENTE',
+          statut: 'VALIDEE',
           referenceId: 'commission-p-1-level1-f-5',
         }),
       }),
+    );
+    // 60 % → soldeDisponible immédiatement (sans validation admin)
+    expect(walletService.creditWalletInTx).toHaveBeenCalledWith(
+      tx, 'p-1', 6, 'COMMISSION', expect.any(String), 'commission-p-1-level1-f-5',
     );
     // 40 % → poche réinvestissement bloquée J+30
     expect(walletService.creditReinvestInTx).toHaveBeenCalledWith(tx, 'p-1', 4, 'com-1', 'Builder');

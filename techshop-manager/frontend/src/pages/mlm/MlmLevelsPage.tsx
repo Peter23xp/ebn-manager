@@ -97,7 +97,7 @@ export default function MlmLevelsPage() {
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-warning">
               <span className="text-xs font-bold">3</span>
             </div>
-            <p>Les <strong className="font-semibold text-text">60% restants (Système)</strong> sont validés par l'administration avant d'être retirables. À 4/4, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> — avec des montants plus élevés.</p>
+            <p>Les <strong className="font-semibold text-text">60% restants (Système)</strong> sont crédités aussitôt, <strong className="font-semibold text-text">sans validation</strong> ; seule la demande de retrait est approuvée par l'administration. À 4/4, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> — avec des montants plus élevés.</p>
           </div>
         </div>
       </div>
