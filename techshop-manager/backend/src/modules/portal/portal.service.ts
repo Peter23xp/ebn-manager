@@ -402,12 +402,14 @@ export class PortalService {
 
     // Plafond : uniquement la poche « retirable » (60 % validés + lots J+30 libérés),
     // déduction faite de la réserve des demandes en attente.
+    // Le contrôle de cohérence est REFait DANS la transaction ci-dessous
+    // (le pré-check n'est qu'une expérience utilisateur anticipée).
     const pf = membre.portefeuille;
     const retirable = pf ? Number(pf.soldeDisponible) - Number(pf.soldeReserve) : 0;
-    if (dto.montant > retirable) {
+    if (!(dto.montant > 0) || dto.montant > retirable) {
       throw new BadRequestException({
         code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
-        message: `Retrait maximum : ${retirable.toFixed(2)} USD`,
+        message: `Retrait maximum : ${Math.max(0, retirable).toFixed(2)} USD`,
       });
     }
 
@@ -426,6 +428,19 @@ export class PortalService {
     // Réserver le montant + créer la demande (empêche deux demandes cumulées sur le même argent)
     const request = await this.prisma.$transaction(async (tx) => {
       if (pf) {
+        // Re-contrôle À FROID dans la transaction : le pré-check ci-dessus
+        // pourrait passer deux fois sous concurrence et surréserver le solde.
+        const fresh = await tx.portefeuille.findUnique({
+          where: { id: pf.id },
+          select: { soldeDisponible: true, soldeReserve: true },
+        });
+        const freshRetirable = Number(fresh?.soldeDisponible ?? 0) - Number(fresh?.soldeReserve ?? 0);
+        if (dto.montant > freshRetirable) {
+          throw new BadRequestException({
+            code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
+            message: `Retrait maximum : ${Math.max(0, freshRetirable).toFixed(2)} USD`,
+          });
+        }
         await tx.portefeuille.update({
           where: { id: pf.id },
           data: { soldeReserve: { increment: new Prisma.Decimal(dto.montant) } },
@@ -542,6 +557,18 @@ export class PortalService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Transition atomique EN_ATTENTE → ANNULE : sans ce verrou, une
+      // annulation concurrente à une approbation restituerait la réserve deux fois.
+      const transition = await tx.withdrawalRequest.updateMany({
+        where: { id: requestId, statut: 'EN_ATTENTE' },
+        data: { statut: 'ANNULE' },
+      });
+      if (transition.count === 0) {
+        throw new BadRequestException({
+          code: 'ERR_NOT_CANCELLABLE',
+          message: 'Seules les demandes en attente peuvent être annulées',
+        });
+      }
       // Restituer la réserve prise à la création de la demande
       if (membre.portefeuille) {
         await tx.portefeuille.update({

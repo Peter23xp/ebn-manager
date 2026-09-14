@@ -163,21 +163,36 @@ export class MlmWalletService implements OnModuleInit {
     const payout = await this.prisma.mlmPayout.findUnique({ where: { id: payoutId } });
     if (!payout) throw new NotFoundException('Demande de retrait introuvable');
     if (payout.statut !== MlmPayoutStatus.PENDING) throw new BadRequestException('Cette demande ne peut plus être annulée');
-    await this.prisma.portefeuille.update({ where: { membreId: payout.membreId }, data: { soldeReserve: { decrement: payout.montant } } });
-    return this.prisma.mlmPayout.update({ where: { id: payoutId }, data: { statut: MlmPayoutStatus.CANCELLED } });
+    await this.prisma.$transaction(async (tx) => {
+      // Transition atomique PENDING → CANCELLED : sans verrou, une annulation
+      // simultanée à une approbation décrémenterait la réserve deux fois.
+      const transition = await tx.mlmPayout.updateMany({
+        where: { id: payoutId, statut: MlmPayoutStatus.PENDING },
+        data: { statut: MlmPayoutStatus.CANCELLED },
+      });
+      if (transition.count === 0) throw new BadRequestException('Cette demande ne peut plus être annulée');
+      await tx.portefeuille.update({ where: { membreId: payout.membreId }, data: { soldeReserve: { decrement: payout.montant } } });
+    });
+    return this.prisma.mlmPayout.findUnique({ where: { id: payoutId } }) as any;
   }
 
   private async finalizePayout(transactionId: string, status: KpayTransactionStatus) {
     const transaction = await this.prisma.kpayTransaction.findUnique({ where: { id: transactionId }, include: { payout: true } });
     if (!transaction?.payout || !['PENDING', 'PROCESSING'].includes(transaction.payout.statut)) return;
     await this.prisma.$transaction(async (tx) => {
+      // Transition atomique (PENDING|PROCESSING) → statut terminal : un webhook
+      // relu et une réconciliation simultanés ne doivent pas rembourser deux fois.
+      const transition = await tx.mlmPayout.updateMany({
+        where: { id: transaction.payout!.id, statut: { in: [MlmPayoutStatus.PENDING, MlmPayoutStatus.PROCESSING] } },
+        data: { statut: status as MlmPayoutStatus, completedAt: status === 'COMPLETED' ? new Date() : null, failureReason: status === 'COMPLETED' ? null : transaction.failureReason },
+      });
+      if (transition.count === 0) return;
       const wallet = await tx.portefeuille.findUnique({ where: { membreId: transaction.payout!.membreId } });
       if (!wallet) throw new NotFoundException('Portefeuille introuvable');
       if (status !== 'COMPLETED') {
         await tx.portefeuille.update({ where: { id: wallet.id }, data: { soldeDisponible: { increment: transaction.payout!.montant } } });
         await tx.transactionPortefeuille.create({ data: { portefeuilleId: wallet.id, type: TransactionType.COMMISSION, montant: transaction.payout!.montant, description: 'Rétablissement après échec du retrait KPay', referenceId: transaction.id } });
       }
-      await tx.mlmPayout.update({ where: { id: transaction.payout!.id }, data: { statut: status as MlmPayoutStatus, completedAt: status === 'COMPLETED' ? new Date() : null, failureReason: status === 'COMPLETED' ? null : transaction.failureReason } });
     });
   }
 
@@ -472,6 +487,16 @@ export class MlmWalletService implements OnModuleInit {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Transition atomique EN_ATTENTE → APPROUVE : le guard de statut doit être
+      // DANS la transaction (sinon deux admins / double-clic débitent deux fois).
+      const transition = await tx.withdrawalRequest.updateMany({
+        where: { id: withdrawalRequestId, statut: 'EN_ATTENTE' },
+        data: { statut: 'APPROUVE', approvedAt: new Date(), approvedById, notes: notes || request.notes },
+      });
+      if (transition.count === 0) {
+        throw new BadRequestException(`Cette demande a déjà été traitée (course: ${withdrawalRequestId})`);
+      }
+
       const montant = new Prisma.Decimal(Number(request.montant));
 
       const portefeuille = await tx.portefeuille.findUnique({
@@ -552,6 +577,15 @@ export class MlmWalletService implements OnModuleInit {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Transition atomique EN_ATTENTE → REJETE (empêche rejet+approbation simultanés)
+      const rejected = await tx.withdrawalRequest.updateMany({
+        where: { id: withdrawalRequestId, statut: 'EN_ATTENTE' },
+        data: { statut: 'REJETE', rejectReason, updatedAt: new Date() },
+      });
+      if (rejected.count === 0) {
+        throw new BadRequestException(`Cette demande a déjà été traitée (course: ${withdrawalRequestId})`);
+      }
+
       // Restituer la réserve : l'argent redevient retirable
       const pf = await tx.portefeuille.findUnique({ where: { membreId: request.membreId }, select: { id: true } });
       if (pf) {
@@ -562,11 +596,7 @@ export class MlmWalletService implements OnModuleInit {
       }
       return tx.withdrawalRequest.update({
         where: { id: withdrawalRequestId },
-        data: {
-          statut: 'REJETE',
-          rejectReason,
-          updatedAt: new Date(),
-        },
+        data: { statut: 'REJETE', rejectReason, updatedAt: new Date() },
       });
     });
   }

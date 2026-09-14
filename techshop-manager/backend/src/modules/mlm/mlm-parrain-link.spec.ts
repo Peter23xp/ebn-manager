@@ -42,6 +42,16 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
       position: {
         createMany: jest.fn<any>(),
         update: jest.fn<any>(),
+        findMany: jest.fn<any>().mockResolvedValue([{ id: 'pos-1' }]),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+      },
+      transactionPortefeuille: {
+        findMany: jest.fn<any>().mockResolvedValue([]),
+        create: jest.fn<any>(),
+      },
+      reinvestLote: {
+        findMany: jest.fn<any>().mockResolvedValue([]),
+        deleteMany: jest.fn<any>(),
       },
       $transaction: jest.fn<any>(async (cb: any) => cb(prisma)),
     };

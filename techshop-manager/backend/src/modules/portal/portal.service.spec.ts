@@ -33,6 +33,7 @@ describe('PortalService', () => {
         findMany: jest.fn<any>(),
         findUnique: jest.fn<any>(),
         update: jest.fn<any>(),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
       },
       portefeuille: {
         findUnique: jest.fn<any>(),
@@ -190,6 +191,7 @@ describe('PortalService', () => {
 
     function mockHappy() {
       prisma.membre.findUnique.mockResolvedValue(membreAvecPortefeuille);
+      prisma.portefeuille.findUnique.mockResolvedValue({ soldeDisponible: 120, soldeReserve: 20 });
       prisma.portefeuille.update.mockResolvedValue({ id: 'w-1' });
       prisma.withdrawalRequest.create.mockResolvedValue({
         id: 'wr-1', montant: 25, type: 'MOBILE_MONEY', provider: 'AIRTEL_COD',

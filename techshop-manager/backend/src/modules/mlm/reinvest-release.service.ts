@@ -28,20 +28,28 @@ export class ReinvestReleaseService {
     let released = 0;
     for (const lot of lots) {
       try {
-        await this.prisma.$transaction(async (tx) => {
+        const moved = await this.prisma.$transaction(async (tx) => {
           const pf = await tx.portefeuille.findUnique({
             where: { membreId: lot.membreId },
             select: { id: true },
           });
           if (!pf) throw new Error(`Portefeuille introuvable pour ${lot.membreId}`);
           const amount = new Prisma.Decimal(lot.amount);
+          // Verrou : ne transférer que si cette instance passe bien released
+          // false → true. Deux cron (multi-réplicas) ne doivent pas doubler
+          // le transfert soldeReinvesti → soldeDisponible.
+          const claim = await tx.reinvestLote.updateMany({
+            where: { id: lot.id, released: false },
+            data: { released: true },
+          });
+          if (claim.count === 0) return false;
           await tx.portefeuille.update({
             where: { id: pf.id },
             data: { soldeDisponible: { increment: amount }, soldeReinvesti: { decrement: amount } },
           });
-          await tx.reinvestLote.update({ where: { id: lot.id }, data: { released: true } });
+          return true;
         });
-        released++;
+        if (moved) released++;
       } catch (err) {
         this.logger.error(`Libération lot ${lot.id} échouée: ${err instanceof Error ? err.message : err}`);
       }

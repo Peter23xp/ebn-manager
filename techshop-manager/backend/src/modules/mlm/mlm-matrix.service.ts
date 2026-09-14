@@ -77,19 +77,15 @@ export class MlmMatrixService {
     const level1 = await this.prisma.mlmLevel.findFirst({ where: { ordre: 1 } });
     if (!level1) throw new BadRequestException('MlmLevel niveau 1 introuvable — seed la DB d\'abord');
 
-    // Generate matricule in AAAAMMJJXXXX format
+    // Prefixe du matricule AAAAMMJJXXXX
     const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const prefix = `${yyyy}${mm}${dd}`;
-    const countToday = await this.prisma.membre.count({
-      where: { matricule: { startsWith: prefix } },
-    });
-    const matricule = `${prefix}${String(countToday + 1).padStart(4, '0')}`;
+    const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
 
-    // Create member + wallet + matrix in a transaction
-    await this.prisma.$transaction(async (tx) => {
+    // Deux activations simultanées le même jour peuvent calculer le même
+    // matricule (count + 1 non atomique) → collision P2002. Postgres avorte la
+    // transaction au premier échec : on rejoue donc la transaction ENTIÈRE
+    // (le corps est idempotent grâce aux guards findUnique/existing).
+    const run = () => this.prisma.$transaction(async (tx) => {
       // If client didn't have parrainClientId set but we resolved it from parrainCode, persist it on Client
       if (!client.parrainClientId && parrainMembreClientId) {
         await tx.client.update({
@@ -98,10 +94,13 @@ export class MlmMatrixService {
         });
       }
 
+      const countToday = await tx.membre.count({
+        where: { matricule: { startsWith: prefix } },
+      });
       const membre = await tx.membre.create({
         data: {
           clientId,
-          matricule,
+          matricule: `${prefix}${String(countToday + 1).padStart(4, '0')}`,
           parrainId,
           mlmLevelId: level1.id,
           statut: 'ACTIF',
@@ -129,6 +128,17 @@ export class MlmMatrixService {
         await this._fillParrainPosition(tx, parrainId, membre.id, level1.id);
       }
     }, { timeout: 30000, maxWait: 10000 });
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await run();
+        break;
+      } catch (err: any) {
+        const matriculeCollision =
+          err?.code === 'P2002' && String(err?.meta?.target ?? '').includes('matricule');
+        if (!matriculeCollision || attempt >= 4) throw err;
+      }
+    }
   }
 
   /**
@@ -164,25 +174,37 @@ export class MlmMatrixService {
 
     if (matrix.estComplete) return;
 
-    const emptyPosition = matrix.positions.find((p) => !p.estValide);
-    if (!emptyPosition) return;
+    // Idempotence : le même filleul ne doit jamais occuper deux positions.
+    if (matrix.positions.some((p) => p.estValide && p.filleulId === filleulId)) return;
 
-    await tx.position.update({
-      where: { id: emptyPosition.id },
-      data: {
-        filleulId,
-        estValide: true,
-        dateValidation: new Date(),
-      },
-    });
+    // Réclamation atomique d'une position vide : updateMany avec le filtre
+    // estValide:false sérialise deux activations concurrentes sous le même
+    // parrain. Si la position visée a été prise entre-temps, on reprend une
+    // autre candidate (sinon on sort — matrice pleine pour cette transaction).
+    let claimedPosition = false;
+    for (let attempt = 0; attempt < matrix.positions.length + 1 && !claimedPosition; attempt++) {
+      const candidates = await tx.position.findMany({
+        where: { matrixId: matrix.id, estValide: false },
+        orderBy: { numeroPosition: 'asc' },
+      });
+      if (candidates.length === 0) return;
+      const claim = await tx.position.updateMany({
+        where: { id: candidates[0].id, estValide: false },
+        data: { filleulId, estValide: true, dateValidation: new Date() },
+      });
+      claimedPosition = claim.count === 1;
+    }
+    if (!claimedPosition) return;
 
     // ── Rémunération À CHAQUE filleul validé (règle « X USD / filleul ») ──
     // Le parrain n'attend pas 4/4 : chaque filleul qui occupe une position
     // génère sa propre commission, avec le split 60/40 du niveau.
     await this._creditFilleulCommission(tx, parrainId, filleulId, mlmLevelId);
 
-    const newFilleulsValides = matrix.filleulsValides + 1;
-    const isNowComplete = newFilleulsValides >= 4;
+    // Compteur incrémenté (jamais absolu) pour rester correct si une autre
+    // transaction concurrente a validé une position du même entre-temps.
+    const freshMatrix = await tx.matrix.findUnique({ where: { id: matrix.id } }) as any;
+    const isNowComplete = Number(freshMatrix.filleulsValides) + 1 >= 4;
 
     await tx.matrix.update({
       where: { id: matrix.id },
@@ -519,10 +541,16 @@ export class MlmMatrixService {
       throw new BadRequestException(`Commission déjà traitée (statut: ${commission.statut})`);
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.commission.update({
-        where: { id: commissionId },
+      // Transition atomique EN_ATTENTE → VALIDEE : sans ce verrou, deux clics
+      // simultanés créditent deux fois le portefeuille.
+      const transition = await tx.commission.updateMany({
+        where: { id: commissionId, statut: 'EN_ATTENTE' },
         data: { statut: 'VALIDEE', valideeAt: new Date() },
       });
+      if (transition.count === 0) {
+        throw new BadRequestException('Commission déjà traitée (course)');
+      }
+      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
 
       // Credit wallet with montantSysteme only: montantRetour was already auto-credited
       // at commission creation (réinvestissement automatique).
@@ -578,47 +606,61 @@ export class MlmMatrixService {
     if (commission.statut === 'ANNULEE') return { ...commission, montant: Number(commission.montant) };
 
     return this.prisma.$transaction(async (tx) => {
+      // Transition atomique (EN_ATTENTE|VALIDEE) → ANNULEE : deux annulations
+      // simultanées ne doivent pas débiter deux fois.
+      const transition = await tx.commission.updateMany({
+        where: { id: commissionId, statut: { in: ['EN_ATTENTE', 'VALIDEE'] } },
+        data: { statut: 'ANNULEE', notes },
+      });
+      if (transition.count === 0) {
+        const already = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
+        return { ...already, montant: Number(already.montant) };
+      }
+
       const pf = await tx.portefeuille.findUnique({ where: { membreId: commission.membreId } });
       if (pf) {
-        const dispo = new Prisma.Decimal(Number(commission.montantSysteme));
-        const retour = new Prisma.Decimal(Number(commission.montantRetour));
-
+        // Restituer UNIQUEMENT ce qui a réellement été crédité (via le journal
+        // et les lots), sinon une commission jamais créditée (legacy EN_ATTENTE)
+        // creuserait un solde négatif.
+        const credits = await tx.transactionPortefeuille.findMany({
+          where: { referenceId: commission.referenceId, type: 'COMMISSION' },
+          select: { montant: true },
+        });
+        const dispoCredite = credits.reduce((s, c) => s.plus(new Prisma.Decimal(Number(c.montant))), new Prisma.Decimal(0));
         const lots = await tx.reinvestLote.findMany({ where: { commissionId: commission.id } });
         const bloques = lots.filter((l) => !l.released).reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
-        const liberes = retour.minus(bloques); // part 40 % déjà basculée en dispo
-        const aDebiterDispo = dispo.plus(liberes);
+        const lotsCredites = lots.reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
+        const liberes = lotsCredites.minus(bloques); // part 40 % déjà basculée en dispo
+        const aDebiterDispo = dispoCredite.plus(liberes);
+        const totalRestitue = dispoCredite.plus(lotsCredites);
 
         if (Number(pf.soldeDisponible) < Number(aDebiterDispo) || Number(pf.soldeReinvesti) < Number(bloques)) {
           throw new BadRequestException(
             'Solde insuffisant pour annuler : le membre a déjà retiré une partie de cette commission.',
           );
         }
-        if (aDebiterDispo.gt(0)) {
+        if (aDebiterDispo.gt(0) || bloques.gt(0)) {
           await tx.portefeuille.update({
             where: { id: pf.id },
-            data: { soldeDisponible: { decrement: aDebiterDispo }, totalGagne: { decrement: dispo.plus(retour) } },
+            data: {
+              soldeDisponible: { decrement: aDebiterDispo },
+              soldeReinvesti: { decrement: bloques },
+              totalGagne: { decrement: totalRestitue },
+            },
           });
-        } else {
-          await tx.portefeuille.update({ where: { id: pf.id }, data: { totalGagne: { decrement: dispo.plus(retour) } } });
-        }
-        if (bloques.gt(0)) {
-          await tx.portefeuille.update({ where: { id: pf.id }, data: { soldeReinvesti: { decrement: bloques } } });
           await tx.reinvestLote.deleteMany({ where: { commissionId: commission.id, released: false } });
+          await tx.transactionPortefeuille.create({
+            data: {
+              portefeuilleId: pf.id,
+              type: 'DEBIT',
+              montant: totalRestitue,
+              description: `Annulation commission — ${commission.description}`,
+              referenceId: commission.id,
+            },
+          });
         }
-        await tx.transactionPortefeuille.create({
-          data: {
-            portefeuilleId: pf.id,
-            type: 'DEBIT',
-            montant: dispo.plus(retour),
-            description: `Annulation commission — ${commission.description}`,
-            referenceId: commission.id,
-          },
-        });
       }
-      const updated = await tx.commission.update({
-        where: { id: commissionId },
-        data: { statut: 'ANNULEE', notes },
-      });
+      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
       return { ...updated, montant: Number(updated.montant) };
     }, { timeout: 30000, maxWait: 10000 });
   }

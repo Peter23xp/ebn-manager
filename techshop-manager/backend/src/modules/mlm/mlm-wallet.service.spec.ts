@@ -114,6 +114,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
       },
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), // EN_ATTENTE → APPROUVE (verrou)
         update: jest.fn<any>()
           .mockResolvedValueOnce({ statut: 'APPROUVE', montant: 150 }) // APPROUVE
           .mockResolvedValueOnce({ statut: 'PAYE' }),                   // CASH → PAYE
@@ -151,7 +152,10 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
         update: jest.fn(),
       },
       transactionPortefeuille: { create: jest.fn() },
-      withdrawalRequest: { update: resolved({ statut: 'APPROUVE', montant: 150 }) },
+      withdrawalRequest: {
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+        update: resolved({ statut: 'APPROUVE', montant: 150 }),
+      },
     };
     const prisma = {
       withdrawalRequest: { findUnique: resolved(demande({ type: 'MOBILE_MONEY' })) },
@@ -169,7 +173,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     const tx = {
       portefeuille: { findUnique: resolved({ id: 'pf-1', soldeDisponible: 100, soldeReserve: 150 }), update: jest.fn() },
       transactionPortefeuille: { create: jest.fn() },
-      withdrawalRequest: { update: jest.fn() },
+      withdrawalRequest: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), update: jest.fn() },
     };
     const prisma = {
       withdrawalRequest: { findUnique: resolved(demande()) },
@@ -189,7 +193,10 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
   it('rejet: REJETE + restitution de la réserve', async () => {
     const tx = {
       portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
-      withdrawalRequest: { update: resolved({ id: 'wr-1', statut: 'REJETE', rejectReason: 'Coordonnées invalides' }) },
+      withdrawalRequest: {
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+        update: resolved({ id: 'wr-1', statut: 'REJETE', rejectReason: 'Coordonnées invalides' }),
+      },
     };
     const prisma = {
       withdrawalRequest: { findUnique: resolved(demande()) },
@@ -206,6 +213,38 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
         data: { soldeReserve: { decrement: expect.anything() } },
       }),
     );
+  });
+
+  it('course approuvée deux fois: 2e updateMany count=0 -> débit UNIQUE (anti TOCTOU)', async () => {
+    const tx = {
+      portefeuille: { findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }), update: jest.fn() },
+      transactionPortefeuille: { create: jest.fn() },
+      withdrawalRequest: { updateMany: jest.fn<any>().mockResolvedValue({ count: 0 }), update: jest.fn() },
+    };
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved(demande()) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+    };
+    const service = buildService(prisma);
+
+    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
+    expect(tx.portefeuille.update).not.toHaveBeenCalled();
+    expect(tx.transactionPortefeuille.create).not.toHaveBeenCalled();
+  });
+
+  it('course rejet/approbation: updateMany count=0 -> réserve non restituée deux fois', async () => {
+    const tx = {
+      portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
+      withdrawalRequest: { updateMany: jest.fn<any>().mockResolvedValue({ count: 0 }), update: jest.fn() },
+    };
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved(demande()) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+    };
+    const service = buildService(prisma);
+
+    await expect(service.rejectWithdrawalRequest('wr-1', 'x')).rejects.toThrow();
+    expect(tx.portefeuille.update).not.toHaveBeenCalled();
   });
 
   it('refuse de rejeter une demande déjà traitée', async () => {

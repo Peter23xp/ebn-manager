@@ -31,7 +31,10 @@ function buildTx(over: Record<string, any> = {}) {
       create: jest.fn(),
       update: jest.fn(),
     },
-    position: { update: jest.fn() },
+    position: {
+      findMany: resolved(matrix.positions.filter((p) => !p.estValide).map((p) => ({ id: p.id }))),
+      updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+    },
     mlmLevel: { findUnique: resolved(LEVEL1), findFirst: resolved(null) },
     membre: { findUnique: resolved({ id: 'p-1', parrainId: null, level: LEVEL1, parrain: null }), update: jest.fn(), create: jest.fn() },
     commission: { findUnique: resolved(null), create: jest.fn<any>().mockResolvedValue({ id: 'com-1', description: 'Commission niveau Builder — filleul validé (10 USD/filleul, split 60/40)' }) },
@@ -61,8 +64,8 @@ describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $
 
     await (service as any)._fillParrainPosition(tx, 'p-1', 'f-5', 7);
 
-    expect(tx.position.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'pos-1' }, data: expect.objectContaining({ filleulId: 'f-5', estValide: true }) }),
+    expect(tx.position.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'pos-1', estValide: false }, data: expect.objectContaining({ filleulId: 'f-5', estValide: true }) }),
     );
     expect(tx.commission.create).toHaveBeenCalledWith(
       expect.objectContaining({
