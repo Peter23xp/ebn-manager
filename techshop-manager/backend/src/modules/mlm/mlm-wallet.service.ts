@@ -472,6 +472,7 @@ export class MlmWalletService implements OnModuleInit {
           level: r.membre.level,
         },
       })),
+      summary,
       meta: {
         total,
         page,
@@ -519,15 +520,23 @@ export class MlmWalletService implements OnModuleInit {
         throw new NotFoundException(`Portefeuille introuvable pour le membre ${request.membreId}`);
       }
 
-      if (Number(portefeuille.soldeDisponible) < Number(request.montant)) {
-        throw new BadRequestException('Solde disponible insuffisant pour valider ce retrait');
-      }
-
-      // Débiter la poche dispo ET consommer la réserve prise à la création
-      await tx.portefeuille.update({
-        where: { id: portefeuille.id },
+      // Débiter la poche dispo ET consommer la réserve prise à la création —
+      // en une SEULE transition conditionnelle : le verrou est sur la ligne
+      // portefeuille (pas seulement sur la ligne demande), donc deux demandes
+      // DIFFÉRENTES du même membre approuvées simultanément ne peuvent pas
+      // toutes deux passer sur le même solde (le second updateMany attend le
+      // lock, ré-évalue le WHERE, count=0 → échec propre).
+      const debit = await tx.portefeuille.updateMany({
+        where: {
+          id: portefeuille.id,
+          soldeDisponible: { gte: montant },
+          soldeReserve: { gte: montant },
+        },
         data: { soldeDisponible: { decrement: montant }, soldeReserve: { decrement: montant } },
       });
+      if (debit.count === 0) {
+        throw new BadRequestException('Solde disponible insuffisant pour valider ce retrait');
+      }
 
       await tx.transactionPortefeuille.create({
         data: {
@@ -539,15 +548,10 @@ export class MlmWalletService implements OnModuleInit {
         },
       });
 
-      // Approuver la demande de retrait
-      const approved = await tx.withdrawalRequest.update({
+      // Statut APPROUVE déjà posé par la transition verrouillée ci-dessus ;
+      // relire la ligne complète pour la réponse.
+      const approved = await tx.withdrawalRequest.findUnique({
         where: { id: withdrawalRequestId },
-        data: {
-          statut: 'APPROUVE',
-          approvedAt: new Date(),
-          approvedById,
-          notes: notes || request.notes,
-        },
         include: {
           membre: {
             include: {
@@ -555,17 +559,18 @@ export class MlmWalletService implements OnModuleInit {
             },
           },
         },
-      });
+      }) as any;
 
       // Si c'est un retrait CASH, marquer comme payé immédiatement
       if (request.type === 'CASH') {
-        return tx.withdrawalRequest.update({
-          where: { id: withdrawalRequestId },
-          data: {
-            statut: 'PAYE',
-            paidAt: new Date(),
-          },
+        const paid = await tx.withdrawalRequest.updateMany({
+          where: { id: withdrawalRequestId, statut: 'APPROUVE' },
+          data: { statut: 'PAYE', paidAt: new Date() },
         });
+        if (paid.count === 0) {
+          throw new BadRequestException('Conflit de statut sur ce retrait (course)');
+        }
+        return tx.withdrawalRequest.findUnique({ where: { id: withdrawalRequestId } }) as any;
       }
 
       return approved;
@@ -605,10 +610,8 @@ export class MlmWalletService implements OnModuleInit {
           data: { soldeReserve: { decrement: new Prisma.Decimal(Number(request.montant)) } },
         });
       }
-      return tx.withdrawalRequest.update({
-        where: { id: withdrawalRequestId },
-        data: { statut: 'REJETE', rejectReason, updatedAt: new Date() },
-      });
+      // Statut REJETE déjà posé par la transition verrouillée : relire la ligne.
+      return tx.withdrawalRequest.findUnique({ where: { id: withdrawalRequestId } });
     });
   }
 

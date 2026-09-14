@@ -548,8 +548,18 @@ export class MlmService {
     if (!level) throw new NotFoundException(`MlmLevel ${dto.levelId} introuvable`);
 
     const data: Prisma.MlmLevelUpdateInput = {};
-    if (dto.commissionParFilleul !== undefined)
-      data.commissionParFilleul = new Prisma.Decimal(dto.commissionParFilleul);
+    if (dto.commissionParFilleul !== undefined) {
+      const par = new Prisma.Decimal(dto.commissionParFilleul);
+      if (par.lte(0)) throw new BadRequestException('commissionParFilleul doit être > 0');
+      data.commissionParFilleul = par;
+      // Invariant métier : systeme (60 %) + retour (40 %) == parFilleul.
+      // Sans ce recalcul, modifier le montant/filleul laisserait le split
+      // périmé → le crédit par filleul ne correspondrait plus à la commission
+      // enregistrée (sous/sur-paiement silencieux, revue max #11).
+      const systeme = par.mul(0.6).toDecimalPlaces(2);
+      data.commissionSysteme = systeme;
+      data.commissionRetour = par.minus(systeme);
+    }
     if (dto.commissionTotale !== undefined)
       data.commissionTotale = new Prisma.Decimal(dto.commissionTotale);
     if (dto.bonusDescription !== undefined) data.bonusDescription = dto.bonusDescription;

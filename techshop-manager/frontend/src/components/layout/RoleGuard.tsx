@@ -25,9 +25,16 @@ export function RoleGuard({ children, minRole, maxRole }: RoleGuardProps) {
   const max = maxRole ? (ROLE_LEVEL[maxRole] ?? 6) : 6;
 
   if (!user || level < min || level > max) {
-    // Un CLIENT ne peut pas accéder au back-office : renvoyer vers son portail.
-    // Un STAFF (AGENT+) bloqué hors du portail : renvoyer au back-office.
-    return <Navigate to={user?.role === 'CLIENT' ? '/portal/home' : '/dashboard'} replace />;
+    // CLIENT bloqué hors du portail → portail.
+    // FORMATEUR (level 2) : exclu des routes staff (parent minRole AGENT) ET
+    // du portail (maxRole CLIENT) — le renvoyer vers /dashboard bouclerait
+    // (le parent le rebloque sur /dashboard). Landing publique = terminal.
+    // Staff AGENT+ bloqué hors du back-office → dashboard.
+    const to =
+      user?.role === 'CLIENT' ? '/portal/home'
+      : (ROLE_LEVEL[user?.role as Role] ?? 0) < ROLE_LEVEL.AGENT ? '/'
+      : '/dashboard';
+    return <Navigate to={to} replace />;
   }
 
   return <>{children}</>;

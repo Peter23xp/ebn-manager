@@ -36,7 +36,11 @@ export function MobileMoneyPaymentForm({ amount, currency = 'USD', submitting = 
         <label className="form-group"><span className="form-label">Numéro Mobile Money</span><input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+243 8XX XXX XXX" inputMode="tel" aria-invalid={!!error} /></label>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <button type="button" className="btn-primary mt-4 w-full" onClick={submit} disabled={submitting}>{submitting && <Loader2 size={16} className="animate-spin" />} {submitting ? 'Initialisation…' : 'Payer par Mobile Money'}</button>
+      {/* Désactivé pendant TOUTE la durée du paiement (init + confirmation USSD) :
+          sinon un second clic crée un deuxième push KPay → double débit possible. */}
+      <button type="button" className="btn-primary mt-4 w-full" onClick={submit} disabled={submitting || processing}>
+        {submitting && <Loader2 size={16} className="animate-spin" />} {submitting ? 'Initialisation…' : processing ? 'En attente de confirmation…' : 'Payer par Mobile Money'}
+      </button>
       </section>
     </>
   );

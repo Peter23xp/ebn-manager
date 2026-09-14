@@ -105,33 +105,6 @@ export interface PortalPayoutInput {
   phoneNumber: string;
 }
 
-export interface ValidatedCommission {
-  id: string;
-  montant: number;
-  description: string;
-  createdAt: string;
-  valideeAt: string | null;
-  level: {
-    id: number;
-    ordre: number;
-    nom: string;
-  };
-  filleul: {
-    id: string;
-    matricule: string;
-    client: {
-      id: string;
-      prenom: string;
-      nom: string;
-    };
-  } | null;
-}
-
-export interface ValidatedCommissionsResponse {
-  commissions: ValidatedCommission[];
-  totalDisponible: number;
-}
-
 export interface WithdrawalRequest {
   id: string;
   montant: number;
@@ -235,9 +208,6 @@ export const portalApi = {
 
   initPayout: (input: PortalPayoutInput) =>
     api.post('/portal/wallet/payouts', input).then((r) => r.data),
-
-  getValidatedCommissions: (): Promise<ValidatedCommissionsResponse> =>
-    api.get('/portal/commissions/validated').then((r) => r.data),
 
   createWithdrawalRequest: (input: CreateWithdrawalRequestInput) =>
     api.post('/portal/withdrawal-requests', input).then((r) => r.data),

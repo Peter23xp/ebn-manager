@@ -69,13 +69,20 @@ export default function MlmCommissionsPage() {
   const validateMut = useMutation({
     mutationFn: (id: string) => MlmApi.validateCommission(id),
     onSuccess: () => { toast.success('Commission validée et créditée. Statut : Validée — à payer.'); invalidate(); },
-    onError: () => toast.error('Erreur lors de la validation'),
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? 'Erreur lors de la validation');
+      // En cas de course/refus serveur, resynchroniser la liste (ligne possiblement déjà traitée)
+      invalidate();
+    },
   });
 
   const payMut = useMutation({
     mutationFn: (id: string) => MlmApi.payCommission(id),
     onSuccess: () => { toast.success('Commission marquée comme déjà payée.'); invalidate(); },
-    onError: () => toast.error('Erreur lors du marquage'),
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? 'Erreur lors du marquage');
+      invalidate();
+    },
   });
 
   const cancelMut = useMutation({
@@ -86,7 +93,12 @@ export default function MlmCommissionsPage() {
       setCancelNotes('');
       invalidate();
     },
-    onError: () => toast.error('Erreur lors de l\'annulation'),
+    onError: (error: any) => {
+      // Message serveur obligatoire : cancelCommission refuse si le membre a
+      // déjà retiré l'argent (précondition métier, pas un crash).
+      toast.error(error?.response?.data?.message ?? "Erreur lors de l'annulation");
+      invalidate();
+    },
   });
 
   const commissions = data?.commissions ?? [];

@@ -29,11 +29,15 @@ export class ReinvestReleaseService {
     for (const lot of lots) {
       try {
         const moved = await this.prisma.$transaction(async (tx) => {
+          // Ordre de verrous portefeuille → lots, identique à cancelCommission
+          // (sinon interblocage entre le cron et une annulation simultanée).
           const pf = await tx.portefeuille.findUnique({
             where: { membreId: lot.membreId },
             select: { id: true },
           });
           if (!pf) throw new Error(`Portefeuille introuvable pour ${lot.membreId}`);
+          // Verrou la ligne portefeuille AVANT de toucher au lot.
+          await tx.$queryRaw`SELECT id FROM portefeuilles WHERE id = ${pf.id} FOR UPDATE`;
           const amount = new Prisma.Decimal(lot.amount);
           // Verrou : ne transférer que si cette instance passe bien released
           // false → true. Deux cron (multi-réplicas) ne doivent pas doubler

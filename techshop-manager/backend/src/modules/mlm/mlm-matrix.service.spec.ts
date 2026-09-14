@@ -30,10 +30,14 @@ function buildTx(over: Record<string, any> = {}) {
       findUnique: resolved(matrix),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
     },
     position: {
       findMany: resolved(matrix.positions.filter((p) => !p.estValide).map((p) => ({ id: p.id }))),
       updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+      count: jest.fn<any>().mockResolvedValue(
+        matrix.positions.filter((p) => p.estValide).length + 1,
+      ),
     },
     mlmLevel: { findUnique: resolved(LEVEL1), findFirst: resolved(null) },
     membre: { findUnique: resolved({ id: 'p-1', parrainId: null, level: LEVEL1, parrain: null }), update: jest.fn(), create: jest.fn() },
@@ -107,6 +111,7 @@ describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $
       id: 'mx-1', membreId: 'p-1', mlmLevelId: 7, estComplete: false, filleulsValides: 3,
       positions: [{ id: 'pos-4', estValide: false }],
     });
+    tx.position.count = jest.fn<any>().mockResolvedValue(4);
     const nextLevel = { id: 8, ordre: 2, nom: 'Sapphire', bonusDescription: 'kit', salaireActif: false, salaireMensuel: 0 };
     tx.mlmLevel.findFirst = resolved(nextLevel);
     const { service, walletService } = buildService(tx);
@@ -127,5 +132,26 @@ describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $
     expect(tx.commission.create).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ montant: 40 }) }),
     );
+  });
+
+  it('course 4/4 concurrent : celui qui gagne le flip estComplete promeut, l\'autre NON', async () => {
+    const tx = buildTx();
+    tx.matrix.findUnique = resolved({
+      id: 'mx-1', membreId: 'p-1', mlmLevelId: 7, estComplete: false, filleulsValides: 3,
+      positions: [{ id: 'pos-4', estValide: false }],
+    });
+    tx.position.count = jest.fn<any>().mockResolvedValue(4);
+    // L'autre transaction a déjà fait le flip false→true : updateMany → 0
+    tx.matrix.updateMany = jest.fn<any>().mockResolvedValue({ count: 0 });
+    const nextLevel = { id: 8, ordre: 2, nom: 'Sapphire', bonusDescription: 'kit', salaireActif: false, salaireMensuel: 0 };
+    tx.mlmLevel.findFirst = resolved(nextLevel);
+    const { service } = buildService(tx);
+
+    await (service as any)._fillParrainPosition(tx, 'p-1', 'f-9', 7);
+
+    // la commission de ce filleul est bien versée…
+    expect(tx.commission.create).toHaveBeenCalledTimes(1);
+    // …mais pas de double promotion (celui qui gagne le flip la déclenche)
+    expect(tx.promotion.create).not.toHaveBeenCalled();
   });
 });

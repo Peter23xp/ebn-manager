@@ -86,11 +86,6 @@ export class PortalController {
     return this.mlmClaimService.confirmClaims(user.id, body.codeFacture);
   }
 
-  @Get('commissions/validated')
-  getValidatedCommissions(@CurrentUser() user: any) {
-    return this.portalService.getValidatedCommissions(user.id);
-  }
-
   @Post('withdrawal-requests')
   createWithdrawalRequest(
     @CurrentUser() user: any,

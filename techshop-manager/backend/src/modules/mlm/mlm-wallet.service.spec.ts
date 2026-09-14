@@ -106,18 +106,37 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     montant: 150, commissionIds: [], notes: null, ...over,
   });
 
+  it('listWithdrawalRequests retourne le résumé GLOBAL par statut (rev. #1)', async () => {
+    const prisma = {
+      withdrawalRequest: {
+        findMany: resolved([]),
+        count: resolved(0),
+        groupBy: resolved([
+          { statut: 'EN_ATTENTE', _count: { id: 3 }, _sum: { montant: 240 } },
+          { statut: 'PAYE', _count: { id: 1 }, _sum: { montant: 50 } },
+        ]),
+      },
+    };
+    const service = buildService(prisma);
+    const res = await service.listWithdrawalRequests({});
+    expect(res.summary).toEqual({
+      EN_ATTENTE: { count: 3, montant: 240 },
+      PAYE: { count: 1, montant: 50 },
+    });
+  });
+
   it('approuve CASH: débit montant + réserve, journalise DEBIT, statut PAYE', async () => {
     const tx = {
       portefeuille: {
         findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
-        update: jest.fn(),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), // débit conditionnel (verrou fonds)
       },
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
         updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), // EN_ATTENTE → APPROUVE (verrou)
-        update: jest.fn<any>()
-          .mockResolvedValueOnce({ statut: 'APPROUVE', montant: 150 }) // APPROUVE
-          .mockResolvedValueOnce({ statut: 'PAYE' }),                   // CASH → PAYE
+        findUnique: jest.fn<any>()
+          .mockResolvedValueOnce({ statut: 'APPROUVE', montant: 150 })
+          .mockResolvedValueOnce({ statut: 'PAYE', montant: 150 }),
       },
     };
     const prisma = {
@@ -128,9 +147,13 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
 
     const result = await service.approveWithdrawalRequest('wr-1', 'user-1', 'note');
 
-    expect(tx.portefeuille.update).toHaveBeenCalledWith(
+    expect(tx.portefeuille.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'pf-1' },
+        where: expect.objectContaining({
+          id: 'pf-1',
+          soldeDisponible: { gte: expect.anything() },
+          soldeReserve: { gte: expect.anything() },
+        }),
         data: expect.objectContaining({
           soldeDisponible: { decrement: expect.anything() },
           soldeReserve: { decrement: expect.anything() },
@@ -142,19 +165,41 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
         data: expect.objectContaining({ type: 'DEBIT', portefeuilleId: 'pf-1', referenceId: 'wr-1' }),
       }),
     );
+    // CASH → PAYE (transition conditionnelle depuis APPROUVE)
     expect(result.statut).toBe('PAYE');
+  });
+
+  it('refuse et ne débite RIEN si portefeuille.updateMany count=0 (solde passé entre-temps)', async () => {
+    const tx = {
+      portefeuille: {
+        findUnique: resolved({ id: 'pf-1', soldeDisponible: 10, soldeReserve: 10 }),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 0 }), // course perdue
+      },
+      transactionPortefeuille: { create: jest.fn() },
+      withdrawalRequest: {
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+        findUnique: resolved({ statut: 'APPROUVE' }),
+      },
+    };
+    const prisma = {
+      withdrawalRequest: { findUnique: resolved(demande()) },
+      $transaction: jest.fn(async (cb: any) => cb(tx)),
+    };
+    const service = buildService(prisma);
+    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
+    expect(tx.transactionPortefeuille.create).not.toHaveBeenCalled();
   });
 
   it('approuve MOBILE_MONEY: statut APPROUVE (payé manuellement ensuite)', async () => {
     const tx = {
       portefeuille: {
         findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
-        update: jest.fn(),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
       },
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
         updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
-        update: resolved({ statut: 'APPROUVE', montant: 150 }),
+        findUnique: resolved({ statut: 'APPROUVE', montant: 150 }),
       },
     };
     const prisma = {
@@ -165,23 +210,8 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
 
     const result = await service.approveWithdrawalRequest('wr-1', 'user-1');
     expect(result.statut).toBe('APPROUVE');
-    // Un seul update de statut (APPROUVE), pas de PAYE auto
-    expect(tx.withdrawalRequest.update).toHaveBeenCalledTimes(1);
-  });
-
-  it("refuse si soldeDisponible < montant au moment de l'approbation", async () => {
-    const tx = {
-      portefeuille: { findUnique: resolved({ id: 'pf-1', soldeDisponible: 100, soldeReserve: 150 }), update: jest.fn() },
-      transactionPortefeuille: { create: jest.fn() },
-      withdrawalRequest: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), update: jest.fn() },
-    };
-    const prisma = {
-      withdrawalRequest: { findUnique: resolved(demande()) },
-      $transaction: jest.fn(async (cb: any) => cb(tx)),
-    };
-    const service = buildService(prisma);
-    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toThrow();
-    expect(tx.portefeuille.update).not.toHaveBeenCalled();
+    // Une seule transition de statut (APPROUVE), pas de PAYE auto
+    expect(tx.withdrawalRequest.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it('refuse une demande déjà traitée', async () => {
@@ -195,7 +225,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
       portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
       withdrawalRequest: {
         updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
-        update: resolved({ id: 'wr-1', statut: 'REJETE', rejectReason: 'Coordonnées invalides' }),
+        findUnique: resolved({ id: 'wr-1', statut: 'REJETE', rejectReason: 'Coordonnées invalides' }),
       },
     };
     const prisma = {

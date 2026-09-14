@@ -140,6 +140,27 @@ export class VentesService implements OnModuleInit {
       const produit = produits.find((item) => item.id === ligne.produitId)!;
       return total + Number(produit.prixVente) * ligne.quantite;
     }, 0);
+
+    // Anti double-push KPay : si une vente EN_ATTENTE_PAIEMENT identique
+    // (même client/site/panier) a déjà une transaction KPay ACTIVE (poussée),
+    // renvoyer cette transaction au lieu d'en créer une seconde — le client
+    // pourrait sinon confirmer deux USSD et être débité deux fois.
+    const clePanier = (lignes: Array<{ produitId: string; quantite: number }>) =>
+      [...lignes].sort((a, b) => (a.produitId < b.produitId ? -1 : 1)).map((l) => `${l.produitId}:${l.quantite}`).join('|');
+    const activeTx = await this.prisma.kpayTransaction.findFirst({
+      where: {
+        operationType: KpayOperationType.SALE_PAYMENT,
+        status: { in: [KpayTransactionStatus.PENDING, KpayTransactionStatus.PROCESSING] },
+        kpayPaymentId: { not: null },
+        vente: { clientId: dto.clientId, siteId: dto.siteId, statut: 'EN_ATTENTE_PAIEMENT' },
+      },
+      include: { vente: { include: { lignes: { select: { produitId: true, quantite: true } } } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (activeTx?.vente && clePanier(activeTx.vente.lignes) === clePanier(dto.lignes)) {
+      return { transactionId: activeTx.id, status: activeTx.status, reference: activeTx.kpayReference, reused: true };
+    }
+
     const externalId = `SALE-${randomUUID()}`;
     const numeroVente = await this.generateNumeroVente(dto.siteId);
     const pending = await this.prisma.$transaction(async (tx) => {

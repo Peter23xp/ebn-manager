@@ -12,6 +12,7 @@ describe('ReinvestReleaseService.releaseDueLots', () => {
     const tx = {
       portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
       reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }) },
+      $queryRaw: resolved([]),
     };
     const prisma = {
       reinvestLote: {
@@ -45,6 +46,7 @@ describe('ReinvestReleaseService.releaseDueLots', () => {
     const tx = {
       portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
       reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 0 }) },
+      $queryRaw: resolved([]),
     };
     const prisma = {
       reinvestLote: { findMany: resolved([{ id: 'l-1', membreId: 'm-1', amount: 40 }]) },
@@ -62,6 +64,7 @@ describe('ReinvestReleaseService.releaseDueLots', () => {
     const tx = {
       portefeuille: { findUnique: resolved(null), update: jest.fn() },
       reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }) },
+      $queryRaw: resolved([]),
     };
     const prisma = {
       reinvestLote: { findMany: resolved([{ id: 'l-1', membreId: 'm-x', amount: 10 }]) },

@@ -117,8 +117,13 @@ export default function MlmWithdrawalRequestsPage() {
       setApproveNotes('');
       invalidate();
     },
-    onError: (error: any) =>
-      toast.error(error?.response?.data?.message ?? 'Erreur lors de l\'approbation'),
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? 'Erreur lors de l\'approbation');
+      // Course (déjà traitée par un autre admin) : resynchroniser et fermer le
+      // modal — la ligne affichée est périmée, cliquer encore ferait re-400.
+      invalidate();
+      if (error?.response?.status === 400) { setApprovingId(null); setApproveNotes(''); }
+    },
   });
 
   const rejectMut = useMutation({
@@ -130,8 +135,11 @@ export default function MlmWithdrawalRequestsPage() {
       setRejectReason('');
       invalidate();
     },
-    onError: (error: any) =>
-      toast.error(error?.response?.data?.message ?? 'Erreur lors du rejet'),
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message ?? 'Erreur lors du rejet');
+      invalidate();
+      if (error?.response?.status === 400) { setRejectingId(null); setRejectReason(''); }
+    },
   });
 
   const markPaidMut = useMutation({

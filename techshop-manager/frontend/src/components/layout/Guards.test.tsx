@@ -61,3 +61,29 @@ describe('RoleGuard avec maxRole (cloisonnement portail/back-office)', () => {
     expect(screen.getByText('staff-zone')).toBeInTheDocument();
   });
 });
+
+describe('RoleGuard FORMATEUR (pas de boucle de redirection)', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
+  });
+
+  test('FORMATEUR bloqué du portail est renvoyé vers / (pas /dashboard → boucle)', () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { id: 'f1', role: 'FORMATEUR', name: 'Formateur' } as never,
+      accessToken: 't',
+    });
+    render(
+      <MemoryRouter initialEntries={['/portal/home']}>
+        <Routes>
+          <Route path="/" element={<div>landing</div>} />
+          <Route path="/dashboard" element={<div>back-office</div>} />
+          <Route path="/portal/home" element={(
+            <RoleGuard minRole="CLIENT" maxRole="CLIENT"><div>portail</div></RoleGuard>
+          )} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('landing')).toBeInTheDocument();
+  });
+});

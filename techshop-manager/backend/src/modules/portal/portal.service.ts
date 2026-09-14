@@ -136,7 +136,10 @@ export class PortalService {
       wallet: {
         soldeDisponible: Number(pf.soldeDisponible),
         soldeReserve: Number(pf.soldeReserve),
-        soldeDisponibleRetrait: Number(pf.soldeDisponible) - Number(pf.soldeReserve),
+        // En centimes arrondis : evite l'epsilon IEEE qui rend le « maximum »
+        // légèrement inférieur au montant légal (0.30-0.10=0.19999…).
+        soldeDisponibleRetrait:
+          (Math.round(Number(pf.soldeDisponible) * 100) - Math.round(Number(pf.soldeReserve) * 100)) / 100,
         soldeReinvesti: Number(pf.soldeReinvesti),
         totalGagne: Number(pf.totalGagne),
       },
@@ -401,15 +404,18 @@ export class PortalService {
     }
 
     // Plafond : uniquement la poche « retirable » (60 % validés + lots J+30 libérés),
-    // déduction faite de la réserve des demandes en attente.
-    // Le contrôle de cohérence est REFait DANS la transaction ci-dessous
-    // (le pré-check n'est qu'une expérience utilisateur anticipée).
+    // déduction faite de la réserve des demandes en attente. Comparaison en
+    // CENTIMES arrondis : `0.30 - 0.10` en flottants IEEE = 0.19999999999999998,
+    // ce qui rejetait le retrait du maximum exact.
     const pf = membre.portefeuille;
-    const retirable = pf ? Number(pf.soldeDisponible) - Number(pf.soldeReserve) : 0;
-    if (!(dto.montant > 0) || dto.montant > retirable) {
+    const retirableCents = pf
+      ? Math.round(Number(pf.soldeDisponible) * 100) - Math.round(Number(pf.soldeReserve) * 100)
+      : 0;
+    const montantCents = Math.round(dto.montant * 100);
+    if (!(montantCents > 0) || montantCents > retirableCents) {
       throw new BadRequestException({
         code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
-        message: `Retrait maximum : ${Math.max(0, retirable).toFixed(2)} USD`,
+        message: `Retrait maximum : ${(Math.max(0, retirableCents) / 100).toFixed(2)} USD`,
       });
     }
 
@@ -428,17 +434,16 @@ export class PortalService {
     // Réserver le montant + créer la demande (empêche deux demandes cumulées sur le même argent)
     const request = await this.prisma.$transaction(async (tx) => {
       if (pf) {
-        // Re-contrôle À FROID dans la transaction : le pré-check ci-dessus
-        // pourrait passer deux fois sous concurrence et surréserver le solde.
-        const fresh = await tx.portefeuille.findUnique({
-          where: { id: pf.id },
-          select: { soldeDisponible: true, soldeReserve: true },
-        });
-        const freshRetirable = Number(fresh?.soldeDisponible ?? 0) - Number(fresh?.soldeReserve ?? 0);
-        if (dto.montant > freshRetirable) {
+        // Verrou SELECT … FOR UPDATE sur la ligne portefeuille : une seconde
+        // demande concurrente BLOQUE ici, puis voit la réserve déjà incrémentée
+        // (un simple findUnique + update incrémental laisserait les deux passer
+        // leur contrôle sur le même instantané → soldeReserve > soldeDisponible).
+        const fresh = await this.lockPortefeuille(tx, pf.id);
+        const freshCents = Math.round(Number(fresh.soldeDisponible) * 100) - Math.round(Number(fresh.soldeReserve) * 100);
+        if (montantCents > freshCents) {
           throw new BadRequestException({
             code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
-            message: `Retrait maximum : ${Math.max(0, freshRetirable).toFixed(2)} USD`,
+            message: `Retrait maximum : ${(Math.max(0, freshCents) / 100).toFixed(2)} USD`,
           });
         }
         await tx.portefeuille.update({
@@ -569,8 +574,11 @@ export class PortalService {
           message: 'Seules les demandes en attente peuvent être annulées',
         });
       }
-      // Restituer la réserve prise à la création de la demande
+      // Restituer la réserve prise à la création de la demande — sous le même
+      // verrou de ligne que la création (sinon une annulation concurrente à
+      // une création peut lire/écrire la réserve hors séquence).
       if (membre.portefeuille) {
+        await this.lockPortefeuille(tx, membre.portefeuille.id);
         await tx.portefeuille.update({
           where: { id: membre.portefeuille.id },
           data: { soldeReserve: { decrement: new Prisma.Decimal(request.montant) } },
@@ -584,67 +592,25 @@ export class PortalService {
     });
   }
 
-  async getValidatedCommissions(clientId: string) {
-    const membre = await this.ensureMember(clientId);
-    if (!membre) {
-      return { commissions: [], totalDisponible: 0 };
-    }
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-    // Récupérer les commissions validées et non encore utilisées dans une demande de retrait
-    const usedCommissionIds = await this.prisma.withdrawalRequest.findMany({
-      where: {
-        membreId: membre.id,
-        statut: { in: ['EN_ATTENTE', 'APPROUVE', 'PAYE'] },
-      },
-      select: { commissionIds: true },
-    });
-
-    const usedIds = new Set(
-      usedCommissionIds.flatMap((r) => (r.commissionIds as string[]) || []),
-    );
-
-    const commissions = await this.prisma.commission.findMany({
-      where: {
-        membreId: membre.id,
-        statut: 'VALIDEE',
-      },
-      include: {
-        level: { select: { id: true, ordre: true, nom: true } },
-        filleul: {
-          include: { client: { select: { id: true, prenom: true, nom: true } } },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const availableCommissions = commissions.filter((c) => !usedIds.has(c.id));
-
-    const totalDisponible = availableCommissions.reduce(
-      (sum, c) => sum + Number(c.montant),
-      0,
-    );
-
+  /**
+   * SELECT ... FOR UPDATE : verrou de ligne exclusif sur le portefeuille pour
+   * la durée de la transaction. Utilisé avant toute écriture de soldeReserve.
+   */
+  private async lockPortefeuille(
+    tx: Prisma.TransactionClient,
+    portefeuilleId: string,
+  ): Promise<{ soldeDisponible: any; soldeReserve: any }> {
+    const rows = await tx.$queryRaw<Array<{ solde_disponible: any; solde_reserve: any }>>`
+      SELECT solde_disponible, solde_reserve FROM portefeuilles WHERE id = ${portefeuilleId} FOR UPDATE
+    `;
+    if (!rows.length) throw new BadRequestException({ code: 'ERR_NOT_FOUND', message: 'Portefeuille introuvable' });
     return {
-      commissions: availableCommissions.map((c) => ({
-        id: c.id,
-        montant: Number(c.montant),
-        description: c.description,
-        createdAt: c.createdAt,
-        valideeAt: c.valideeAt,
-        level: c.level,
-        filleul: c.filleul
-          ? {
-              id: c.filleul.id,
-              matricule: c.filleul.matricule,
-              client: c.filleul.client,
-            }
-          : null,
-      })),
-      totalDisponible,
+      soldeDisponible: rows[0].solde_disponible,
+      soldeReserve: rows[0].solde_reserve,
     };
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private getPeriodStart(period?: string): Date | null {
     if (!period || period === 'all') return null;

@@ -64,9 +64,12 @@ export class MlmMatrixService {
               data: { parrainClientId: parrainMembreClientId },
             });
           }
-          const level1 = await tx.mlmLevel.findFirst({ where: { ordre: 1 } });
-          if (level1) {
-            await this._fillParrainPosition(tx, parrainId!, existing.id, level1.id);
+          const parrainMembre = await tx.membre.findUnique({
+            where: { id: parrainId! },
+            select: { mlmLevelId: true },
+          });
+          if (parrainMembre) {
+            await this._fillParrainPosition(tx, parrainId!, existing.id, parrainMembre.mlmLevelId);
           }
         }, { timeout: 30000, maxWait: 10000 });
       }
@@ -97,6 +100,11 @@ export class MlmMatrixService {
       const countToday = await tx.membre.count({
         where: { matricule: { startsWith: prefix } },
       });
+      // CLAUDE.md : matricule = AAAAMMJJ#### — refuse au-delà de 9 999 le
+      // même jour plutôt que d'émettre un suffixe de 5 chiffres silencieux.
+      if (countToday + 1 > 9999) {
+        throw new BadRequestException(`Quota de 9 999 activations atteint pour le ${prefix} — séquence matricule saturée.`);
+      }
       const membre = await tx.membre.create({
         data: {
           clientId,
@@ -123,9 +131,15 @@ export class MlmMatrixService {
         },
       });
 
-      // Fill parrain's matrix if exists
+      // Fill parrain's matrix if exists — à son NIVEAU COURANT (un parrain
+      // promu doit être rémunéré sur le taux de son niveau, pas bloqué au
+      // niveau 1 complet).
       if (parrainId) {
-        await this._fillParrainPosition(tx, parrainId, membre.id, level1.id);
+        const parrainMembre = await tx.membre.findUnique({
+          where: { id: parrainId },
+          select: { mlmLevelId: true },
+        });
+        await this._fillParrainPosition(tx, parrainId, membre.id, parrainMembre?.mlmLevelId ?? level1.id);
       }
     }, { timeout: 30000, maxWait: 10000 });
 
@@ -134,9 +148,16 @@ export class MlmMatrixService {
         await run();
         break;
       } catch (err: any) {
-        const matriculeCollision =
-          err?.code === 'P2002' && String(err?.meta?.target ?? '').includes('matricule');
-        if (!matriculeCollision || attempt >= 4) throw err;
+        const target = String(err?.meta?.target ?? '');
+        if (err?.code === 'P2002') {
+          // Deux activations concurrentes du MÊME client : la perdue doit
+          // recevoir un 4xx propre, pas un 500 brut.
+          if (target.includes('clientId')) {
+            throw new BadRequestException('Ce client est déjà membre du réseau (activation concurrente).');
+          }
+          if (target.includes('matricule') && attempt < 4) continue;
+        }
+        throw err;
       }
     }
   }
@@ -201,21 +222,29 @@ export class MlmMatrixService {
     // génère sa propre commission, avec le split 60/40 du niveau.
     await this._creditFilleulCommission(tx, parrainId, filleulId, mlmLevelId);
 
-    // Compteur incrémenté (jamais absolu) pour rester correct si une autre
-    // transaction concurrente a validé une position du même entre-temps.
-    const freshMatrix = await tx.matrix.findUnique({ where: { id: matrix.id } }) as any;
-    const isNowComplete = Number(freshMatrix.filleulsValides) + 1 >= 4;
-
+    // L'update de la matrice SERIALISE la logique de complétion : une
+    // transaction concurrente est bloquée ici jusqu'au commit de l'autre.
     await tx.matrix.update({
       where: { id: matrix.id },
-      data: {
-        filleulsValides: { increment: 1 },
-        estComplete: isNowComplete,
-        dateComplete: isNowComplete ? new Date() : undefined,
-      },
+      data: { filleulsValides: { increment: 1 } },
     });
 
-    if (isNowComplete) {
+    // Autorité = positions réellement validées (le compteur lu hors verrou
+    // était périmé sous concurrence). updateMany estComplete false→true :
+    // une seule des transactions concurrentes gagne et déclenche la promo.
+    const valides = await tx.position.count({
+      where: { matrixId: matrix.id, estValide: true },
+    });
+    let promoted = false;
+    if (valides >= 4) {
+      const flip = await tx.matrix.updateMany({
+        where: { id: matrix.id, estComplete: false },
+        data: { estComplete: true, dateComplete: new Date() },
+      });
+      promoted = flip.count === 1;
+    }
+
+    if (promoted) {
       await this._triggerPromotion(tx, parrainId, mlmLevelId, filleulId);
     }
   }
@@ -595,11 +624,18 @@ export class MlmMatrixService {
     if (commission.statut !== 'VALIDEE')
       throw new BadRequestException(`La commission doit être validée avant d'être marquée comme payée`);
 
-    const updated = await this.prisma.commission.update({
-      where: { id: commissionId },
+    // Transition atomique VALIDEE → PAYEE : sans ce verrou, un « Marquer
+    // payée » concurrent à une annulation (crédit déjà restitué) pourrait
+    // écraser ANNULEE en PAYEE et rendre la ligne incancellable.
+    const updated = await this.prisma.commission.updateMany({
+      where: { id: commissionId, statut: 'VALIDEE' },
       data: { statut: 'PAYEE', payeeAt: new Date() },
     });
-    return { ...updated, montant: Number(updated.montant) };
+    if (updated.count === 0) {
+      throw new BadRequestException('Commission déjà traitée (course)');
+    }
+    const row = await this.prisma.commission.findUnique({ where: { id: commissionId } }) as any;
+    return { ...row, montant: Number(row.montant) };
   }
 
   /**
@@ -629,8 +665,20 @@ export class MlmMatrixService {
         return { ...already, montant: Number(already.montant) };
       }
 
-      const pf = await tx.portefeuille.findUnique({ where: { membreId: commission.membreId } });
-      if (pf) {
+      const pfRow = await tx.portefeuille.findUnique({
+        where: { membreId: commission.membreId },
+        select: { id: true },
+      });
+      if (pfRow) {
+        // Même ordre de verrous que le cron de libération (portefeuille →
+        // lots) pour éviter l'interblocage ; le lock rend les lectures qui
+        // suivent stables (check-then-decrement non verrouillé impossible).
+        const locked = await tx.$queryRaw<Array<{ solde_disponible: Prisma.Decimal; solde_reserve: Prisma.Decimal; solde_reinvesti: Prisma.Decimal }>>`
+          SELECT solde_disponible, solde_reserve, solde_reinvesti FROM portefeuilles WHERE id = ${pfRow.id} FOR UPDATE
+        `;
+        if (!locked.length) throw new BadRequestException('Portefeuille introuvable (course)');
+        const [pf] = locked;
+
         // Restituer UNIQUEMENT ce qui a réellement été crédité (via le journal
         // et les lots), sinon une commission jamais créditée (legacy EN_ATTENTE)
         // creuserait un solde négatif.
@@ -646,14 +694,23 @@ export class MlmMatrixService {
         const aDebiterDispo = dispoCredite.plus(liberes);
         const totalRestitue = dispoCredite.plus(lotsCredites);
 
-        if (Number(pf.soldeDisponible) < Number(aDebiterDispo) || Number(pf.soldeReinvesti) < Number(bloques)) {
+        // Solvabilité : le débit doit laisser soldeDisponible >= soldeReserve
+        // (l'argent engagé dans une demande de retrait en attente n'est pas
+        // réstituable — sinon l'approbation future serait insolvable).
+        const soldeDispo = Number(pf.solde_disponible);
+        const soldeReserve = Number(pf.solde_reserve);
+        const soldeReinvesti = Number(pf.solde_reinvesti);
+        const apresDebit = soldeDispo - Number(aDebiterDispo);
+        if (apresDebit < soldeReserve || soldeReinvesti < Number(bloques)) {
           throw new BadRequestException(
-            'Solde insuffisant pour annuler : le membre a déjà retiré une partie de cette commission.',
+            soldeReserve > 0
+              ? 'Annulation impossible : une partie du solde est engagée dans une demande de retrait en attente.'
+              : 'Solde insuffisant pour annuler : le membre a déjà retiré une partie de cette commission.',
           );
         }
         if (aDebiterDispo.gt(0) || bloques.gt(0)) {
           await tx.portefeuille.update({
-            where: { id: pf.id },
+            where: { id: pfRow.id },
             data: {
               soldeDisponible: { decrement: aDebiterDispo },
               soldeReinvesti: { decrement: bloques },
@@ -663,7 +720,7 @@ export class MlmMatrixService {
           await tx.reinvestLote.deleteMany({ where: { commissionId: commission.id, released: false } });
           await tx.transactionPortefeuille.create({
             data: {
-              portefeuilleId: pf.id,
+              portefeuilleId: pfRow.id,
               type: 'DEBIT',
               montant: totalRestitue,
               description: `Annulation commission — ${commission.description}`,
