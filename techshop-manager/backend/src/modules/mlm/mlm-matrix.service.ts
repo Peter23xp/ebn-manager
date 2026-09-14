@@ -525,11 +525,23 @@ export class MlmMatrixService {
       this.prisma.commission.count({ where }),
     ]);
 
+    // Résumé GLOBAL par statut (indépendant du filtre/pagination de la page)
+    const groups = await this.prisma.commission.groupBy({
+      by: ['statut'],
+      _count: { id: true },
+      _sum: { montant: true },
+    });
+    const summary: Record<string, { count: number; montant: number }> = {};
+    for (const g of groups) {
+      summary[g.statut] = { count: g._count.id, montant: Number(g._sum.montant ?? 0) };
+    }
+
     return {
       commissions: commissions.map((c) => ({
         ...c,
         montant: Number(c.montant),
       })),
+      summary,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }

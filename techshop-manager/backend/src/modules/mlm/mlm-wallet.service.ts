@@ -439,6 +439,17 @@ export class MlmWalletService implements OnModuleInit {
       this.prisma.withdrawalRequest.count({ where }),
     ]);
 
+    // Résumé GLOBAL par statut (indépendant du filtre/pagination affichés)
+    const groups = await this.prisma.withdrawalRequest.groupBy({
+      by: ['statut'],
+      _count: { id: true },
+      _sum: { montant: true },
+    });
+    const summary: Record<string, { count: number; montant: number }> = {};
+    for (const g of groups) {
+      summary[g.statut] = { count: g._count.id, montant: Number(g._sum.montant ?? 0) };
+    }
+
     return {
       requests: requests.map((r) => ({
         id: r.id,
