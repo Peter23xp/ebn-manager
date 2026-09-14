@@ -16,9 +16,12 @@ export function formatCDF(amount: number): string {
 }
 
 export function formatUSD(amount: number): string {
+  // Le split 60/40 produit des montants à centimes (20 833,33 USD) : les
+  // afficher quand il y en a, sinon format entier (ventes, niveaux…).
+  const hasCents = Math.abs(Number(amount) * 100 - Math.round(Number(amount) * 100)) > 1e-6;
   return new Intl.NumberFormat('fr-CD', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
   }).format(amount) + ' USD';
 }
 

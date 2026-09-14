@@ -92,17 +92,8 @@ export default function MlmCommissionsPage() {
   const commissions = data?.commissions ?? [];
   const meta = data?.meta;
 
-  // Summary by statut
-  const summary = commissions.reduce(
-    (acc: any, c: any) => {
-      const key = c.statut;
-      if (!acc[key]) acc[key] = { count: 0, montant: 0 };
-      acc[key].count++;
-      acc[key].montant += Number(c.montant);
-      return acc;
-    },
-    {} as Record<string, { count: number; montant: number }>,
-  );
+  // Résumé GLOBAL renvoyé par l'API (ne pas dériver de la page paginée/filtrée)
+  const summary = data?.summary ?? {};
 
   return (
     <div className="space-y-6 animate-fade-up">

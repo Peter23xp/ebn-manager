@@ -147,17 +147,8 @@ export default function MlmWithdrawalRequestsPage() {
   const requests: WithdrawalRequestItem[] = data?.requests ?? [];
   const meta = data?.meta;
 
-  // Summary by statut
-  const summary = requests.reduce(
-    (acc, r) => {
-      const key = r.statut;
-      if (!acc[key]) acc[key] = { count: 0, montant: 0 };
-      acc[key].count++;
-      acc[key].montant += r.montant;
-      return acc;
-    },
-    {} as Record<string, { count: number; montant: number }>,
-  );
+  // Résumé GLOBAL renvoyé par l'API (ne pas dériver de la page paginée/filtrée)
+  const summary = data?.summary ?? {};
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -298,10 +289,12 @@ export default function MlmWithdrawalRequestsPage() {
                         </td>
                         <td className="px-5 py-3">
                           <p className="font-mono font-bold text-text">{formatUSD(r.montant)}</p>
-                          <p className="text-[10px] text-text-muted">
-                            {r.commissionIds.length} commission
-                            {r.commissionIds.length > 1 ? 's' : ''}
-                          </p>
+                          {r.commissionIds.length > 0 && (
+                            <p className="text-[10px] text-text-muted">
+                              {r.commissionIds.length} commission
+                              {r.commissionIds.length > 1 ? 's' : ''}
+                            </p>
+                          )}
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-1.5">
@@ -447,10 +440,12 @@ export default function MlmWithdrawalRequestsPage() {
                       </p>
                     </>
                   )}
-                  <p>
-                    <span className="font-semibold">Commissions:</span>{' '}
-                    {request.commissionIds.length}
-                  </p>
+                  {request.commissionIds.length > 0 && (
+                    <p>
+                      <span className="font-semibold">Commissions:</span>{' '}
+                      {request.commissionIds.length}
+                    </p>
+                  )}
                 </div>
               </div>
 

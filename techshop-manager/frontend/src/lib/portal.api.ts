@@ -195,8 +195,6 @@ export interface PortalReferralsResponse {
     nbFilleulsActifs: number;
     nbFilleulsTotal: number;
     gainsTotaux: number;
-    typeRecompense: string;
-    recompenseValeur: number;
   };
   filleuls: PortalFilleul[];
   meta: { total: number; page: number; limit: number; totalPages: number };

@@ -192,15 +192,13 @@ function ShareCodeCard({ codeParrain }: { codeParrain: string }) {
 
 // ── Cartes stats ──────────────────────────────────────────────────────────────
 
-function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: {
+function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux }: {
   nbActifs: number;
   nbTotal: number;
   gainsTotaux: number;
-  typeRecompense?: string;
 }) {
-  const gainsLabel = typeRecompense === 'COMMISSION_CDF'
-    ? `${gainsTotaux.toLocaleString('fr')} CDF`
-    : `${gainsTotaux.toLocaleString('fr')} pts`;
+  // Les gains MLM sont en USD (portefeuille) — pas des points fidélité
+  const gainsLabel = `${gainsTotaux.toLocaleString('fr', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -220,18 +218,11 @@ function ReferralStatsCards({ nbActifs, nbTotal, gainsTotaux, typeRecompense }: 
 
 // ── Comment ça marche ─────────────────────────────────────────────────────────
 
-function HowReferralWorks({ recompenseValeur, typeRecompense }: {
-  recompenseValeur?: number;
-  typeRecompense?: string;
-}) {
-  const recompense = typeRecompense === 'COMMISSION_CDF'
-    ? `${recompenseValeur?.toLocaleString('fr') ?? ''} CDF`
-    : `${recompenseValeur?.toLocaleString('fr') ?? ''} pts`;
-
+function HowReferralWorks() {
   const steps = [
     { icon: Share2, title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
     { icon: UserPlus, title: 'Votre ami s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
-    { icon: Gift, title: 'Vous recevez votre récompense', desc: `Dès que son compte est actif, vous recevez ${recompense}.` },
+    { icon: Gift, title: 'Vous recevez votre récompense', desc: 'Dès que son compte est activé, il occupe une position dans votre matrice et vous recevez une commission (60 % retirable + 40 % réinvestie).' },
   ];
 
   return (
@@ -329,7 +320,7 @@ export default function PortalFilleulsPage() {
   const navigate = useNavigate();
   const [view, setView] = useState<'liste' | 'arbre'>('liste');
   const {
-    codeParrain, stats, typeRecompense, recompenseValeur,
+    codeParrain, stats,
     filleuls, filter, setFilter,
     isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = usePortalReferrals();
@@ -355,13 +346,12 @@ export default function PortalFilleulsPage() {
             nbActifs={stats.nbFilleulsActifs}
             nbTotal={stats.nbFilleulsTotal}
             gainsTotaux={stats.gainsTotaux}
-            typeRecompense={typeRecompense}
           />
         )}
 
         {/* Comment ça marche */}
         {!isLoading && (
-          <HowReferralWorks recompenseValeur={recompenseValeur} typeRecompense={typeRecompense} />
+          <HowReferralWorks />
         )}
 
         {/* Section filleuls : vue Liste ou vue Arbre */}

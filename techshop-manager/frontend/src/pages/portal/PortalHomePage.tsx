@@ -34,7 +34,7 @@ export default function PortalHomePage() {
   } = usePortalHome();
 
   // Données MLM (portefeuille et gains)
-  const { wallet, stats, lots, isLoading: isMlmLoading } = usePortalMlm();
+  const { wallet, stats, lots, isLoading: isMlmLoading, error: mlmError, retryWallet } = usePortalMlm();
 
   const displayName = user
     ? `${user.prenom ?? user.name?.split(' ')[0] ?? 'Partenaire'}`
@@ -82,11 +82,25 @@ export default function PortalHomePage() {
         <div className="mb-5">
           {isMlmLoading ? (
             <Skeleton className="h-44 rounded-2xl" />
+          ) : mlmError ? (
+            <button
+              type="button"
+              onClick={() => retryWallet()}
+              className="flex w-full items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-5 text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-red-600">
+                <AlertCircle size={18} /> Portefeuille indisponible
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-red-500">
+                <RefreshCw size={13} /> Réessayer
+              </span>
+            </button>
           ) : (
             <WalletCard
               solde={wallet?.soldeDisponibleRetrait ?? 0}
               gainsTotaux={stats?.gainsTotaux ?? 0}
               soldeReinvesti={wallet?.soldeReinvesti ?? 0}
+              reserve={wallet?.soldeReserve ?? 0}
               lots={lots}
               onWithdraw={() => navigate('/portal/commissions')}
             />

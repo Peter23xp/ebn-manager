@@ -154,18 +154,14 @@ describe('PortalFilleulsPage', () => {
       expect(screen.getByText(/38 inscrits au total/i)).toBeInTheDocument();
     });
 
-    test('9 — Gains totaux en pts (16 000 pts)', () => {
+    test('9 — Gains totaux en USD (modèle portefeuille MLM)', () => {
       renderPage();
-      expect(screen.getByText(/16\s*000 pts/)).toBeInTheDocument();
+      expect(screen.getByText(/16\s*000[,.]?0{0,2}\s*\$/)).toBeInTheDocument();
     });
 
-    test('10 — typeRecompense=COMMISSION_CDF → gains en CDF', () => {
-      mockUsePortalReferrals.mockReturnValue(defaultHookState({
-        stats: { ...STATS, typeRecompense: 'COMMISSION_CDF', gainsTotaux: 8000 },
-        typeRecompense: 'COMMISSION_CDF' as const,
-      }));
+    test('10 — gains affichés en dollars, jamais en points', () => {
       renderPage();
-      expect(screen.getByText(/8\s*000 cdf/i)).toBeInTheDocument();
+      expect(screen.queryByText(/16\s*000 pts/)).not.toBeInTheDocument();
     });
   });
 

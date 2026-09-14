@@ -251,8 +251,22 @@ export default function PortalWithdrawalPage() {
 
                   {maxRetirable === 0 ? (
                     <p className="mt-3 text-xs text-text-muted">
-                      Aucun solde retirable pour l'instant — vos gains réinvestis (40 %) se libèrent
-                      30 jours après leur attribution.
+                      {Number(walletData?.wallet?.soldeReserve ?? 0) > 0 ? (
+                        <>
+                          Aucun solde disponible : <strong className="text-[#b45309] tabular-nums">
+                            ${Number(walletData?.wallet?.soldeReserve ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </strong>{' '}
+                          sont réservés par une demande de retrait en attente. Consultez l'onglet
+                          Historique pour la suivre ou l'annuler.
+                        </>
+                      ) : (walletData?.wallet?.soldeReinvesti ?? 0) > 0 ? (
+                        <>
+                          Aucun solde retirable — vos gains réinvestis (40 %) se libèrent
+                          30 jours après leur attribution (onglet Portefeuille).
+                        </>
+                      ) : (
+                        "Aucun solde retirable pour l'instant — recrutez des filleuls ou attendez la libération de vos réinvestissements."
+                      )}
                     </p>
                   ) : (
                     <div className="mt-3 flex items-end gap-2">

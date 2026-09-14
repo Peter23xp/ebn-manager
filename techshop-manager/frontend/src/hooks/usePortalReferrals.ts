@@ -27,8 +27,6 @@ export function usePortalReferrals() {
   return {
     codeParrain: firstPage?.codeParrain,
     stats: firstPage?.stats,
-    typeRecompense: firstPage?.stats?.typeRecompense,
-    recompenseValeur: firstPage?.stats?.recompenseValeur,
     filleuls: allFilleuls,
     filter,
     setFilter,

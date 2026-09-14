@@ -16,7 +16,7 @@ export enum WithdrawalRequestTypeDto {
 
 export class CreateWithdrawalRequestDto {
   @IsNumber()
-  @Min(1, { message: 'Le montant doit être supérieur à 0' })
+  @Min(0.01, { message: 'Le montant minimum est de 0,01 USD' })
   montant: number;
 
   @IsEnum(WithdrawalRequestTypeDto, { message: 'Type de retrait invalide' })

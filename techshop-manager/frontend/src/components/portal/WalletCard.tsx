@@ -7,11 +7,12 @@ interface WalletCardProps {
   solde: number; // soldeDisponibleRetrait
   gainsTotaux: number;
   soldeReinvesti: number;
+  reserve?: number; // montant immobilisé par des demandes de retrait en attente
   lots: ReinvestLot[];
   onWithdraw: () => void;
 }
 
-export function WalletCard({ solde, gainsTotaux, soldeReinvesti, lots, onWithdraw }: WalletCardProps) {
+export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lots, onWithdraw }: WalletCardProps) {
   const fmt = (v: number) =>
     v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -96,7 +97,11 @@ export function WalletCard({ solde, gainsTotaux, soldeReinvesti, lots, onWithdra
               Retirer <ArrowRight size={13} />
             </button>
           ) : (
-            <span className="text-[11px] text-white/40">Rien à retirer pour l'instant</span>
+            <span className="max-w-[140px] text-right text-[11px] leading-snug text-white/45">
+              {reserve > 0
+                ? <>{fmt(reserve)} $ réservés dans une demande en attente — consultez « Historique » pour annuler</>
+                : 'Rien à retirer pour l\'instant'}
+            </span>
           )}
         </div>
       </div>
