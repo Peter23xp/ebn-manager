@@ -84,10 +84,16 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         processQueue(refreshError, null);
+        // Session déjà terminée localement (déconnexion volontaire pendant une
+        // requête en vol) : ne PAS renvoyer vers /login — l'utilisateur a choisi
+        // sa destination (accueil). Laisser l'appel échouer silencieusement.
+        const wasAuthenticated = useAuthStore.getState().isAuthenticated;
         useAuthStore.getState().logout();
         const publicPaths = ['/', '/login', '/portal/login', '/reset-password'];
-        if (!publicPaths.includes(window.location.pathname)) {
-          window.location.href = '/login';
+        if (wasAuthenticated && !publicPaths.includes(window.location.pathname)) {
+          window.location.href = window.location.pathname.startsWith('/portal')
+            ? '/portal/login'
+            : '/login';
         }
         return Promise.reject(refreshError);
       } finally {

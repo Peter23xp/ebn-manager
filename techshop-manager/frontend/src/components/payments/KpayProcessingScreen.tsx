@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, ShieldCheck, Smartphone } from 'lucide-react';
+import { Loader2, ShieldCheck, Smartphone, X } from 'lucide-react';
 
 type KpayProcessingScreenProps = {
   amount: number;
@@ -7,51 +8,83 @@ type KpayProcessingScreenProps = {
   waiting?: boolean;
 };
 
+/**
+ * Statut du paiement KPay : carte flottante en bas à droite, non bloquante —
+ * la page (sidebar, header, caisse) reste visible et utilisable pendant
+ * l'attente de confirmation. Réductible volontairement par l'agent ; le
+ * statut final reste confirmé par le polling / le webhook.
+ * Portal sur <body> : les ancêtres `animate-fade-up` (transform fill-both)
+ * captureraient le `position: fixed` et déformeraient la carte.
+ */
 export function KpayProcessingScreen({ amount, currency, waiting = false }: KpayProcessingScreenProps) {
+  const [minimized, setMinimized] = useState(false);
+
+  if (minimized) {
+    return createPortal(
+      <button
+        type="button"
+        onClick={() => setMinimized(false)}
+        className="fixed bottom-20 right-4 z-[70] md:bottom-6 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-white shadow-2xl hover:bg-[#13294b]"
+      >
+        <Loader2 size={14} className="animate-spin" aria-hidden />
+        <span className="text-xs font-semibold">
+          Paiement {currency} — {amount.toLocaleString('fr-FR')}
+        </span>
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden />
+      </button>,
+      document.body,
+    );
+  }
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="kpay-processing-title"
-      aria-describedby="kpay-processing-description"
+      className="fixed bottom-20 right-4 z-[70] w-[min(92vw,380px)] md:bottom-6"
+      role="status"
+      aria-live="polite"
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
         <div className="h-1.5 bg-primary-accent" />
-        <div className="p-6 sm:p-8">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-light text-primary-accent">
-            {waiting ? <Smartphone size={28} aria-hidden /> : <Loader2 size={28} className="animate-spin" aria-hidden />}
+        <div className="relative p-4">
+          <button
+            type="button"
+            onClick={() => setMinimized(true)}
+            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Réduire le suivi du paiement"
+          >
+            <X size={15} />
+          </button>
+
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-primary-accent">
+              {waiting ? <Smartphone size={20} aria-hidden /> : <Loader2 size={20} className="animate-spin" aria-hidden />}
+            </div>
+            <div className="min-w-0 pr-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary-accent">KPay · Mobile Money</p>
+              <h2 className="mt-0.5 text-sm font-extrabold text-primary">
+                {waiting ? 'Confirmez sur le téléphone du client' : 'Paiement en cours…'}
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-text-muted">
+                {waiting
+                  ? 'Une demande a été envoyée. Gardez cette page ouverte.'
+                  : 'Transmission à KPay, mise à jour automatique.'}
+              </p>
+            </div>
           </div>
 
-          <div className="mt-5 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary-accent">KPay · Mobile Money</p>
-            <h2 id="kpay-processing-title" className="mt-2 text-xl font-extrabold text-primary">
-              {waiting ? 'Confirmez le paiement' : 'Paiement en cours'}
-            </h2>
-            <p id="kpay-processing-description" className="mx-auto mt-2 max-w-xs text-sm leading-6 text-text-muted">
-              {waiting
-                ? 'Une demande a été envoyée sur le téléphone du client. Gardez cette page ouverte pendant la confirmation.'
-                : 'Nous transmettons la demande à KPay. Cette fenêtre se mettra à jour automatiquement.'}
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold text-text-muted">Montant</p>
+            <p className="text-base font-black tabular-nums text-primary">
+              {amount.toLocaleString('fr-FR')} <span className="text-[11px] font-bold text-primary-accent">{currency}</span>
             </p>
           </div>
 
-          <div className="mt-6 rounded-xl bg-slate-50 px-4 py-4 text-center">
-            <p className="text-[11px] font-semibold text-text-muted">Montant de la transaction</p>
-            <p className="mt-1 text-2xl font-black tracking-tight text-primary">
-              {amount.toLocaleString('fr-FR')} <span className="text-base font-bold text-primary-accent">{currency}</span>
-            </p>
-          </div>
-
-          <div className="mt-5 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left">
-            <ShieldCheck size={18} className="mt-0.5 flex-shrink-0 text-primary-accent" aria-hidden />
-            <p className="text-xs leading-5 text-primary">
-              Ne fermez pas la page et ne relancez pas la transaction. Le statut final sera confirmé par KPay.
-            </p>
-          </div>
-
-          <div className="mt-5 flex items-center justify-center gap-2 text-xs text-text-subtle" aria-live="polite">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-accent" />
-            Vérification automatique du statut
+          <div className="mt-2.5 flex items-center gap-2 text-[10px] text-text-subtle">
+            <ShieldCheck size={12} className="flex-shrink-0 text-primary-accent" aria-hidden />
+            <span>Ne relancez pas la transaction — </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-accent" aria-hidden />
+              vérification automatique
+            </span>
           </div>
         </div>
       </div>

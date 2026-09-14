@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
@@ -91,7 +92,10 @@ function ConfirmModal({
   onCancel: () => void;
   isPending: boolean;
 }) {
-  return (
+  // Portal sur <body> : l'ancêtre `animate-fade-up` (transform fill-both)
+  // capturerait le `position: fixed` et décalerait la fenêtre (sidebar visible
+  // en travers) — même piège que Modal.tsx.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -121,7 +125,8 @@ function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

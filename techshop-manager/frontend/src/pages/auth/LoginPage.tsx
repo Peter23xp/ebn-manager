@@ -91,7 +91,13 @@ export default function LoginPage() {
       toast.success(`Bienvenue, ${user.name} !`);
       const redirect = searchParams.get('redirect');
       const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-      navigate(redirect ?? from ?? getRoleRedirect(user.role), { replace: true });
+      let target = redirect ?? from ?? getRoleRedirect(user.role);
+      // Ne jamais renvoyer un STAFF vers le portail client (et inversement) :
+      // le `from` mémorisé par AuthGuard peut être périmé si le compte saisi
+      // n'appartient pas à l'espace d'où vient la redirection.
+      if (user.role === 'CLIENT' && !target.startsWith('/portal')) target = '/portal/home';
+      if (user.role !== 'CLIENT' && target.startsWith('/portal')) target = getRoleRedirect(user.role);
+      navigate(target, { replace: true });
     } catch (error: unknown) {
       const axErr = error as { response?: { status?: number; data?: { error?: { attemptsLeft?: number; unlocksAt?: string } } } };
       const status = axErr?.response?.status;

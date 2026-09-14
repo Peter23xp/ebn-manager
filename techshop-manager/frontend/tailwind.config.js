@@ -93,9 +93,13 @@ export default {
         },
       },
       animation: {
-        'fade-up':       'fade-up 0.4s cubic-bezier(0.25, 1, 0.5, 1) both',
-        'fade-in':       'fade-in 0.3s ease both',
-        'slide-in-left': 'slide-in-left 0.3s cubic-bezier(0.25, 1, 0.5, 1) both',
+        // fill-mode 'backwards' (et non 'both') : avec 'both', le dernier
+        // keyframe (transform) reste APPLIQUÉ après l'animation — l'ancêtre
+        // animé devient alors le containing block des modales `position:fixed`
+        // qui se retrouvent décalées/coupées (fenêtre sous la sidebar, etc.).
+        'fade-up':       'fade-up 0.4s cubic-bezier(0.25, 1, 0.5, 1) backwards',
+        'fade-in':       'fade-in 0.3s ease backwards',
+        'slide-in-left': 'slide-in-left 0.3s cubic-bezier(0.25, 1, 0.5, 1) backwards',
         'pulse-dot':     'pulse-dot 2s ease-in-out infinite',
       },
     },

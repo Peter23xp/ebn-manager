@@ -124,11 +124,11 @@ export default function App() {
           <Route path="/portal/login" element={<PortalLoginPage />} />
 
           {/* Portal Client — role CLIENT — each page owns its own PortalLayout */}
-          <Route path="/portal/home"      element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalHomePage /></RoleGuard></AuthGuard>} />
-          <Route path="/portal/purchases" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalAchatsPage /></RoleGuard></AuthGuard>} />
-          <Route path="/portal/points"    element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalPointsPage /></RoleGuard></AuthGuard>} />
-          <Route path="/portal/referrals" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalFilleulsPage /></RoleGuard></AuthGuard>} />
-          <Route path="/portal/commissions" element={<AuthGuard><RoleGuard minRole="CLIENT"><PortalWithdrawalPage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/home"      element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalHomePage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/purchases" element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalAchatsPage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/points"    element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalPointsPage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/referrals" element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalFilleulsPage /></RoleGuard></AuthGuard>} />
+          <Route path="/portal/commissions" element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalWithdrawalPage /></RoleGuard></AuthGuard>} />
 
           {/* App routes — role AGENT+ */}
           <Route element={<AuthGuard><RoleGuard minRole="AGENT"><AppLayout /></RoleGuard></AuthGuard>}>
