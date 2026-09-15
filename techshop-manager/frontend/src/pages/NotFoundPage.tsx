@@ -10,6 +10,7 @@ export default function NotFoundPage() {
       <PageSEO
         title="Page introuvable - 404"
         description="La page que vous recherchez n'existe pas ou a été déplacée."
+        noindex
       />
       
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-neutral-50 flex items-center justify-center px-4">

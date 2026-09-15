@@ -135,8 +135,6 @@ export default function LoginPage() {
       <PageSEO title="Connexion" noindex />
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
-
         .lg-serif { font-family: 'Playfair Display', Georgia, serif; }
       `}} />
 

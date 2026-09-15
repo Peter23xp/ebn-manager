@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { authApi, getErrorMessage } from '@/lib/api';
 import { OtpInput } from '@/components/auth/OtpInput';
 import { PasswordStrength } from '@/components/auth/PasswordStrength';
+import { PageSEO } from '@/components/seo/PageSEO';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
@@ -173,6 +174,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen bg-bg-default flex items-center justify-center p-4 safe-page">
+      <PageSEO title="Réinitialisation du mot de passe" noindex />
       <div className="safe-top-bar bg-bg-default" />
       <div className="w-full max-w-md">
         {/* Header */}

@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0A1628" />
 
-    <!-- SEO base — overridden per-page by react-helmet-async -->
+    <!-- SEO base — overridden per-page by react-helmet-async (PageSEO).
+         Domaine canonique aligné avec src/lib/site.ts, public/robots.txt
+         et public/sitemap.xml (à mettre à jour ensemble). -->
     <title>EBN Network — Gestion Commerciale Multi-Sites | RDC</title>
     <meta name="description" content="Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa — RDC." />
-    <meta name="keywords"    content="gestion commerciale RDC, logiciel caisse Goma, gestion stock Bukavu, MLM Congo, POS RDC, EBN Network, Entreprise Bénie Network" />
     <meta name="author"      content="EBN Network" />
     <link rel="canonical"    href="https://ebnnetwork.onrender.com/" />
+    <meta name="robots"      content="index, follow" />
 
     <!-- Open Graph fallback -->
     <meta property="og:type"        content="website" />
@@ -25,17 +27,18 @@
     <meta name="twitter:card"        content="summary_large_image" />
     <meta name="twitter:title"       content="EBN Network — Gestion Commerciale Multi-Sites | RDC" />
     <meta name="twitter:description" content="Caisse POS, gestion des stocks, réseau MLM — Goma, Bukavu, Kinshasa." />
-    <meta name="twitter:image"       content="https://progressbusiness.onrender.com/og-image.svg" />
+    <meta name="twitter:image"       content="https://ebnnetwork.onrender.com/og-image.svg" />
 
-    <!-- Favicon -->
-    <link rel="icon"             type="image/svg+xml" href="/assets/favicon.svg" />
-    <link rel="icon"             type="image/png" sizes="32x32" href="/assets/favicon.svg" />
-    <link rel="apple-touch-icon" href="/assets/favicon.svg" />
+    <!-- Favicon — /assets/favicon.svg n'existe pas (404) : on retombe sur le
+         logo réel du projet, seul icône disponible. -->
+    <link rel="icon"             type="image/png" href="/assets/Progress business logo.png" />
+    <link rel="apple-touch-icon"                  href="/assets/Progress business logo.png" />
 
-    <!-- Fonts -->
+    <!-- Fonts — Playfair Display était chargé en @import bloquant dans un
+         <style> inline (HomePage/LoginPage) : centralisé ici, non-bloquant. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

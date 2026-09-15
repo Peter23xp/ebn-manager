@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Application React (SPA Vite) : seule la landing page "/" est réellement
+  publique (les sections "À propos / Produits / Contact" sont des ancres
+  #hash sur cette même page → une seule URL canonique pour éviter le
+  contenu dupliqué). Toutes les autres routes (/portal/*, /dashboard,
+  /login…) sont privées et exclues par robots.txt.
+
+  ⚠️ Si un jour des pages publiques serveur-rendues (SSR/SSG) sont ajoutées,
+  il faudra les déclarer ici + mettre en place un rendu des métadonnées côté
+  serveur (pré-reddition ou migration Next.js), le Helmet client-side n'étant
+  lu de façon fiable que par Google (JS rendering), pas par tous les bots.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://progressbusiness.onrender.com/</loc>
-    <lastmod>2026-05-11</lastmod>
+    <loc>https://ebnnetwork.onrender.com/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>

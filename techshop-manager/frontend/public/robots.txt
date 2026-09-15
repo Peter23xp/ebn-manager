@@ -1,19 +1,21 @@
 User-agent: *
 Allow: /
 Disallow: /login
-Disallow: /portal/login
-Disallow: /portal/home
-Disallow: /portal/purchases
-Disallow: /portal/points
-Disallow: /portal/referrals
+Disallow: /reset-password
+Disallow: /portal/
 Disallow: /dashboard
 Disallow: /clients
 Disallow: /sales
 Disallow: /stocks
+Disallow: /mlm
 Disallow: /parrainage
 Disallow: /fidelite
 Disallow: /reports
 Disallow: /settings
 Disallow: /support
+Disallow: /api/
 
-Sitemap: https://progressbusiness.onrender.com/sitemap.xml
+# Domaine canonique aligné sur src/lib/site.ts (VITE_SITE_URL) :
+# ebnnetwork.onrender.com (l'ancienne référence progressbusiness.onrender.com
+# était une coquille et pointait vers un sitemap inexistant).
+Sitemap: https://ebnnetwork.onrender.com/sitemap.xml

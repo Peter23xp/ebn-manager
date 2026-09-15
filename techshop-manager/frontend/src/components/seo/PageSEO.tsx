@@ -1,8 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-
-const SITE_NAME = 'EBN Network';
-const SITE_URL  = 'https://ebnnetwork.onrender.com';
-const OG_IMAGE  = `${SITE_URL}/og-image.svg`;
+import { SITE_NAME, SITE_URL, OG_IMAGE, SITE_DESCRIPTION } from '@/lib/site';
 
 interface PageSEOProps {
   title?: string;
@@ -14,7 +11,7 @@ interface PageSEOProps {
 
 export function PageSEO({
   title,
-  description = 'Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa — RDC.',
+  description = SITE_DESCRIPTION,
   canonical,
   noindex = false,
   ogType = 'website',

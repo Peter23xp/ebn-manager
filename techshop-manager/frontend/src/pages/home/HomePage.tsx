@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Lottie } from 'lottie-react';
 import { PageSEO } from '@/components/seo/PageSEO';
+import { SITE_URL } from '@/lib/site';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
@@ -238,30 +239,45 @@ export default function HomePage() {
 
   return (
     <>
-      <PageSEO canonical="/" ogType="website" />
+      {/* Un seul <title>/<description> : le Helmet inline doublonnait les balises
+          de PageSEO (title/description/og:url/lutter = contenu dupliqué). */}
+      <PageSEO
+        title="Entreprise Bénie Network — Réseau MLM & solutions de commerce"
+        description="Entreprise Bénie Network (EBN) — réseau de marketing relationnel basé à Goma (RDC). Caisse POS, gestion des stocks et plan de rémunération transparent à 8 niveaux pour les partenaires de Goma, Bukavu et Kinshasa."
+        canonical="/"
+        ogType="website"
+      />
       <Helmet>
-        <title>EBN - Entreprise Benie Network | Goma, RDC</title>
-        <meta name="description" content="Entreprise Benie Network (EBN) - marketing relationnel base a Goma, RDC. Rejoignez notre reseau de partenaires engages et batissez votre avenir dans la region des Grands Lacs." />
-        <meta property="og:title" content="EBN - Entreprise Benie Network | Goma, RDC" />
-        <meta property="og:description" content="Rejoignez un reseau de partenaires engages a Goma et dans la region des Grands Lacs, autour de produits qui changent des vies." />
-        <meta property="og:type" content="website" />
+        {/* JSON-LD : uniquement des informations réellement présentes dans le
+            projet (nom, Goma/Nord-Kivu, zones desservies, WhatsApp de contact). */}
         <script type="application/ld+json">{JSON.stringify({
           '@context': 'https://schema.org',
-          '@type': 'Organization',
-          'name': 'Entreprise Benie Network sarl',
-          'alternateName': 'EBN',
-          'url': 'https://ebnnetwork.onrender.com',
-          'logo': 'https://ebnnetwork.onrender.com/assets/Progress business logo.png',
-          'description': 'Reseau de marketing relationnel base a Goma, RDC.',
-          'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': 'Goma', 'addressRegion': 'Nord-Kivu' },
-          'areaServed': ['Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
-          'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'availableLanguage': ['French'] },
+          '@graph': [
+            {
+              '@type': 'Organization',
+              '@id': `${SITE_URL}/#organization`,
+              'name': 'Entreprise Bénie Network sarl',
+              'alternateName': 'EBN Network',
+              'url': SITE_URL,
+              'logo': `${SITE_URL}/assets/Progress business logo.png`,
+              'description': 'Réseau de marketing relationnel basé à Goma, RDC.',
+              'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': 'Goma', 'addressRegion': 'Nord-Kivu' },
+              'areaServed': ['Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
+              'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'availableLanguage': ['French'] },
+              'sameAs': ['https://wa.me/243974752784'],
+            },
+            {
+              '@type': 'WebSite',
+              'name': 'EBN Network',
+              'url': SITE_URL,
+              'inLanguage': 'fr',
+              'publisher': { '@id': `${SITE_URL}/#organization` },
+            },
+          ],
         })}</script>
       </Helmet>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
-
         .lp { background: #f1f5f9; color: #0f172a; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
         .lp * { box-sizing: border-box; }
 
@@ -805,6 +821,7 @@ export default function HomePage() {
               src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=85"
               alt="Professionnelle noire représentant la communauté EBN Network"
               className="lp-hero-img"
+              fetchPriority="high"
               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
             <div className="lp-hero-placeholder" aria-hidden>
