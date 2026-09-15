@@ -106,6 +106,7 @@ export default function MlmWithdrawalRequestsPage() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['mlm-withdrawal-requests'] });
+    queryClient.invalidateQueries({ queryKey: ['mlm-notifications-counts'] });
   };
 
   const approveMut = useMutation({
@@ -457,14 +458,13 @@ export default function MlmWithdrawalRequestsPage() {
                 </div>
               </div>
 
-              {request.type === 'CASH' && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-xs text-amber-700 flex items-center gap-1.5">
-                    <AlertCircle size={14} />
-                    Ce retrait en espèces sera automatiquement marqué comme payé après approbation.
-                  </p>
-                </div>
-              )}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                  <AlertCircle size={14} />
+                  L'approbation débite le portefeuille et marque la demande comme PAYÉE — remettez les
+                  espèces ou vérifiez le push Mobile Money avant de confirmer.
+                </p>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 mb-2">

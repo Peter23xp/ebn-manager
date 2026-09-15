@@ -74,6 +74,28 @@ export class MlmService {
     };
   }
 
+  // ── Comptes de notification (cloche header) ─────────────────────────────────
+
+  /**
+   * Éléments concrets sur lesquels un gérant+ a une action à faire :
+   * demandes de retrait en attente, bonus physiques à livrer,
+   * réclamations de filleuls en attente de rattachement.
+   */
+  async getNotificationCounts() {
+    const [retraits, bonus, reclamations] = await Promise.all([
+      this.prisma.withdrawalRequest.count({ where: { statut: 'EN_ATTENTE' } }),
+      this.prisma.bonusAttribue.count({ where: { statut: 'EN_ATTENTE' } }),
+      this.prisma.parrainClaim.count({ where: { statut: 'EN_ATTENTE' } }),
+    ]);
+
+    return {
+      retraitsEnAttente: retraits,
+      bonusALivrer: bonus,
+      reclamationsEnAttente: reclamations,
+      total: retraits + bonus + reclamations,
+    };
+  }
+
   // ── Members by level ────────────────────────────────────────────────────────
 
   async getMembersByLevel() {

@@ -27,10 +27,12 @@ import {
   DollarSign,
   UserPlus,
   Landmark,
+  Gift,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import { useOnlineSync } from '@/hooks/useOnlineSync';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/types';
 
@@ -62,6 +64,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Commissions',          icon: <DollarSign size={16} />,    to: '/mlm/commissions',    minRole: 'GERANT' },
   { label: 'Retraits',             icon: <Landmark size={16} />,      to: '/mlm/withdrawal-requests', minRole: 'GERANT' },
   { label: 'Réclamations parrain', icon: <UserPlus size={16} />,      to: '/mlm/claims',         minRole: 'GERANT' },
+  { label: 'Bonus physiques',      icon: <Gift size={16} />,          to: '/mlm/bonuses',        minRole: 'GERANT' },
   { label: 'Membres MLM',          icon: <Users size={16} />,         to: '/mlm/members',        minRole: 'GERANT' },
   { label: 'Mon Portefeuille',     icon: <Wallet size={16} />,        to: '/mlm/wallet',         minRole: 'AGENT' },
   { label: 'Rapports',             icon: <BarChart2 size={16} />,       to: '/reports',            minRole: 'GERANT' },
@@ -354,6 +357,8 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
             {initials}
           </div>
         )}
+
+        <NotificationBell />
 
         <NavLink
           to="/support"

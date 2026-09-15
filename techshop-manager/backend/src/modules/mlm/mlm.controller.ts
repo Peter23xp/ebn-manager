@@ -48,6 +48,12 @@ export class MlmController {
     return this.mlmService.getNetworkStats();
   }
 
+  @Get('notifications/counts')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  getNotificationCounts() {
+    return this.mlmService.getNotificationCounts();
+  }
+
   @Get('members-by-level')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
   getMembersByLevel() {
@@ -302,7 +308,7 @@ export class MlmController {
   }
 
   @Put('bonuses/:bonusId/deliver')
-  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
   deliverBonus(@Param('bonusId') bonusId: string) {
     return this.matrixService.deliverBonus(bonusId);
   }

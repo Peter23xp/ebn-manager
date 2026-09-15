@@ -100,6 +100,7 @@ export function usePendingBonuses(params: { page: number; limit: number }) {
     mutationFn: (bonusId: string) => MlmApi.deliverBonus(bonusId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mlm-bonuses-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['mlm-notifications-counts'] });
     },
   });
 

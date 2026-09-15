@@ -143,6 +143,16 @@ export const MlmApi = {
   },
 
   // ── Bonuses ─────────────────────────────────────────────────────────────────
+  getNotificationCounts: async (): Promise<{
+    retraitsEnAttente: number;
+    bonusALivrer: number;
+    reclamationsEnAttente: number;
+    total: number;
+  }> => {
+    const { data } = await api.get('/mlm/notifications/counts');
+    return data;
+  },
+
   getPendingBonuses: async (params: { page: number; limit: number }) => {
     const { data } = await api.get('/mlm/bonuses/pending', { params });
     return data;

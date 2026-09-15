@@ -51,6 +51,7 @@ export default function MlmClaimsPage() {
       setCode('');
       queryClient.invalidateQueries({ queryKey: ['mlm-claims-pending'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['mlm-notifications-counts'] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Échec de la confirmation'),
   });

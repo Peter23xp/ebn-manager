@@ -499,11 +499,19 @@ export class MlmWalletService implements OnModuleInit {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Transition atomique EN_ATTENTE → APPROUVE : le guard de statut doit être
-      // DANS la transaction (sinon deux admins / double-clic débitent deux fois).
+      // Transition atomique EN_ATTENTE → PAYE : l'approbation d'un retrait le
+      // marque PAYÉ dans la foulée (règle métier : débiter = payer). Le guard
+      // de statut est DANS la transaction (sinon deux admins / double-clic
+      // débitent deux fois).
       const transition = await tx.withdrawalRequest.updateMany({
         where: { id: withdrawalRequestId, statut: 'EN_ATTENTE' },
-        data: { statut: 'APPROUVE', approvedAt: new Date(), approvedById, notes: notes || request.notes },
+        data: {
+          statut: 'PAYE',
+          approvedAt: new Date(),
+          approvedById,
+          paidAt: new Date(),
+          notes: notes || request.notes,
+        },
       });
       if (transition.count === 0) {
         throw new BadRequestException(`Cette demande a déjà été traitée (course: ${withdrawalRequestId})`);
@@ -548,8 +556,8 @@ export class MlmWalletService implements OnModuleInit {
         },
       });
 
-      // Statut APPROUVE déjà posé par la transition verrouillée ci-dessus ;
-      // relire la ligne complète pour la réponse.
+      // Statut PAYE posé par la transition verrouillée ci-dessus ; relire la
+      // ligne complète pour la réponse.
       const approved = await tx.withdrawalRequest.findUnique({
         where: { id: withdrawalRequestId },
         include: {
@@ -560,18 +568,6 @@ export class MlmWalletService implements OnModuleInit {
           },
         },
       }) as any;
-
-      // Si c'est un retrait CASH, marquer comme payé immédiatement
-      if (request.type === 'CASH') {
-        const paid = await tx.withdrawalRequest.updateMany({
-          where: { id: withdrawalRequestId, statut: 'APPROUVE' },
-          data: { statut: 'PAYE', paidAt: new Date() },
-        });
-        if (paid.count === 0) {
-          throw new BadRequestException('Conflit de statut sur ce retrait (course)');
-        }
-        return tx.withdrawalRequest.findUnique({ where: { id: withdrawalRequestId } }) as any;
-      }
 
       return approved;
     });

@@ -133,10 +133,8 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
       },
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
-        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), // EN_ATTENTE → APPROUVE (verrou)
-        findUnique: jest.fn<any>()
-          .mockResolvedValueOnce({ statut: 'APPROUVE', montant: 150 })
-          .mockResolvedValueOnce({ statut: 'PAYE', montant: 150 }),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }), // EN_ATTENTE → PAYE (verrou)
+        findUnique: jest.fn<any>().mockResolvedValue({ statut: 'PAYE', montant: 150 }),
       },
     };
     const prisma = {
@@ -165,8 +163,14 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
         data: expect.objectContaining({ type: 'DEBIT', portefeuilleId: 'pf-1', referenceId: 'wr-1' }),
       }),
     );
-    // CASH → PAYE (transition conditionnelle depuis APPROUVE)
+    // Approbation = payé (tous types confondus)
     expect(result.statut).toBe('PAYE');
+    expect(tx.withdrawalRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'wr-1', statut: 'EN_ATTENTE' },
+        data: expect.objectContaining({ statut: 'PAYE', paidAt: expect.any(Date) }),
+      }),
+    );
   });
 
   it('refuse et ne débite RIEN si portefeuille.updateMany count=0 (solde passé entre-temps)', async () => {
@@ -178,7 +182,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
         updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
-        findUnique: resolved({ statut: 'APPROUVE' }),
+        findUnique: resolved({ statut: 'PAYE' }),
       },
     };
     const prisma = {
@@ -190,7 +194,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     expect(tx.transactionPortefeuille.create).not.toHaveBeenCalled();
   });
 
-  it('approuve MOBILE_MONEY: statut APPROUVE (payé manuellement ensuite)', async () => {
+  it("approuve MOBILE_MONEY: statut PAYE direct (plus d'étape intermédiaire)", async () => {
     const tx = {
       portefeuille: {
         findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
@@ -199,7 +203,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
       transactionPortefeuille: { create: jest.fn() },
       withdrawalRequest: {
         updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
-        findUnique: resolved({ statut: 'APPROUVE', montant: 150 }),
+        findUnique: resolved({ statut: 'PAYE', montant: 150 }),
       },
     };
     const prisma = {
@@ -209,8 +213,8 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     const service = buildService(prisma);
 
     const result = await service.approveWithdrawalRequest('wr-1', 'user-1');
-    expect(result.statut).toBe('APPROUVE');
-    // Une seule transition de statut (APPROUVE), pas de PAYE auto
+    expect(result.statut).toBe('PAYE');
+    // Une seule transition de statut (EN_ATTENTE → PAYE)
     expect(tx.withdrawalRequest.updateMany).toHaveBeenCalledTimes(1);
   });
 
