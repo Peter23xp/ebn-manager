@@ -11,6 +11,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
       membre: {
         findUnique: jest.fn<any>(),
         findFirst: jest.fn<any>(),
+        findMany: jest.fn<any>().mockResolvedValue([]),
         count: jest.fn<any>().mockResolvedValue(0),
         create: jest.fn<any>(),
         update: jest.fn<any>(),

@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -97,18 +98,36 @@ export class MlmMatrixService {
         });
       }
 
-      const countToday = await tx.membre.count({
-        where: { matricule: { startsWith: prefix } },
-      });
-      // CLAUDE.md : matricule = AAAAMMJJ#### — refuse au-delà de 9 999 le
-      // même jour plutôt que d'émettre un suffixe de 5 chiffres silencieux.
-      if (countToday + 1 > 9999) {
-        throw new BadRequestException(`Quota de 9 999 activations atteint pour le ${prefix} — séquence matricule saturée.`);
+      const usedSuffixes = new Set(
+        (
+          await tx.membre.findMany({
+            where: { matricule: { startsWith: prefix } },
+            select: { matricule: true },
+          })
+        ).map((m) => m.matricule.slice(prefix.length)),
+      );
+      if (usedSuffixes.size >= 10000) {
+        throw new BadRequestException(`Quota de 10 000 matricules atteint pour le ${prefix}.`);
+      }
+      // Les 4 derniers chiffres sont ALÉATOIRES et jamais réutilisés : deux
+      // activations du même jour n'ont jamais des matricules qui se
+      // ressemblent (202609143871 ≠ 202609140509…). L'unique contrainte DB
+      // reste la garantie finale (retry sur collision ci-dessous).
+      let matricule = '';
+      for (let attempt = 0; ; attempt++) {
+        const candidate = String(randomInt(10000)).padStart(4, '0');
+        if (!usedSuffixes.has(candidate)) {
+          matricule = `${prefix}${candidate}`;
+          break;
+        }
+        if (attempt > 50) {
+          throw new BadRequestException('Tirage de matricule épuisé — réessayez.');
+        }
       }
       const membre = await tx.membre.create({
         data: {
           clientId,
-          matricule: `${prefix}${String(countToday + 1).padStart(4, '0')}`,
+          matricule,
           parrainId,
           mlmLevelId: level1.id,
           statut: 'ACTIF',
