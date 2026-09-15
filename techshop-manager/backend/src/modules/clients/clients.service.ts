@@ -14,7 +14,7 @@ import {
   OnboardingActivateDto,
 } from './dto/client.dto';
 import { EtapeOnboarding, KpayOperationType, KpayTransactionStatus, ModePaiement, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomInt } from 'crypto';
 import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
 import { InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
@@ -1569,6 +1569,13 @@ export class ClientsService implements OnModuleInit {
     return { nextCode: code };
   }
 
+  /**
+   * Code parrain AAAAMMJJ#### au suffixe ALÉATOIRE (comme le matricule MLM) :
+   * deux clients activés le même jour n'ont jamais des codes qui se
+   * ressemblent. Le suffixe est vérifié libre contre codeParrain ET
+   * membre.matricule (les deux partagent l'espace de noms) ; la contrainte
+   * @unique reste la garantie finale.
+   */
   private async generateUniqueCodeParrain(): Promise<string> {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -1576,33 +1583,28 @@ export class ClientsService implements OnModuleInit {
     const dd = String(now.getDate()).padStart(2, '0');
     const prefix = `${yyyy}${mm}${dd}`;
 
-    const countToday = await this.prisma.client.count({
-      where: {
-        OR: [
-          { codeParrain: { startsWith: prefix } },
-          { membre: { matricule: { startsWith: prefix } } },
-        ],
-      },
-    });
+    const taken = new Set<string>();
+    const [clients, membres] = await Promise.all([
+      this.prisma.client.findMany({
+        where: { codeParrain: { startsWith: prefix } },
+        select: { codeParrain: true },
+      }),
+      this.prisma.membre.findMany({
+        where: { matricule: { startsWith: prefix } },
+        select: { matricule: true },
+      }),
+    ]);
+    for (const c of clients) if (c.codeParrain) taken.add(c.codeParrain);
+    for (const m of membres) taken.add(m.matricule);
+    if (taken.size >= 10000) {
+      throw new BadRequestException(`Quota de 10 000 codes parrain atteint pour le ${prefix}.`);
+    }
 
-    let seq = countToday + 1;
-    let code: string;
-    let attempts = 0;
-    do {
-      code = `${prefix}${String(seq + attempts).padStart(4, '0')}`;
-      const exists = await this.prisma.client.findFirst({
-        where: {
-          OR: [
-            { codeParrain: code },
-            { membre: { matricule: code } },
-          ],
-        },
-      });
-      if (!exists) break;
-      attempts++;
-    } while (attempts < 100);
-
-    return code;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const candidate = `${prefix}${String(randomInt(10000)).padStart(4, '0')}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+    throw new BadRequestException('Tirage de code parrain épuisé — réessayez.');
   }
 
   async importPreview(file: Express.Multer.File) {
