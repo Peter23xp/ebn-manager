@@ -55,6 +55,17 @@ function identifier(value: string) { return `"${value.replace(/"/g, '""')}"`; }
 function tableName(value: string) { return `public.${identifier(value)}`; }
 
 type AdminSelection = { preserveAdminId?: string; preserveAdminIds?: string[] };
+export type SourcePolicy = 'direct' | 'supabase-session';
+type Workflow = 'strict-offline' | 'transaction-fenced';
+type CatalogPolicy = { workflow: Workflow; sourcePolicy: SourcePolicy; target: 'source' | 'restore' };
+const reviewedSessionEventTriggers: Record<string, { event: string; tags: string[] | null; functionName: string; definitionHash: string }> = {
+  issue_graphql_placeholder: { event: 'sql_drop', tags: ['DROP EXTENSION'], functionName: 'set_graphql_placeholder', definitionHash: 'b0cadab880dc68f569b3e01057dc6f5acee9d05e122de6f4256130ae330bbcec' },
+  issue_pg_cron_access: { event: 'ddl_command_end', tags: ['CREATE EXTENSION'], functionName: 'grant_pg_cron_access', definitionHash: 'eb3fa2e82a0135bc04a6236f93331911861c91b45d72cba5d9c03c1be2c34b4c' },
+  issue_pg_graphql_access: { event: 'ddl_command_end', tags: ['CREATE EXTENSION'], functionName: 'grant_pg_graphql_access', definitionHash: '9ec845adab4ba00bbf7740458b6c4461094697023f0f7adc693b373e2ea54f68' },
+  issue_pg_net_access: { event: 'ddl_command_end', tags: ['CREATE EXTENSION'], functionName: 'grant_pg_net_access', definitionHash: 'e38c4060751c9695123350596f1cb0d0c943015f3267a2a455d8efe02c711184' },
+  pgrst_ddl_watch: { event: 'ddl_command_end', tags: null, functionName: 'pgrst_ddl_watch', definitionHash: '2b4b5d702ddf70fbd1a05c9825f9f9016d5c0ef97dd3df5f5b012ea23d9b94b1' },
+  pgrst_drop_watch: { event: 'sql_drop', tags: null, functionName: 'pgrst_drop_watch', definitionHash: '3a2696133853e17a0456cbfbb233a03815f50895492143e84df983b558d76593' },
+};
 
 function normalizedAdminIds(options: AdminSelection) {
   requireSafe(options.preserveAdminId === undefined || options.preserveAdminIds === undefined, 'MIXED_ADMIN_SELECTION');
@@ -67,12 +78,13 @@ function normalizedAdminIds(options: AdminSelection) {
   return ids.sort();
 }
 
-export function parseOptions(args: string[]) {
+export function parseOptions(args: string[], workflow: Workflow = 'strict-offline') {
   const result: Record<string, any> = { mode: 'inspect', execute: false };
   const seen = new Set<string>();
   for (let index = 0; index < args.length; index++) {
     const key = args[index];
-    requireSafe(['--mode', '--fingerprint', '--bundle', '--backup-root', '--pg-bin', '--execute', '--preserve-admin-id', '--preserve-admin-ids'].includes(key), 'UNKNOWN_ARGUMENT');
+    requireSafe(['--mode', '--fingerprint', '--bundle', '--backup-root', '--pg-bin', '--execute', '--preserve-admin-id', '--preserve-admin-ids',
+      ...(workflow === 'transaction-fenced' ? ['--source-policy'] : [])].includes(key), 'UNKNOWN_ARGUMENT');
     requireSafe(!seen.has(key), 'DUPLICATE_ARGUMENT');
     seen.add(key);
     if (key === '--execute') result.execute = true;
@@ -91,7 +103,8 @@ export function parseOptions(args: string[]) {
   return result;
 }
 
-function connectionUrl(value: string) {
+function connectionUrl(value: string, sourcePolicy: SourcePolicy = 'direct') {
+  requireSafe(['direct', 'supabase-session'].includes(sourcePolicy), 'UNKNOWN_SOURCE_POLICY');
   let parsed: URL;
   try { parsed = new URL(value); } catch { throw new SafetyError('INVALID_DATABASE_URL'); }
   requireSafe(['postgres:', 'postgresql:'].includes(parsed.protocol), 'INVALID_DATABASE_URL');
@@ -102,20 +115,24 @@ function connectionUrl(value: string) {
   const local = ['127.0.0.1', '[::1]', 'localhost'].includes(parsed.hostname);
   requireSafe(['disable', 'require', 'verify-full'].includes(parsed.searchParams.get('sslmode') || 'disable'), 'UNSUPPORTED_SSL_MODE');
   requireSafe(local || ['require', 'verify-full'].includes(parsed.searchParams.get('sslmode')), 'REMOTE_TLS_REQUIRED');
-  requireSafe(!parsed.hostname.includes('pooler'), 'DIRECT_CONNECTION_REQUIRED');
+  if (sourcePolicy === 'supabase-session') {
+    requireSafe(/^aws-\d+-[a-z]+(?:-[a-z0-9]+)+\.pooler\.supabase\.com$/.test(parsed.hostname)
+      && parsed.port === '5432' && /^postgres\.[a-z0-9]{20}$/.test(decodeURIComponent(parsed.username))
+      && ['require', 'verify-full'].includes(parsed.searchParams.get('sslmode')), 'UNSAFE_SESSION_ENDPOINT');
+  } else requireSafe(!parsed.hostname.includes('pooler'), 'DIRECT_CONNECTION_REQUIRED');
   return parsed;
 }
 
-function resolvedConnection(value: string) {
-  const target = connectionUrl(value);
+function resolvedConnection(value: string, sourcePolicy: SourcePolicy = 'direct') {
+  const target = connectionUrl(value, sourcePolicy);
   return { host: target.hostname.replace(/^\[|\]$/g, ''), port: Number(target.port),
     user: decodeURIComponent(target.username), password: decodeURIComponent(target.password),
     database: decodeURIComponent(target.pathname.slice(1)), sslMode: target.searchParams.get('sslmode') || 'disable' };
 }
 
-export function assertRestoreTarget(restoreUrl: string, sourceUrl: string) {
+export function assertRestoreTarget(restoreUrl: string, sourceUrl: string, sourcePolicy: SourcePolicy = 'direct') {
   const restore = connectionUrl(restoreUrl);
-  const source = connectionUrl(sourceUrl);
+  const source = connectionUrl(sourceUrl, sourcePolicy);
   requireSafe(['127.0.0.1', '[::1]'].includes(restore.hostname), 'RESTORE_REQUIRES_LITERAL_LOOPBACK');
   requireSafe(/^\/ebn_restore_[a-z0-9_]+$/.test(restore.pathname), 'RESTORE_REQUIRES_DEDICATED_DATABASE');
   requireSafe(restore.pathname !== source.pathname, 'RESTORE_MUST_DIFFER_FROM_SOURCE');
@@ -124,7 +141,10 @@ export function assertRestoreTarget(restoreUrl: string, sourceUrl: string) {
 type ForeignKey = { sourceSchema: string; source: string; targetSchema: string; target: string;
   name?: string; sourceColumns?: string[]; targetColumns?: string[]; onDelete?: string; onUpdate?: string };
 type Trigger = { table: string; name: string; enabled: string; functionName: string; functionSchema: string; type: number };
-type Catalog = { tables: string[]; foreignKeys: ForeignKey[]; triggers: Trigger[]; unsafeObjects: unknown[] };
+type EventTrigger = { name: string; event: string; enabled: string; tags: string[] | null; owner: string;
+  functionSchema: string; functionName: string; functionOwner: string; identityArguments: string;
+  securityDefiner: boolean; config: string[] | null; definitionHash: string };
+type Catalog = { tables: string[]; foreignKeys: ForeignKey[]; triggers: Trigger[]; unsafeObjects: unknown[]; eventTriggers?: EventTrigger[] };
 
 export function orderDeletes(tables: string[], foreignKeys: ForeignKey[]) {
   const pending = new Set(tables);
@@ -139,7 +159,7 @@ export function orderDeletes(tables: string[], foreignKeys: ForeignKey[]) {
   return result;
 }
 
-export function assertCatalogSafe(catalog: Catalog) {
+export function assertCatalogSafe(catalog: Catalog, policy?: CatalogPolicy) {
   requireSafe(requiredTables.every(table => catalog.tables.includes(table)), 'MISSING_REQUIRED_TABLE');
   for (const key of catalog.foreignKeys) {
     const sourceKnown = key.sourceSchema === 'public' && applicationTables.includes(key.source);
@@ -154,6 +174,21 @@ export function assertCatalogSafe(catalog: Catalog) {
     }
   }
   requireSafe(catalog.unsafeObjects.length === 0, 'UNREVIEWED_DATABASE_OBJECT');
+  const events = catalog.eventTriggers || [];
+  if (policy?.workflow === 'transaction-fenced' && policy.sourcePolicy === 'supabase-session' && policy.target === 'source') {
+    requireSafe(catalog.triggers.length === 0, 'SESSION_SOURCE_REQUIRES_PURE_DML');
+    requireSafe(events.length === Object.keys(reviewedSessionEventTriggers).length
+      && new Set(events.map(event => event.name)).size === events.length, 'UNREVIEWED_EVENT_TRIGGER');
+    for (const event of events) {
+      const approved = reviewedSessionEventTriggers[event.name];
+      requireSafe(approved && event.event === approved.event && event.enabled === 'O'
+        && JSON.stringify(event.tags === null ? null : [...event.tags].sort()) === JSON.stringify(approved.tags)
+        && event.owner === 'supabase_admin' && event.functionOwner === 'supabase_admin'
+        && event.functionSchema === 'extensions' && event.functionName === approved.functionName && event.identityArguments === ''
+        && event.securityDefiner === false && JSON.stringify(event.config) === JSON.stringify(['search_path=""'])
+        && event.definitionHash === approved.definitionHash, 'UNREVIEWED_EVENT_TRIGGER');
+    }
+  } else requireSafe(events.every(event => event.enabled === 'D'), 'UNREVIEWED_DATABASE_OBJECT');
   for (const trigger of catalog.triggers) {
     requireSafe(trigger.enabled === 'O', 'DISABLED_TRIGGER');
     const immutable = trigger.table === 'placement_history' && trigger.name === 'placement_history_immutable'
@@ -165,8 +200,8 @@ export function assertCatalogSafe(catalog: Catalog) {
   orderDeletes(catalog.tables.filter(table => DELETE_TABLES.includes(table)), catalog.foreignKeys);
 }
 
-async function connect(sourceUrl: string) {
-  const target = resolvedConnection(sourceUrl);
+async function connect(sourceUrl: string, sourcePolicy: SourcePolicy = 'direct') {
+  const target = resolvedConnection(sourceUrl, sourcePolicy);
   const config = { host: target.host, port: target.port, user: target.user, database: target.database,
     password: () => target.password, ssl: target.sslMode === 'disable' ? false : { rejectUnauthorized: target.sslMode === 'verify-full' },
     options: '-c timezone=UTC -c datestyle=ISO,YMD', replication: 'false', client_encoding: 'UTF8',
@@ -177,16 +212,16 @@ async function connect(sourceUrl: string) {
   return client;
 }
 
-async function targetFingerprint(client: Client, sourceUrl: string) {
-  const target = connectionUrl(sourceUrl);
+async function targetFingerprint(client: Client, sourceUrl: string, sourcePolicy: SourcePolicy = 'direct') {
+  const target = connectionUrl(sourceUrl, sourcePolicy);
   const identity = (await client.query(`SELECT current_database() AS database, current_user AS role,
     oid::text AS database_oid, inet_server_addr()::text AS address, inet_server_port() AS port,
     current_setting('server_version_num') AS version FROM pg_database WHERE datname=current_database()`)).rows[0];
   return hash(JSON.stringify({ host: target.hostname, port: target.port, ...identity, schema: 'public' }));
 }
 
-async function assertFingerprint(client: Client, sourceUrl: string, fingerprint: string) {
-  requireSafe(fingerprint && fingerprint === await targetFingerprint(client, sourceUrl), 'TARGET_FINGERPRINT_MISMATCH');
+async function assertFingerprint(client: Client, sourceUrl: string, fingerprint: string, sourcePolicy: SourcePolicy = 'direct') {
+  requireSafe(fingerprint && fingerprint === await targetFingerprint(client, sourceUrl, sourcePolicy), 'TARGET_FINGERPRINT_MISMATCH');
 }
 
 async function readCatalog(client: Client): Promise<Catalog> {
@@ -218,7 +253,6 @@ async function readCatalog(client: Client): Promise<Catalog> {
     UNION ALL SELECT 'external_view' FROM pg_depend JOIN pg_rewrite ON objid=pg_rewrite.oid AND classid='pg_rewrite'::regclass
       JOIN pg_class ON refobjid=pg_class.oid AND refclassid='pg_class'::regclass
       JOIN pg_namespace ON relnamespace=pg_namespace.oid WHERE nspname='public'
-    UNION ALL SELECT 'event_trigger' FROM pg_event_trigger WHERE evtenabled <> 'D'
     UNION ALL SELECT 'publication' FROM pg_publication_tables WHERE schemaname='public'
     UNION ALL SELECT 'disabled_internal_trigger' FROM pg_trigger JOIN pg_class ON tgrelid=pg_class.oid
       JOIN pg_namespace ON relnamespace=pg_namespace.oid WHERE nspname='public' AND tgisinternal AND tgenabled <> 'O'
@@ -228,7 +262,14 @@ async function readCatalog(client: Client): Promise<Catalog> {
     UNION ALL SELECT 'unvalidated_constraint' FROM pg_constraint JOIN pg_class ON conrelid=pg_class.oid
       JOIN pg_namespace ON relnamespace=pg_namespace.oid WHERE nspname='public' AND NOT convalidated
   `)).rows;
-  return { tables, foreignKeys, triggers, unsafeObjects };
+  const eventTriggers = (await client.query(`SELECT evtname AS name, evtevent AS event, evtenabled AS enabled, evttags AS tags,
+    pg_get_userbyid(evtowner) AS owner, nspname AS "functionSchema", proname AS "functionName",
+    pg_get_userbyid(proowner) AS "functionOwner", pg_get_function_identity_arguments(evtfoid) AS "identityArguments",
+    prosecdef AS "securityDefiner", proconfig AS config,
+    encode(sha256(convert_to(pg_get_functiondef(evtfoid),'UTF8')),'hex') AS "definitionHash"
+    FROM pg_event_trigger event_trigger JOIN pg_proc ON evtfoid=pg_proc.oid JOIN pg_namespace ON pronamespace=pg_namespace.oid
+    ORDER BY evtname COLLATE "C"`)).rows;
+  return { tables, foreignKeys, triggers, unsafeObjects, eventTriggers };
 }
 
 async function counts(client: Client, tables: string[]) {
@@ -237,9 +278,10 @@ async function counts(client: Client, tables: string[]) {
   return result;
 }
 
-async function selectedAdmins(client: Client, preserveAdminIds?: string[]) {
-  const result = await client.query(`SELECT id, "passwordHash", md5((to_jsonb(admin) - 'siteId')::text) AS digest
-    FROM public.utilisateurs admin WHERE role::text='SUPER_ADMIN'`);
+async function selectedAdmins(client: Client, preserveAdminIds?: string[], preserveSiteLinks = false) {
+  const result = await client.query(`SELECT id, "passwordHash",
+    md5((CASE WHEN $1 THEN to_jsonb(admin) ELSE to_jsonb(admin)-'siteId' END)::text) AS digest
+    FROM public.utilisateurs admin WHERE role::text='SUPER_ADMIN'`, [preserveSiteLinks]);
   if (preserveAdminIds !== undefined) {
     return preserveAdminIds.map(id => {
       const selected = result.rows.find(row => row.id === id);
@@ -280,14 +322,14 @@ async function assertMaintenance(client: Client) {
   requireSafe(proof.prepared === 0 && proof.subscriptions === 0, 'BACKGROUND_WRITERS_PRESENT');
 }
 
-export async function inspectTarget(sourceUrl: string) {
-  const client = await connect(sourceUrl);
+export async function inspectTarget(sourceUrl: string, sourcePolicy: SourcePolicy = 'direct') {
+  const client = await connect(sourceUrl, sourcePolicy);
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const catalog = await readCatalog(client);
-    return { fingerprint: await targetFingerprint(client, sourceUrl), counts: await counts(client, catalog.tables),
+    return { fingerprint: await targetFingerprint(client, sourceUrl, sourcePolicy), counts: await counts(client, catalog.tables),
       unknownTables: catalog.tables.filter(table => !applicationTables.includes(table)),
-      dependenciesReviewRequired: catalog.unsafeObjects.length, schema: 'public' };
+      dependenciesReviewRequired: catalog.unsafeObjects.length + catalog.eventTriggers.filter(event => event.enabled !== 'D').length, schema: 'public' };
   } finally { await client.query('ROLLBACK').catch(() => undefined); await client.end(); }
 }
 
@@ -377,16 +419,17 @@ async function assertRestorePrivacy(client: Client, restoreUrl: string) {
   } catch { throw new SafetyError('RESTORE_PRIVATE_STORAGE_REQUIRED'); }
 }
 
-async function native(pgBin: string, executable: string, sourceUrl: string, args: string[]) {
+async function native(pgBin: string, executable: string, sourceUrl: string, args: string[], sourcePolicy: SourcePolicy = 'direct', boundedSource = false) {
   requireSafe(pgBin && path.isAbsolute(pgBin), 'PG_BIN_ABSOLUTE_PATH_REQUIRED');
   const filename = path.join(pgBin, executable + (process.platform === 'win32' ? '.exe' : ''));
   requireSafe(fs.existsSync(filename), 'NATIVE_POSTGRES_TOOL_MISSING');
-  const target = resolvedConnection(sourceUrl);
+  const target = resolvedConnection(sourceUrl, sourcePolicy);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith('PG')));
   Object.assign(env, { PGHOST: target.host, PGPORT: String(target.port),
     PGUSER: target.user, PGPASSWORD: target.password, PGDATABASE: target.database, PGSSLMODE: target.sslMode,
     PGPASSFILE: path.join(pgBin, '.maintenance-no-passfile'), PGCLIENTENCODING: 'UTF8',
-    PGCONNECT_TIMEOUT: '10', PGAPPNAME: 'ebn-maintenance-native', PGOPTIONS: '-c timezone=UTC -c datestyle=ISO,YMD' });
+    PGCONNECT_TIMEOUT: '10', PGAPPNAME: 'ebn-maintenance-native',
+    PGOPTIONS: `-c timezone=UTC -c datestyle=ISO,YMD${boundedSource ? ' -c lock_timeout=5000 -c statement_timeout=60000' : ''}` });
   return new Promise<string>((resolve, reject) => {
     const child = spawn(filename, args, { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
@@ -419,6 +462,10 @@ async function snapshot(client: Client, sourceUrl: string, pgBin: string) {
     } finally { await client.query('CLOSE maintenance_rows'); }
     data[table] = { count: String(count), digest: digest.digest('hex') };
   }
+  return { data, ...await schemaState(client) };
+}
+
+async function schemaState(client: Client) {
   const sequences: Record<string, unknown> = {};
   for (const sequence of (await client.query(`SELECT sequencename FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename`)).rows) {
     sequences[sequence.sequencename] = (await client.query(`SELECT last_value::text, is_called FROM ${tableName(sequence.sequencename)}`)).rows[0];
@@ -442,12 +489,37 @@ async function snapshot(client: Client, sourceUrl: string, pgBin: string) {
       FROM pg_type JOIN pg_namespace ON typnamespace=pg_namespace.oid JOIN pg_enum ON enumtypid=pg_type.oid WHERE nspname='public' GROUP BY typname
     UNION ALL SELECT 'sequence', sequencename, (to_jsonb(sequence_row)-'sequenceowner'-'last_value')::text FROM pg_sequences sequence_row WHERE schemaname='public'
   ) definitions ORDER BY kind COLLATE "C", identity COLLATE "C"`)).rows;
-  return { data, sequences, schema: hash(JSON.stringify(schema)) };
+  return { sequences, schema: hash(JSON.stringify(schema)) };
 }
 
 type BackupOptions = AdminSelection & { sourceUrl: string; fingerprint: string; backupRoot: string; pgBin: string };
 type VerifyOptions = AdminSelection & { sourceUrl: string; fingerprint: string; bundle: string; restoreUrl: string; pgBin: string };
-type PurgeOptions = AdminSelection & { sourceUrl: string; fingerprint: string; execute?: boolean; bundle?: string; restoreUrl?: string; pgBin?: string };
+type PurgeOptions = AdminSelection & { sourceUrl: string; fingerprint: string; execute?: boolean; bundle?: string; restoreUrl?: string; pgBin?: string;
+  backupRoot?: string; workflow?: Workflow; sourcePolicy?: SourcePolicy };
+
+async function archiveUnderGuard(client: Client, options: BackupOptions, preservedAdmins: Array<{ id: string }>, guard: () => Promise<void>,
+  workflow: Workflow = 'strict-offline', sourcePolicy: SourcePolicy = 'direct') {
+  restrictDirectory(options.backupRoot, true);
+  await guard();
+  const bundle = path.join(options.backupRoot, `backup-${randomUUID()}`);
+  restrictDirectory(bundle, true);
+  const before = await snapshot(client, options.sourceUrl, options.pgBin);
+  const exported = (await client.query('SELECT pg_export_snapshot() AS snapshot')).rows[0].snapshot;
+  const dump = path.join(bundle, 'public.dump');
+  await native(options.pgBin, 'pg_dump', options.sourceUrl, ['--schema=public', '--format=custom', `--snapshot=${exported}`, `--file=${dump}`,
+    ...(workflow === 'transaction-fenced' ? ['--lock-wait-timeout=5s'] : [])], sourcePolicy, workflow === 'transaction-fenced');
+  const after = await snapshot(client, options.sourceUrl, options.pgBin);
+  requireSafe(JSON.stringify(before) === JSON.stringify(after), 'BACKUP_CHANGED_DURING_EXPORT');
+  await guard();
+  fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify({ format: 2, fingerprint: options.fingerprint, workflow, sourcePolicy,
+    preservedAdminIds: preservedAdmins.map(admin => admin.id),
+    preservedAdminId: preservedAdmins.length === 1 ? preservedAdmins[0].id : undefined, requiresAdminSelection: normalizedAdminIds(options) !== undefined,
+    createdAt: new Date().toISOString(), dumpHash: hash(fs.readFileSync(dump)), snapshot: before }, null, 2), { flag: 'wx', mode: 0o600 });
+  if (process.platform !== 'win32') fs.chmodSync(dump, 0o600);
+  assertPrivatePath(dump);
+  assertPrivatePath(path.join(bundle, 'manifest.json'));
+  return { bundle, fingerprint: options.fingerprint, restored: false };
+}
 
 export async function createBackup(options: BackupOptions) {
   const selection = normalizedAdminIds(options);
@@ -460,27 +532,11 @@ export async function createBackup(options: BackupOptions) {
     const preservedAdmins = await selectedAdmins(client, selection);
     await assertNoPayments(client);
     await assertMaintenance(client);
-    const bundle = path.join(options.backupRoot, `backup-${randomUUID()}`);
-    restrictDirectory(bundle, true);
-    const before = await snapshot(client, options.sourceUrl, options.pgBin);
-    const exported = (await client.query('SELECT pg_export_snapshot() AS snapshot')).rows[0].snapshot;
-    const dump = path.join(bundle, 'public.dump');
-    await native(options.pgBin, 'pg_dump', options.sourceUrl, ['--schema=public', '--format=custom', `--snapshot=${exported}`, `--file=${dump}`]);
-    const after = await snapshot(client, options.sourceUrl, options.pgBin);
-    requireSafe(JSON.stringify(before) === JSON.stringify(after), 'BACKUP_CHANGED_DURING_EXPORT');
-    await assertMaintenance(client);
-    fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify({ format: 2, fingerprint: options.fingerprint,
-      preservedAdminIds: preservedAdmins.map(admin => admin.id),
-      preservedAdminId: preservedAdmins.length === 1 ? preservedAdmins[0].id : undefined, requiresAdminSelection: selection !== undefined,
-      createdAt: new Date().toISOString(), dumpHash: hash(fs.readFileSync(dump)), snapshot: before }, null, 2), { flag: 'wx', mode: 0o600 });
-    if (process.platform !== 'win32') fs.chmodSync(dump, 0o600);
-    assertPrivatePath(dump);
-    assertPrivatePath(path.join(bundle, 'manifest.json'));
-    return { bundle, fingerprint: options.fingerprint, restored: false };
+    return await archiveUnderGuard(client, options, preservedAdmins, () => assertMaintenance(client));
   } finally { await client.query('ROLLBACK').catch(() => undefined); await client.end(); }
 }
 
-function readManifest(options: AdminSelection & { bundle: string; fingerprint: string }) {
+function readManifest(options: AdminSelection & { bundle: string; fingerprint: string }, workflow: Workflow = 'strict-offline', sourcePolicy: SourcePolicy = 'direct') {
   const selection = normalizedAdminIds(options);
   restrictDirectory(options.bundle);
   for (const file of ['manifest.json', 'public.dump']) {
@@ -490,6 +546,7 @@ function readManifest(options: AdminSelection & { bundle: string; fingerprint: s
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(options.bundle, 'manifest.json'), 'utf8'));
   requireSafe([1, 2].includes(manifest.format) && manifest.fingerprint === options.fingerprint, 'TARGET_FINGERPRINT_MISMATCH');
+  requireSafe((manifest.workflow || 'strict-offline') === workflow && (manifest.sourcePolicy || 'direct') === sourcePolicy, 'BACKUP_POLICY_MISMATCH');
   const storedIds = manifest.format === 1 ? [manifest.preservedAdminId] : manifest.preservedAdminIds;
   let preservedAdminIds: string[];
   try {
@@ -506,9 +563,13 @@ function readManifest(options: AdminSelection & { bundle: string; fingerprint: s
 }
 
 export async function verifyBackup(options: VerifyOptions) {
-  assertRestoreTarget(options.restoreUrl, options.sourceUrl);
+  return verifyArchive(options);
+}
+
+async function verifyArchive(options: VerifyOptions, workflow: Workflow = 'strict-offline', sourcePolicy: SourcePolicy = 'direct') {
+  assertRestoreTarget(options.restoreUrl, options.sourceUrl, sourcePolicy);
   requireSafe(resolvedConnection(options.restoreUrl).password.length > 0, 'RESTORE_PASSWORD_REQUIRED');
-  const manifest = readManifest(options);
+  const manifest = readManifest(options, workflow, sourcePolicy);
   const restored = await connect(options.restoreUrl);
   try {
     await assertRestorePrivacy(restored, options.restoreUrl);
@@ -532,7 +593,115 @@ export async function verifyBackup(options: VerifyOptions) {
   } finally { await restored.query('ROLLBACK').catch(() => undefined); await restored.end(); }
 }
 
+function deletionTables(catalog: Catalog, preserveSites: boolean) {
+  return catalog.tables.filter(table => DELETE_TABLES.includes(table) && (!preserveSites || table !== 'sites'));
+}
+
+async function deleteAndCheck(client: Client, catalog: Catalog, admins: any[], before: Awaited<ReturnType<typeof snapshot>>,
+  sourceUrl: string, pgBin: string, preserveSites = false) {
+  const tables = deletionTables(catalog, preserveSites);
+  const order = orderDeletes(tables, catalog.foreignKeys);
+  const preservedIds = admins.map(admin => admin.id);
+  if (!preserveSites) await client.query('UPDATE public.utilisateurs SET "siteId"=NULL WHERE id=ANY($1::text[])', [preservedIds]);
+  const immutable = catalog.triggers.find(trigger => trigger.name === 'placement_history_immutable');
+  if (immutable) await client.query('ALTER TABLE public.placement_history DISABLE TRIGGER placement_history_immutable');
+  for (const table of order) {
+    if (table === 'utilisateurs') await client.query('DELETE FROM public.utilisateurs WHERE NOT (id=ANY($1::text[]))', [preservedIds]);
+    else await client.query(`DELETE FROM ${tableName(table)}`);
+  }
+  if (immutable) await client.query('ALTER TABLE public.placement_history ENABLE TRIGGER placement_history_immutable');
+  const preservedAdmins = await selectedAdmins(client, preservedIds, preserveSites);
+  requireSafe(JSON.stringify(admins) === JSON.stringify(preservedAdmins), 'SUPER_ADMIN_CHANGED');
+  const remaining = await counts(client, order);
+  requireSafe(order.every(table => remaining[table] === (table === 'utilisateurs' ? String(admins.length) : '0')), 'PURGE_POSTCONDITION_FAILED');
+  const after = await snapshot(client, sourceUrl, pgBin);
+  for (const table of catalog.tables.filter(table => !tables.includes(table))) {
+    requireSafe(JSON.stringify(before.data[table]) === JSON.stringify(after.data[table]), 'PRESERVED_DATA_CHANGED');
+  }
+  requireSafe(before.schema === after.schema && JSON.stringify(before.sequences) === JSON.stringify(after.sequences), 'SCHEMA_OR_SEQUENCE_CHANGED');
+}
+
+async function assertWriteFence(client: Client, observer: Client, catalog: Catalog, owner: { pid: number; transaction: string }, schema: Awaited<ReturnType<typeof schemaState>>, policy: CatalogPolicy) {
+  requireSafe(JSON.stringify(await readCatalog(observer)) === JSON.stringify(catalog), 'CATALOG_CHANGED');
+  requireSafe(JSON.stringify(await schemaState(observer)) === JSON.stringify(schema), 'SCHEMA_OR_SEQUENCE_CHANGED');
+  const proof = (await client.query(`SELECT pg_backend_pid() AS pid, pg_current_xact_id()::text AS transaction,
+    current_setting('transaction_isolation') AS isolation, current_setting('transaction_read_only') AS read_only,
+    (SELECT count(DISTINCT relation)::int FROM pg_locks JOIN pg_class ON relation=pg_class.oid
+      JOIN pg_namespace ON relnamespace=pg_namespace.oid WHERE nspname='public' AND relkind='r'
+      AND database=(SELECT oid FROM pg_database WHERE datname=current_database()) AND pid=pg_backend_pid()
+      AND mode='ShareRowExclusiveLock' AND granted) AS locked_tables,
+    (SELECT count(*)::int FROM pg_prepared_xacts WHERE database=current_database()) AS prepared,
+    (SELECT count(*)::int FROM pg_subscription WHERE subdbid=(SELECT oid FROM pg_database WHERE datname=current_database()) AND subenabled) AS subscriptions
+  `)).rows[0];
+  requireSafe(proof.pid === owner.pid && proof.transaction === owner.transaction && proof.isolation === 'repeatable read'
+    && proof.read_only === 'off' && proof.locked_tables === catalog.tables.length, 'TABLE_WRITE_FENCE_REQUIRED');
+  requireSafe(proof.prepared === 0 && proof.subscriptions === 0, 'PREPARED_OR_SUBSCRIBED_WRITES');
+  assertCatalogSafe(catalog, policy);
+  await assertNoPayments(client);
+}
+
+async function purgeWithWriteFence(options: PurgeOptions) {
+  const selection = normalizedAdminIds(options);
+  requireSafe(selection?.length === 2, 'EXPLICIT_TWO_ADMINS_REQUIRED');
+  requireSafe(!options.bundle, 'FRESH_BACKUP_REQUIRED');
+  requireSafe(!options.execute || (options.backupRoot && options.pgBin && options.restoreUrl), 'FRESH_BACKUP_AND_RESTORE_REQUIRED');
+  const sourcePolicy = options.sourcePolicy || 'direct';
+  const policy: CatalogPolicy = { workflow: 'transaction-fenced', sourcePolicy, target: 'source' };
+  if (options.execute) {
+    assertRestoreTarget(options.restoreUrl, options.sourceUrl, sourcePolicy);
+    requireSafe(resolvedConnection(options.restoreUrl).password.length > 0, 'RESTORE_PASSWORD_REQUIRED');
+  }
+  const client = await connect(options.sourceUrl, sourcePolicy);
+  client.on('error', () => undefined);
+  let observer: Client;
+  try {
+    await assertFingerprint(client, options.sourceUrl, options.fingerprint, sourcePolicy);
+    const candidates = await readCatalog(client);
+    assertCatalogSafe(candidates, policy);
+    await client.query(options.execute ? 'BEGIN ISOLATION LEVEL REPEATABLE READ' : 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    if (options.execute) {
+      await client.query("SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='60s'; SET LOCAL transaction_timeout='10min'; SET LOCAL idle_in_transaction_session_timeout='6min'");
+      await client.query(`LOCK TABLE ${candidates.tables.map(tableName).join(', ')} IN SHARE ROW EXCLUSIVE MODE`);
+    }
+    await assertFingerprint(client, options.sourceUrl, options.fingerprint, sourcePolicy);
+    const catalog = await readCatalog(client);
+    requireSafe(JSON.stringify(catalog) === JSON.stringify(candidates), 'CATALOG_CHANGED');
+    assertCatalogSafe(catalog, policy);
+    await assertNoPayments(client);
+    const tables = deletionTables(catalog, true);
+    const admins = await selectedAdmins(client, selection, true);
+    const deleteCounts = await counts(client, tables);
+    deleteCounts.utilisateurs = String(BigInt(deleteCounts.utilisateurs) - BigInt(admins.length));
+    const preservedTables = catalog.tables.filter(table => !tables.includes(table));
+    if (!options.execute) return { executed: false, deleteCounts, preservedTables };
+    const owner = (await client.query('SELECT pg_backend_pid() AS pid, pg_current_xact_id()::text AS transaction')).rows[0];
+    const schema = await schemaState(client);
+    observer = await connect(options.sourceUrl, sourcePolicy);
+    await observer.query('SET default_transaction_read_only=on');
+    await assertFingerprint(observer, options.sourceUrl, options.fingerprint, sourcePolicy);
+    const guard = () => assertWriteFence(client, observer, catalog, owner, schema, policy);
+    await guard();
+    const backup = await archiveUnderGuard(client, { ...options, backupRoot: options.backupRoot, pgBin: options.pgBin }, admins, guard, 'transaction-fenced', sourcePolicy);
+    const verified = await verifyArchive({ ...options, bundle: backup.bundle, restoreUrl: options.restoreUrl, pgBin: options.pgBin }, 'transaction-fenced', sourcePolicy);
+    await guard();
+    const before = await snapshot(client, options.sourceUrl, options.pgBin);
+    requireSafe(JSON.stringify(before) === JSON.stringify(verified.snapshot), 'LIVE_BACKUP_MISMATCH');
+    requireSafe(JSON.stringify(admins) === JSON.stringify(await selectedAdmins(client, selection, true)), 'SUPER_ADMIN_CHANGED');
+    await deleteAndCheck(client, catalog, admins, before, options.sourceUrl, options.pgBin, true);
+    readManifest({ ...options, bundle: backup.bundle }, 'transaction-fenced', sourcePolicy);
+    await guard();
+    await client.query('COMMIT');
+    return { executed: true, deleteCounts, preservedTables, bundle: backup.bundle, fingerprint: options.fingerprint };
+  } finally {
+    await client.query('ROLLBACK').catch(() => undefined);
+    await client.end();
+    if (observer) await observer.end();
+  }
+}
+
 export async function purge(options: PurgeOptions) {
+  requireSafe(options.workflow === undefined || ['strict-offline', 'transaction-fenced'].includes(options.workflow), 'UNKNOWN_WORKFLOW');
+  if (options.workflow === 'transaction-fenced') return purgeWithWriteFence(options);
   const selection = normalizedAdminIds(options);
   requireSafe(!options.execute || (options.bundle && options.restoreUrl && options.pgBin), 'VERIFIED_BACKUP_REQUIRED');
   if (options.bundle) readManifest({ ...options, bundle: options.bundle });
@@ -562,24 +731,7 @@ export async function purge(options: PurgeOptions) {
     requireSafe(JSON.stringify(before) === JSON.stringify(verified.snapshot), 'LIVE_BACKUP_MISMATCH');
     await assertMaintenance(client);
     await assertNoPayments(client);
-    const preservedIds = admins.map(admin => admin.id);
-    await client.query('UPDATE public.utilisateurs SET "siteId"=NULL WHERE id=ANY($1::text[])', [preservedIds]);
-    const immutable = catalog.triggers.find(trigger => trigger.name === 'placement_history_immutable');
-    if (immutable) await client.query('ALTER TABLE public.placement_history DISABLE TRIGGER placement_history_immutable');
-    for (const table of order) {
-      if (table === 'utilisateurs') await client.query('DELETE FROM public.utilisateurs WHERE NOT (id=ANY($1::text[]))', [preservedIds]);
-      else await client.query(`DELETE FROM ${tableName(table)}`);
-    }
-    if (immutable) await client.query('ALTER TABLE public.placement_history ENABLE TRIGGER placement_history_immutable');
-    const preservedAdmins = await selectedAdmins(client, preservedIds);
-    requireSafe(JSON.stringify(admins) === JSON.stringify(preservedAdmins), 'SUPER_ADMIN_CHANGED');
-    const remaining = await counts(client, order);
-    requireSafe(order.every(table => remaining[table] === (table === 'utilisateurs' ? String(admins.length) : '0')), 'PURGE_POSTCONDITION_FAILED');
-    const after = await snapshot(client, options.sourceUrl, options.pgBin);
-    for (const table of catalog.tables.filter(table => !DELETE_TABLES.includes(table))) {
-      requireSafe(JSON.stringify(before.data[table]) === JSON.stringify(after.data[table]), 'PRESERVED_DATA_CHANGED');
-    }
-    requireSafe(before.schema === after.schema && JSON.stringify(before.sequences) === JSON.stringify(after.sequences), 'SCHEMA_OR_SEQUENCE_CHANGED');
+    await deleteAndCheck(client, catalog, admins, before, options.sourceUrl, options.pgBin);
     await assertMaintenance(client);
     await client.query('COMMIT');
     return { executed: true, deleteCounts, preservedTables: catalog.tables.filter(table => !DELETE_TABLES.includes(table)) };

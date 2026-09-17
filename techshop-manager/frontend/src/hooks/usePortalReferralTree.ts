@@ -21,5 +21,8 @@ export function usePortalReferralTree(active: boolean) {
     matrixTree: query.data?.matrixTree,
     total: query.data?.meta?.total ?? 0,
     isLoading: query.isLoading,
+    snapshot: `${clientId}-${query.dataUpdatedAt}`,
+    isError: query.isError,
+    refetch: query.refetch,
   };
 }

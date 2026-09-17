@@ -78,13 +78,13 @@ export class MlmMatrixService {
     return { ...matrix, requiredPositions: generationCapacity(matrix.level.ordre), remainingPositions: generationCapacity(matrix.level.ordre) - matrix.filleulsValides };
   }
 
-  async getNetworkTree(memberId: string, depth = 3) {
+  async getNetworkTree(memberId: string, depth = 3, tx: Prisma.TransactionClient = this.prisma) {
     if (!Number.isInteger(depth) || depth < 0 || depth > 3) throw new BadRequestException('Profondeur autorisee : 0 a 3');
-    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    const levels = await tx.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
     const nodes = new Map<string, any>();
     let frontier = [memberId];
     for (let generation = 0; generation <= depth && frontier.length; generation++) {
-      const members = await this.prisma.membre.findMany({
+      const members = await tx.membre.findMany({
         where: { id: { in: frontier } },
         include: {
           client: { select: { id: true, prenom: true, nom: true } },

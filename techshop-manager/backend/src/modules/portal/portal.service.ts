@@ -316,6 +316,37 @@ export class PortalService {
 
   // ── GET /portal/referrals ─────────────────────────────────────────────────
 
+  async getNetworkTree(clientId: string, memberId: string, depth = 2) {
+    if (!Number.isInteger(depth) || depth < 0 || depth > 2) {
+      throw new BadRequestException('Profondeur autorisee : 0 a 2');
+    }
+
+    return this.prisma.$transaction(async tx => {
+      const authorized = await tx.$queryRaw<Array<{ id: string }>>`
+        WITH RECURSIVE ancestors(id) AS (
+          SELECT id FROM membres WHERE id = ${memberId}
+          UNION
+          SELECT parent.id
+          FROM ancestors
+          JOIN membres member ON member.id = ancestors.id
+          LEFT JOIN positions position ON position."filleulId" = member.id
+          LEFT JOIN matrices matrix ON matrix.id = position."matrixId"
+          LEFT JOIN mlm_levels level ON level.id = matrix."mlmLevelId"
+          CROSS JOIN LATERAL (
+            VALUES (member."parrainId"), (CASE WHEN level.ordre = 1 THEN matrix."membreId" END)
+          ) parent(id)
+          WHERE parent.id IS NOT NULL
+        )
+        SELECT ancestors.id FROM ancestors
+        JOIN membres owner ON owner.id = ancestors.id
+        WHERE owner."clientId" = ${clientId}
+        LIMIT 1
+      `;
+      if (!authorized.length) throw new NotFoundException({ code: 'ERR_NOT_FOUND' });
+      return this.mlmMatrix.getNetworkTree(memberId, depth, tx);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
   async getReferrals(
     clientId: string,
     query: { filter?: string; page?: number; limit?: number },

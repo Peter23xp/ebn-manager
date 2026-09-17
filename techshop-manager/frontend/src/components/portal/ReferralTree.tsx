@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, Network, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import type { PortalFilleul } from '@/lib/portal.api';
+import { portalApi, type PortalFilleul } from '@/lib/portal.api';
+import { useAuthStore } from '@/store/auth.store';
 import type { MatrixTreeNode } from '@/types/mlm';
-import { GenerationProgress } from '@/components/mlm/GenerationProgress';
-import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
-
-// ── Construction de la forêt ──────────────────────────────────────────────────
+import { MatrixNetworkExplorer } from '@/components/mlm/MatrixNetworkExplorer';
+import { NetworkNavigation, type NetworkTarget, type NetworkView } from '@/components/mlm/NetworkNavigation';
+import { NetworkTree, TreeBranch } from '@/components/mlm/NetworkTree';
 
 interface TreeNode {
   filleul: PortalFilleul;
@@ -46,100 +45,34 @@ function treeDepth(list: TreeNode[]): number {
   return max;
 }
 
-// ── Badge de statut (palette alignée sur la vue Liste) ────────────────────────
 
-const STATUT_STYLE: Record<PortalFilleul['statut'], string> = {
-  ACTIF: 'bg-emerald-50 text-emerald-700',
-  EN_COURS: 'bg-amber-50 text-amber-700',
-  SUSPENDU: 'bg-red-50 text-red-600',
-};
-
-// ── Branche récursive ─────────────────────────────────────────────────────────
-
-function Branch({ node, depth }: { node: TreeNode; depth: number }) {
-  const { filleul: f, children } = node;
-  const hasChildren = children.length > 0;
+function Branch({ node, depth, onSelect, onExplore, focused = false, relative = false }: { node: TreeNode; depth: number; onSelect: (node: TreeNode, generation: number) => void; onExplore: (node: TreeNode) => void; focused?: boolean; relative?: boolean }) {
+  const { filleul, children } = node;
   const [open, setOpen] = useState(depth < 2);
-
-  const initials = `${f.prenom[0] ?? ''}${f.nom[0] ?? ''}`.toUpperCase();
-  const subtree = hasChildren ? countSubtree(node) : 0;
-
-  return (
-    <li
-      className="relative last:after:content-[''] last:after:absolute last:after:-left-[13px] last:after:top-[1.375rem] last:after:bottom-0 last:after:w-[2px] last:after:bg-bg-card"
-      data-testid={`tree-node-${f.id}`}
-      data-parent={f.parrainId ?? ''}
-      data-depth={depth}
-    >
-      {/* Coude de connexion vers le rail parent */}
-      <span aria-hidden className="absolute -left-[13px] top-[1.375rem] h-px w-[13px] bg-border" />
-
-      <div className="flex items-center gap-2.5 py-2">
-        {hasChildren ? (
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-label={open ? `Replier la branche de ${f.prenom} ${f.nom}` : `Déplier la branche de ${f.prenom} ${f.nom}`}
-            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-inset hover:text-text"
-          >
-            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+  const name = `${filleul.prenom} ${filleul.nom}`;
+  const generation = relative ? depth : filleul.generation ?? depth + 1;
+  return <TreeBranch data-testid={`tree-node-${filleul.id}`} data-parent={filleul.parrainId ?? ''} data-depth={depth}
+    childrenLabel={`Recrutements de ${name}`} content={
+      <div className="network-member">
+        <button type="button" className="network-member-main" aria-label={`Détails de ${name}`} onClick={() => onSelect(node, generation)}>
+          <span aria-hidden="true" className="network-avatar flex h-10 w-10 items-center justify-center rounded-full bg-primary-light text-primary-accent"><UserRound size={24} /></span>
+          <p className="network-member-name" title={name}>{name}</p>
+          <span className={`text-xs font-semibold ${filleul.statut === 'ACTIF' ? 'text-success' : filleul.statut === 'SUSPENDU' ? 'text-danger' : 'text-text-muted'}`}>{filleul.statut === 'ACTIF' ? 'Actif' : filleul.statut === 'EN_COURS' ? 'En cours' : 'Suspendu'}</span>
+          <p className="text-xs text-text-muted">Génération {generation}</p>
+          <p className="text-xs text-text-muted">Inscrit le {format(new Date(filleul.dateInscription), 'd MMM yyyy', { locale: fr })}</p>
+          {children.length > 0 && <p className="text-xs text-text-muted"><span>{countSubtree(node)}</span> descendants</p>}
+        </button>
+        {children.length > 0 && <div className="network-member-actions">
+          <button type="button" className="network-tool" aria-expanded={open} aria-label={`${open ? 'Replier' : 'Déplier'} la branche de ${name}`} onClick={() => setOpen(value => !value)}>
+            {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}{children.length} filleuls
           </button>
-        ) : (
-          <span aria-hidden className="h-1 w-1 flex-shrink-0 rounded-full bg-border-strong" />
-        )}
-
-        <span
-          aria-hidden
-          className={cn(
-            'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
-            f.statut === 'ACTIF' ? 'bg-emerald-50 text-emerald-700'
-              : f.statut === 'SUSPENDU' ? 'bg-red-50 text-red-600'
-              : 'bg-amber-50 text-amber-700',
-          )}
-        >
-          {initials}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-medium text-text">
-              {f.prenom} {f.nom}
-            </p>
-            <span
-              className={cn(
-                'flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                STATUT_STYLE[f.statut],
-              )}
-            >
-              {f.statut === 'ACTIF' ? 'Actif' : f.statut === 'EN_COURS' ? 'En cours' : 'Suspendu'}
-            </span>
-          </div>
-          <p className="text-[11px] text-text-subtle">
-            G{f.generation ?? depth + 1}
-            {' · '}Inscrit le {format(new Date(f.dateInscription), 'd MMM yyyy', { locale: fr })}
-          </p>
-        </div>
-
-        {hasChildren && (
-          <span className="flex-shrink-0 text-[11px] font-semibold tabular-nums text-text-subtle">
-            {subtree}
-          </span>
-        )}
+        </div>}
+        {!focused && <button type="button" className="network-tool w-full shrink-0 border-t border-border text-primary-accent" aria-label={`Voir l’arbre de ${name}`} onClick={() => onExplore(node)}><Network size={16} />Voir son arbre</button>}
       </div>
-
-      {hasChildren && open && (
-        <ul className="ml-3.5 border-l border-border pl-3.5">
-          {children.map((c) => (
-            <Branch key={c.filleul.id} node={c} depth={depth + 1} />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
+    }>
+    {open ? children.map(child => <Branch key={child.filleul.id} node={child} depth={depth + 1} onSelect={onSelect} onExplore={onExplore} relative={relative} />) : null}
+  </TreeBranch>;
 }
-
-// ── Composant principal ───────────────────────────────────────────────────────
 
 interface ReferralTreeProps {
   matrixTree?: MatrixTreeNode | null;
@@ -147,96 +80,76 @@ interface ReferralTreeProps {
   total: number;
   isLoading: boolean;
   codeParrain?: string;
+  snapshot?: string;
+  initialMember?: NetworkTarget;
 }
 
-export function ReferralTree({ nodes, matrixTree, total, isLoading, codeParrain }: ReferralTreeProps) {
-  if (isLoading) {
-    return (
-      <div className="space-y-2.5 rounded-2xl border border-border bg-bg-card p-4 shadow-card">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 animate-pulse rounded-xl bg-bg-inset" />
-        ))}
-      </div>
-    );
-  }
+export function ReferralTree({ nodes, matrixTree, total, isLoading, codeParrain, snapshot, initialMember }: ReferralTreeProps) {
+  const clientId = useAuthStore(state => state.user?.id);
+  const [path, setPath] = useState<NetworkTarget[]>(initialMember ? [initialMember] : []);
+  const [view, setView] = useState<NetworkView>('tree');
+  const [selection, setSelection] = useState<{ id: string; generation: number } | null>(null);
+  const selected = nodes.find(node => node.id === selection?.id);
+  const recruiter = nodes.find(node => node.id === selected?.parrainId);
+  if (isLoading) return <div className="space-y-3 p-4" role="status" aria-label="Chargement de l’arbre">
+    {[1, 2, 3].map(index => <div key={index} className="h-10 animate-pulse motion-reduce:animate-none rounded-lg bg-bg-inset" />)}
+  </div>;
 
-  if (matrixTree) return <section className="rounded-xl border border-border bg-bg-card p-4 space-y-3">
-    <h2 className="text-sm font-semibold text-primary">Réseau matriciel</h2>
-    <p className="text-xs text-text-muted">Le recruteur personnel peut différer du parent matriciel. Générations relatives à votre racine.</p>
-    <ul><MatrixBranch node={matrixTree} /></ul>
+  if (matrixTree) return <section className="min-w-0 space-y-3">
+    <h2 className="text-section-title text-primary">Réseau matriciel</h2>
+    <p className="text-sm text-text-muted">Le recruteur personnel peut différer du parent matriciel. Générations relatives à votre racine.</p>
+    <MatrixNetworkExplorer key={`${clientId}-${matrixTree.id}-${initialMember?.id ?? ''}`} root={matrixTree} snapshot={snapshot} scope={`portal-${clientId}`} loadTree={portalApi.getNetworkTree} initialMember={initialMember} />
   </section>;
 
-  if (nodes.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border py-8 text-center">
-        <p className="text-sm font-semibold text-text">Réseau de recrutement personnel</p>
-        <p className="text-xs text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
-        <p className="mb-1.5 text-sm text-text-muted">
-          Personne n'est encore inscrit avec votre matricule.
-        </p>
-        {codeParrain && (
-          <p className="text-sm font-semibold text-[#2E86C1]">
-            Partagez votre code {codeParrain} pour démarrer votre réseau !
-          </p>
-        )}
-      </div>
-    );
-  }
+  if (nodes.length === 0) return <div className="rounded-xl border border-dashed border-border py-8 text-center">
+    <p className="text-sm font-semibold text-text">Réseau de recrutement personnel</p>
+    <p className="text-sm text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
+    <p className="my-2 text-sm text-text-muted">Personne n'est encore inscrit avec votre matricule.</p>
+    {codeParrain && <p className="text-sm font-semibold text-primary-accent">Partagez votre code {codeParrain} pour démarrer votre réseau !</p>}
+  </div>;
 
   const roots = buildForest(nodes);
+  const findNode = (branches: TreeNode[], id: string): TreeNode | undefined => {
+    for (const node of branches) {
+      if (node.filleul.id === id) return node;
+      const found = findNode(node.children, id);
+      if (found) return found;
+    }
+  };
+  const focused = path.length ? findNode(roots, path[path.length - 1].id) : undefined;
+  const explore = (node: TreeNode) => { setSelection(null); setPath(previous => [...previous, { id: node.filleul.id, name: `${node.filleul.prenom} ${node.filleul.nom}` }]); };
+  const select = (node: TreeNode, generation: number) => setSelection({ id: node.filleul.id, generation });
   const maxDepth = treeDepth(roots);
-
-  return (
-    <div className="rounded-2xl border border-border bg-bg-card p-4 shadow-card">
-      {/* Racine : le client */}
-      <div className="flex items-center gap-2.5 pb-2">
-        <span
-          aria-hidden
-          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-white"
-        >
-          <User size={13} />
-        </span>
-        <p className="text-sm font-semibold text-primary">Réseau de recrutement personnel</p>
-        <span className="ml-auto text-[11px] text-text-subtle">
-          {nodes.length} membre{nodes.length > 1 ? 's' : ''} · {maxDepth} niveau{maxDepth > 1 ? 'x' : ''}
-        </span>
-      </div>
-      <p className="text-xs text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
-
-      <ul className="mt-1">
-        {roots.map((r) => (
-          <Branch key={r.filleul.id} node={r} depth={0} />
-        ))}
-      </ul>
-
-      {total > nodes.length && (
-        <p className="mt-2 border-t border-border pt-2.5 text-[11px] text-text-subtle">
-          Réseau volumineux : seuls les {nodes.length} premiers membres sont affichés dans l'arbre.
-        </p>
-      )}
+  return <section className="min-w-0 space-y-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h2 className="text-section-title text-primary">Réseau de recrutement personnel</h2>
+      <span className="text-xs text-text-muted">{nodes.length} membre{nodes.length > 1 ? 's' : ''} · {maxDepth} niveau{maxDepth > 1 ? 'x' : ''}</span>
     </div>
-  );
-}
-
-function MatrixBranch({ node }: { node: MatrixTreeNode }) {
-  const [expanded, setExpanded] = useState(true);
-  return <li className="py-3 space-y-2 text-sm text-text">
-    <p className="font-semibold">{node.client.prenom} {node.client.nom}</p>
-    <MlmLevelBadge level={node.level?.ordre ?? null} name={node.level?.nom} size="sm" />
-    <p className="text-xs text-text-muted">Génération {node.generation} · Position {node.position ?? 'Racine'} · Places libres : {node.emptyPositions.join(', ') || 'Aucune'}</p>
-    <details>
-      <summary className="cursor-pointer font-medium">Détails de {node.client.prenom} {node.client.nom}</summary>
-      <dl className="py-2 space-y-2">
-        <div><dt>Recruteur personnel</dt><dd>{node.recruiter ? `${node.recruiter.client.prenom} ${node.recruiter.client.nom}` : 'Aucun'}</dd></div>
-        <div><dt>Parent matriciel</dt><dd>{node.matrixParent ? `${node.matrixParent.client.prenom} ${node.matrixParent.client.nom}` : 'Racine'}</dd></div>
-        <div><dt>Enfants matriciels / recrutements personnels / descendants</dt><dd>{node.directMatrixChildrenCount} / {node.personalRecruitCount} / {node.totalDescendants}</dd></div>
+    <p className="text-sm text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
+    <NetworkNavigation root={{ id: 'personal-root', name: 'mon réseau personnel' }} path={path} view={view} onView={setView} onBack={index => { setSelection(null); setPath(path.slice(0, index + 1)); }} />
+    {path.length > 0 && !focused ? <p role="alert" className="text-sm text-text-muted">Ce membre n’est pas disponible dans cet aperçu. Revenez à votre arbre.</p> : <NetworkTree view={view} key={focused?.filleul.id ?? 'root'}>
+      {focused ? <Branch node={focused} depth={0} focused relative onSelect={select} onExplore={explore} /> : <TreeBranch content={<div className="network-member" data-root="true">
+        <div className="network-member-main">
+          <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-accent text-white"><UserRound size={24} /></span>
+          <p className="network-member-name">Vous</p>
+          {codeParrain && <p className="text-xs text-text-muted">{codeParrain}</p>}
+          <p className="text-xs text-text-muted">Racine du réseau personnel</p>
+        </div>
+      </div>} childrenLabel="Votre réseau de recrutement">
+        {roots.map(root => <Branch key={root.filleul.id} node={root} depth={0} onSelect={select} onExplore={explore} />)}
+      </TreeBranch>}
+    </NetworkTree>}
+    {selected && <section aria-label={`Détails de ${selected.prenom} ${selected.nom}`} className="space-y-3 border-t border-border pt-4 text-sm text-text">
+      <h3 className="font-semibold">{selected.prenom} {selected.nom}</h3>
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div><dt className="text-text-muted">ID</dt><dd className="break-all">{selected.id}</dd></div>
+        <div><dt className="text-text-muted">Recruteur personnel</dt><dd>{recruiter ? `${recruiter.prenom} ${recruiter.nom}` : selected.parrainId ?? 'Vous'}</dd></div>
+        <div><dt className="text-text-muted">Parent matriciel</dt><dd>Placement matriciel non fourni</dd></div>
+        <div><dt className="text-text-muted">Génération</dt><dd>{selection?.generation}</dd></div>
+        <div><dt className="text-text-muted">Statut</dt><dd>{selected.statut === 'ACTIF' ? 'Actif' : selected.statut === 'EN_COURS' ? 'En cours' : 'Suspendu'}</dd></div>
+        <div><dt className="text-text-muted">Inscription</dt><dd>{format(new Date(selected.dateInscription), 'd MMM yyyy', { locale: fr })}</dd></div>
       </dl>
-      <GenerationProgress progression={node.progression} />
-    </details>
-    {node.children.length > 0 && <>
-      <button type="button" className="btn-secondary text-xs" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Masquer' : 'Afficher'} les branches de {node.client.prenom}</button>
-      {expanded && <ul className="ml-2 border-l border-border pl-3">{node.children.map(child => <MatrixBranch key={child.id} node={child} />)}</ul>}
-    </>}
-    {node.hasMore && <p className="text-xs text-text-muted">Suite du réseau non chargée dans cet aperçu limité.</p>}
-  </li>;
+    </section>}
+    {total > nodes.length && <p className="text-sm text-text-muted">Réseau volumineux : seuls les {nodes.length} premiers membres sont affichés dans l'arbre.</p>}
+  </section>;
 }

@@ -1,10 +1,12 @@
 import {
   Controller, Get, Param, Query, UseGuards,
-  ParseIntPipe, DefaultValuePipe, Post, Body, Patch,
+  ParseIntPipe, DefaultValuePipe, Post, Body, Patch, ForbiddenException,
 } from '@nestjs/common';
 import { PortalService } from './portal.service';
 import { MlmClaimService } from '../mlm/mlm-claim.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { KpayProvider } from '../kpay/kpay.types';
 import { CreateWithdrawalRequestDto } from './dto/withdrawal.dto';
@@ -75,6 +77,18 @@ export class PortalController {
   @Get('filleuls')
   getFilleuls(@CurrentUser() user: any) {
     return this.portalService.getReferrals(user.id, {});
+  }
+
+  @Get('network/:memberId/tree')
+  @UseGuards(RolesGuard)
+  @Roles('CLIENT')
+  getNetworkTree(
+    @CurrentUser() user: { id: string; role: string },
+    @Param('memberId') memberId: string,
+    @Query('depth', new DefaultValuePipe(2), ParseIntPipe) depth: number,
+  ) {
+    if (user.role !== 'CLIENT') throw new ForbiddenException({ code: 'ERR_FORBIDDEN' });
+    return this.portalService.getNetworkTree(user.id, memberId, depth);
   }
 
   @Get('claims/pending')

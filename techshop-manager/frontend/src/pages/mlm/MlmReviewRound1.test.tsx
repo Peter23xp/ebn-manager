@@ -84,6 +84,16 @@ describe('Task 6 review — root selection', () => {
 });
 
 describe('Task 6 review — branch snapshot ownership', () => {
+  it('preserves zoom when refreshing the same root', async () => {
+    renderMlm(<MlmTreePage />);
+    await screen.findByRole('button', { name: 'Détails de Serge Mutombo' });
+    await userEvent.click(screen.getByRole('button', { name: 'Zoom avant' }));
+    expect(screen.getByLabelText('Zoom actuel')).toHaveTextContent('125 %');
+    await userEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+    await settleQueries();
+    expect(screen.getByLabelText('Zoom actuel')).toHaveTextContent('125 %');
+  });
+
   it.each(['revisit', 'refresh', 'depth'])('discards a previous lazy branch on a fresh root snapshot: %s', async action => {
     const child = { ...treeNode, id: 'child', client: { prenom: 'Enfant', nom: 'Courant' }, generation: 1 };
     const formerOccupant = { ...treeNode, id: 'former', client: { prenom: 'Ancien', nom: 'Occupant' }, hasMore: false, generation: 1 };

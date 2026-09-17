@@ -3,10 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Network,
-  ChevronDown,
-  ChevronRight,
   Users,
-  User,
   ExternalLink,
   Award,
   RefreshCw,
@@ -16,9 +13,8 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Pagination } from '@/components/ui/Pagination';
 import { useQuery } from '@tanstack/react-query';
 import { MlmApi } from '@/lib/mlm.api';
-import { formatDate, cn } from '@/lib/utils';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
-import { GenerationProgress } from '@/components/mlm/GenerationProgress';
+import { MatrixNetworkExplorer } from '@/components/mlm/MatrixNetworkExplorer';
 import { MatrixMemberDetails } from '@/components/mlm/MatrixMemberDetails';
 import type { MatrixTreeNode } from '@/types/mlm';
 
@@ -207,7 +203,7 @@ export default function MlmTreePage() {
       )}
 
       {/* Tree Visualization Container */}
-      <div className="rounded-xl border border-border bg-bg-card shadow-card p-6 overflow-x-auto min-h-96">
+      <div className="min-w-0 min-h-96">
         {!selectedMemberId ? (
           <div className="text-center py-20 text-text-muted">
             <Users size={48} className="mx-auto mb-3 opacity-30" />
@@ -227,9 +223,7 @@ export default function MlmTreePage() {
             </button>
           </div>
         ) : tree ? (
-          <div className="min-w-max pb-4">
-            <TreeNode key={snapshot} snapshot={snapshot} node={tree} isRoot depthLevel={0} onDetails={setDetailNode} />
-          </div>
+          <MatrixNetworkExplorer key={selectedMemberId} root={tree} snapshot={snapshot} scope="admin" depth={depth} loadTree={MlmApi.getNetworkTree} onSelect={setDetailNode} onNavigate={() => setDetailNode(null)} />
         ) : (
           <div className="text-center py-20 text-text-muted">
             <p>Aucune donnée disponible pour ce membre.</p>
@@ -237,130 +231,6 @@ export default function MlmTreePage() {
         )}
       </div>
       {detailNode && <MatrixMemberDetails key={detailNode.id} node={detailNode} />}
-    </div>
-  );
-}
-
-// ── Tree Node Component (Recursive) ──────────────────────────────────────────
-
-function TreeNode({
-  node,
-  isRoot = false,
-  depthLevel = 0,
-  onDetails,
-  snapshot,
-}: {
-  node: MatrixTreeNode;
-  isRoot?: boolean;
-  depthLevel?: number;
-  onDetails: (node: MatrixTreeNode) => void;
-  snapshot: string;
-}) {
-  const [expanded, setExpanded] = useState<boolean>(true);
-  const [loadChildren, setLoadChildren] = useState(false);
-  const branch = useQuery({ queryKey: ['mlm-tree-branch', node.id, snapshot], queryFn: () => MlmApi.getNetworkTree(node.id, 1), enabled: loadChildren });
-  const current = (loadChildren && branch.data) || node;
-  const children = current.children ?? [];
-  const hasChildren = children.length > 0;
-  const levelOrdre = current.level?.ordre ?? null;
-
-  return (
-    <div className="relative">
-      <div className={`flex flex-col ${isRoot ? '' : 'ml-8 mt-3'}`}>
-        {/* Node Card */}
-        <div
-          className={cn(
-            'inline-flex flex-col rounded-xl border p-4 min-w-64 max-w-72 bg-bg-card transition-shadow duration-150 hover:shadow-card',
-            isRoot ? 'border-primary-accent ring-2 ring-primary-light' : 'border-border shadow-card'
-          )}
-        >
-          {/* Header with Level Badge & Root Indicator */}
-          <div className="flex items-center justify-between mb-2">
-            <MlmLevelBadge level={levelOrdre} size="xs" />
-            {isRoot ? (
-              <span className="text-[11px] bg-primary-accent text-white px-2 py-0.5 rounded-full font-bold">
-                Racine
-              </span>
-            ) : (
-              <span className="text-[11px] text-text-muted font-bold">
-                Génération {depthLevel}
-              </span>
-            )}
-          </div>
-
-          {/* Member Name */}
-          <Link
-            to={`/mlm/members/${node.id}`}
-            className="font-bold text-text text-sm hover:text-primary-accent transition-colors flex items-center justify-between group"
-          >
-            <span className="truncate">{node.client?.prenom} {node.client?.nom}</span>
-            <ChevronRight size={14} className="text-text-subtle group-hover:text-primary-accent flex-shrink-0 ml-1" />
-          </Link>
-          <span className="text-xs text-text-muted font-mono mt-0.5">{node.matricule}</span>
-
-          {/* Filleuls Progress Gauge (4 positions per level) */}
-          {current.progression && (
-            <div className="mt-2.5 rounded-lg px-3 py-2 border border-border bg-bg">
-              <GenerationProgress progression={current.progression} />
-            </div>
-          )}
-
-          {/* Card Footer: Status & Direct Filleuls Count */}
-          <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-border text-xs">
-            <span className={`font-bold ${node.statut === 'ACTIF' ? 'text-success' : 'text-text-subtle'}`}>
-              ● {node.statut}
-            </span>
-            <span className="text-text-muted font-medium">
-              {current.directMatrixChildrenCount} enfants matriciels
-            </span>
-          </div>
-          {isRoot && <p className="text-xs text-text-muted">Génération 0</p>}
-          <p className="text-xs text-text-muted mt-2">Places libres : {current.emptyPositions.join(', ') || 'Aucune'}</p>
-          <button className="btn-secondary mt-3" onClick={() => onDetails({ ...current, generation: depthLevel })}>Détails de {current.client.prenom} {current.client.nom}</button>
-          {current.hasMore && <button className="btn-secondary mt-2" disabled={branch.isFetching} onClick={() => { setLoadChildren(true); setExpanded(true); if (loadChildren) void branch.refetch(); }}>Charger les enfants de {current.client.prenom} {current.client.nom}</button>}
-          {branch.isError && <p role="alert" className="text-sm text-danger">Chargement impossible. Réessayez avec le bouton de chargement.</p>}
-        </div>
-
-        {/* Expandable Children Tree */}
-        {hasChildren && (
-          <div className="relative mt-1">
-            {/* Vertical connector line */}
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-bg-inset" />
-
-            {/* Toggle button */}
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-              className="ml-2 my-1.5 inline-flex items-center gap-1 text-xs font-bold text-primary-accent hover:text-blue-700 bg-primary-light/40 hover:bg-primary-light px-2.5 py-1 rounded-lg transition-colors duration-150"
-            >
-              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              {expanded ? 'Masquer' : 'Afficher'} {children.length} branche{children.length > 1 ? 's' : ''}
-            </button>
-
-            {expanded && (
-              <div className="border-l border-border ml-4 pl-3 space-y-2">
-                {children.map((child) => (
-                  <TreeNode
-                    key={child.id}
-                    node={child}
-                    snapshot={snapshot}
-                    depthLevel={depthLevel + 1}
-                    onDetails={onDetails}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* No children indicator for non-root */}
-        {!hasChildren && !current.hasMore && !isRoot && (
-          <div className="ml-8 mt-1.5 flex items-center gap-1.5 text-xs text-text-subtle italic">
-            <User size={12} />
-            Aucun enfant matriciel
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { portalApi } from '@/lib/portal.api';
+import { treeNode } from '@/pages/mlm/task6.fixtures';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -265,6 +267,28 @@ describe('PortalFilleulsPage', () => {
   });
 
   describe('Vue Arbre', () => {
+    test('ne présente pas un réseau vide lorsque le chargement échoue', async () => {
+      const retry = vi.fn();
+      mockUsePortalReferralTree.mockReturnValue({ filleuls: [], total: 0, isLoading: false, isError: true, refetch: retry });
+      renderPage();
+      await userEvent.click(screen.getByRole('button', { name: 'Explorer le réseau' }));
+      expect(screen.getByRole('alert')).toHaveTextContent('Impossible de charger votre réseau');
+      await userEvent.click(screen.getByRole('button', { name: 'Réessayer le réseau' }));
+      expect(retry).toHaveBeenCalledOnce();
+    });
+
+    test('ouvre le réseau d’un filleul directement depuis la liste personnelle', async () => {
+      const branch = { ...treeNode, id: 'f1', client: { prenom: 'Amani', nom: 'Luhindi' }, hasMore: false };
+      const request = vi.spyOn(portalApi, 'getNetworkTree').mockResolvedValue(branch);
+      mockUsePortalReferralTree.mockReturnValue({ filleuls: [], matrixTree: { ...treeNode, children: [branch] }, total: 1, isLoading: false });
+      renderPage();
+      await userEvent.click(screen.getByRole('button', { name: 'Voir l’arbre de Amani Luhindi' }));
+      expect(await screen.findByText('Arbre de Amani Luhindi')).toBeInTheDocument();
+      expect(request).toHaveBeenCalledWith('f1', 2);
+      expect(screen.getByRole('button', { name: 'Explorer le réseau' })).toHaveAttribute('aria-pressed', 'true');
+      request.mockRestore();
+    });
+
     const TREE_NIVEAUX = [
       { id: 't1', prenom: 'Amani', nom: 'Luhindi', statut: 'ACTIF' as const,
         dateInscription: '2025-01-05T10:00:00Z', generation: 1 },
@@ -276,8 +300,8 @@ describe('PortalFilleulsPage', () => {
 
     test('24 — Toggle Liste/Arbre affiché, vue Liste par défaut', () => {
       renderPage();
-      expect(screen.getByRole('button', { name: 'Liste' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Arbre' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Mes filleuls' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Explorer le réseau' })).toBeInTheDocument();
       // En liste : les pastilles de filtre sont visibles, pas d'arbre
       expect(screen.getByRole('button', { name: 'Actifs' })).toBeInTheDocument();
       expect(screen.queryByTestId('tree-node-t1')).toBeNull();
@@ -288,7 +312,7 @@ describe('PortalFilleulsPage', () => {
         filleuls: TREE_NIVEAUX, total: TREE_NIVEAUX.length, isLoading: false,
       });
       renderPage();
-      await userEvent.click(screen.getByRole('button', { name: 'Arbre' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Explorer le réseau' }));
 
       const g1 = screen.getByTestId('tree-node-t1');
       const g2 = screen.getByTestId('tree-node-t2');
@@ -306,21 +330,21 @@ describe('PortalFilleulsPage', () => {
         filleuls: TREE_NIVEAUX, total: TREE_NIVEAUX.length, isLoading: false,
       });
       renderPage();
-      await userEvent.click(screen.getByRole('button', { name: 'Arbre' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Explorer le réseau' }));
       // t1 a 2 membres sous lui (t2 + t3)
       expect(within(screen.getByTestId('tree-node-t1')).getByText('2')).toBeInTheDocument();
     });
 
     test('27 — La vue Arbre demande le réseau complet (filter tous)', async () => {
       renderPage();
-      await userEvent.click(screen.getByRole('button', { name: 'Arbre' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Explorer le réseau' }));
       expect(mockUsePortalReferralTree).toHaveBeenCalledWith(true);
     });
 
     test('28 — Vue Arbre vide → message d\'encouragement au partage', async () => {
       mockUsePortalReferralTree.mockReturnValue({ filleuls: [], total: 0, isLoading: false });
       renderPage();
-      await userEvent.click(screen.getByRole('button', { name: 'Arbre' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Explorer le réseau' }));
       expect(screen.getByText(/personne n'est encore inscrit/i)).toBeInTheDocument();
     });
   });

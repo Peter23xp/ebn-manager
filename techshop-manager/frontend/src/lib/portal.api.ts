@@ -174,6 +174,9 @@ export interface PortalReferralsResponse {
 // ── API calls ─────────────────────────────────────────────────────────────────
 
 export const portalApi = {
+  getNetworkTree: (memberId: string, depth = 2): Promise<MatrixTreeNode> =>
+    api.get(`/portal/network/${encodeURIComponent(memberId)}/tree`, { params: { depth } }).then(response => response.data),
+
   getHomeData: (): Promise<PortalHomeData> =>
     api.get('/portal/me').then((r) => r.data),
 

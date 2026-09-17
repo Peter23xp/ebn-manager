@@ -251,7 +251,7 @@ function HowReferralWorks() {
 
 // ── Carte filleul ─────────────────────────────────────────────────────────────
 
-function FilleulCard({ filleul }: {
+function FilleulCard({ filleul, onExplore }: {
   filleul: {
     id: string; prenom: string; nom: string;
     statut: 'ACTIF' | 'EN_COURS' | 'SUSPENDU';
@@ -259,6 +259,7 @@ function FilleulCard({ filleul }: {
     generation?: number;
     recompenseGeneree?: number;
   };
+  onExplore: () => void;
 }) {
   const initials = `${filleul.prenom[0] ?? ''}${filleul.nom[0] ?? ''}`.toUpperCase();
 
@@ -301,6 +302,7 @@ function FilleulCard({ filleul }: {
         {filleul.statut === 'SUSPENDU' && (
           <p className="mt-0.5 text-xs text-red-500">Compte suspendu</p>
         )}
+        <button type="button" className="mt-2 inline-flex min-h-touch items-center gap-2 rounded-lg px-2 text-sm font-semibold text-primary-accent hover:bg-primary-light" aria-label={`Voir l’arbre de ${filleul.prenom} ${filleul.nom}`} onClick={onExplore}><Network size={16} />Voir son arbre</button>
       </div>
     </li>
   );
@@ -319,6 +321,7 @@ const FILTERS: { value: ReferralFilter; label: string }[] = [
 export default function PortalFilleulsPage() {
   const navigate = useNavigate();
   const [view, setView] = useState<'liste' | 'arbre'>('liste');
+  const [networkTarget, setNetworkTarget] = useState<{ id: string; name: string }>();
   const {
     codeParrain, stats,
     filleuls, filter, setFilter,
@@ -356,7 +359,7 @@ export default function PortalFilleulsPage() {
 
         {/* Section filleuls : vue Liste ou vue Arbre */}
         <div>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-subtle">
               Mes filleuls {stats ? `(${stats.nbFilleulsActifs} actifs)` : ''}
             </p>
@@ -366,33 +369,39 @@ export default function PortalFilleulsPage() {
                 onClick={() => setView('liste')}
                 aria-pressed={view === 'liste'}
                 className={cn(
-                  'flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
+                  'flex min-h-touch items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
                   view === 'liste' ? 'bg-bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text',
                 )}
               >
-                <List size={13} /> Liste
+                <List size={13} /> Mes filleuls
               </button>
               <button
                 type="button"
-                onClick={() => setView('arbre')}
+                onClick={() => { setNetworkTarget(undefined); setView('arbre'); }}
                 aria-pressed={view === 'arbre'}
                 className={cn(
-                  'flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
+                  'flex min-h-touch items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition-all duration-150',
                   view === 'arbre' ? 'bg-bg-card text-primary shadow-sm' : 'text-text-muted hover:text-text',
                 )}
               >
-                <Network size={13} /> Arbre
+                <Network size={13} /> Explorer le réseau
               </button>
             </div>
           </div>
 
           {view === 'arbre' ? (
+            tree.isError ? <div role="alert" className="rounded-lg border border-border p-4 text-sm text-text">
+              <p>Impossible de charger votre réseau. Vérifiez votre connexion.</p>
+              <button type="button" className="btn-secondary mt-3 min-h-touch" onClick={() => tree.refetch()}>Réessayer le réseau</button>
+            </div> :
             <ReferralTree
               nodes={tree.filleuls}
               matrixTree={tree.matrixTree}
               total={tree.total}
               isLoading={tree.isLoading}
               codeParrain={codeParrain}
+              snapshot={tree.snapshot}
+              initialMember={networkTarget}
             />
           ) : (
             <>
@@ -449,7 +458,7 @@ export default function PortalFilleulsPage() {
           {!isLoading && filleuls.length > 0 && (
             <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
               {filleuls.map((f) => (
-                <FilleulCard key={f.id} filleul={f} />
+                <FilleulCard key={f.id} filleul={f} onExplore={() => { setNetworkTarget({ id: f.id, name: `${f.prenom} ${f.nom}` }); setView('arbre'); }} />
               ))}
             </ul>
           )}
