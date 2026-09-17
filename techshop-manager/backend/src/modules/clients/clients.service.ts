@@ -426,6 +426,7 @@ export class ClientsService implements OnModuleInit {
 
     return {
       ...rest,
+      dateInscription: currentClient.createdAt,
       matricule: membre?.matricule ?? currentClient.codeParrain,
       site: siteInscription,
       membre,
