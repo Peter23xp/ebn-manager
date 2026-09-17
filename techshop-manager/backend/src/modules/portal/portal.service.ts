@@ -602,13 +602,13 @@ export class PortalService {
     tx: Prisma.TransactionClient,
     portefeuilleId: string,
   ): Promise<{ soldeDisponible: any; soldeReserve: any }> {
-    const rows = await tx.$queryRaw<Array<{ solde_disponible: any; solde_reserve: any }>>`
-      SELECT solde_disponible, solde_reserve FROM portefeuilles WHERE id = ${portefeuilleId} FOR UPDATE
+    const rows = await tx.$queryRaw<Array<{ soldeDisponible: any; soldeReserve: any }>>`
+      SELECT "soldeDisponible", "soldeReserve" FROM portefeuilles WHERE id = ${portefeuilleId} FOR UPDATE
     `;
     if (!rows.length) throw new BadRequestException({ code: 'ERR_NOT_FOUND', message: 'Portefeuille introuvable' });
     return {
-      soldeDisponible: rows[0].solde_disponible,
-      soldeReserve: rows[0].solde_reserve,
+      soldeDisponible: rows[0].soldeDisponible,
+      soldeReserve: rows[0].soldeReserve,
     };
   }
 

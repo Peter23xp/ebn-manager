@@ -1,0 +1,636 @@
+diff --git a/techshop-manager/backend/src/modules/mlm/mlm-matrix.service.ts b/techshop-manager/backend/src/modules/mlm/mlm-matrix.service.ts
+index cd64295..1115e83 100644
+--- a/techshop-manager/backend/src/modules/mlm/mlm-matrix.service.ts
++++ b/techshop-manager/backend/src/modules/mlm/mlm-matrix.service.ts
+@@ -77,19 +77,15 @@ export class MlmMatrixService {
+     const level1 = await this.prisma.mlmLevel.findFirst({ where: { ordre: 1 } });
+     if (!level1) throw new BadRequestException('MlmLevel niveau 1 introuvable — seed la DB d\'abord');
+ 
+-    // Generate matricule in AAAAMMJJXXXX format
++    // Prefixe du matricule AAAAMMJJXXXX
+     const now = new Date();
+-    const yyyy = now.getFullYear();
+-    const mm = String(now.getMonth() + 1).padStart(2, '0');
+-    const dd = String(now.getDate()).padStart(2, '0');
+-    const prefix = `${yyyy}${mm}${dd}`;
+-    const countToday = await this.prisma.membre.count({
+-      where: { matricule: { startsWith: prefix } },
+-    });
+-    const matricule = `${prefix}${String(countToday + 1).padStart(4, '0')}`;
++    const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+ 
+-    // Create member + wallet + matrix in a transaction
+-    await this.prisma.$transaction(async (tx) => {
++    // Deux activations simultanées le même jour peuvent calculer le même
++    // matricule (count + 1 non atomique) → collision P2002. Postgres avorte la
++    // transaction au premier échec : on rejoue donc la transaction ENTIÈRE
++    // (le corps est idempotent grâce aux guards findUnique/existing).
++    const run = () => this.prisma.$transaction(async (tx) => {
+       // If client didn't have parrainClientId set but we resolved it from parrainCode, persist it on Client
+       if (!client.parrainClientId && parrainMembreClientId) {
+         await tx.client.update({
+@@ -98,10 +94,13 @@ export class MlmMatrixService {
+         });
+       }
+ 
++      const countToday = await tx.membre.count({
++        where: { matricule: { startsWith: prefix } },
++      });
+       const membre = await tx.membre.create({
+         data: {
+           clientId,
+-          matricule,
++          matricule: `${prefix}${String(countToday + 1).padStart(4, '0')}`,
+           parrainId,
+           mlmLevelId: level1.id,
+           statut: 'ACTIF',
+@@ -129,6 +128,17 @@ export class MlmMatrixService {
+         await this._fillParrainPosition(tx, parrainId, membre.id, level1.id);
+       }
+     }, { timeout: 30000, maxWait: 10000 });
++
++    for (let attempt = 0; ; attempt++) {
++      try {
++        await run();
++        break;
++      } catch (err: any) {
++        const matriculeCollision =
++          err?.code === 'P2002' && String(err?.meta?.target ?? '').includes('matricule');
++        if (!matriculeCollision || attempt >= 4) throw err;
++      }
++    }
+   }
+ 
+   /**
+@@ -164,20 +174,37 @@ export class MlmMatrixService {
+ 
+     if (matrix.estComplete) return;
+ 
+-    const emptyPosition = matrix.positions.find((p) => !p.estValide);
+-    if (!emptyPosition) return;
++    // Idempotence : le même filleul ne doit jamais occuper deux positions.
++    if (matrix.positions.some((p) => p.estValide && p.filleulId === filleulId)) return;
++
++    // Réclamation atomique d'une position vide : updateMany avec le filtre
++    // estValide:false sérialise deux activations concurrentes sous le même
++    // parrain. Si la position visée a été prise entre-temps, on reprend une
++    // autre candidate (sinon on sort — matrice pleine pour cette transaction).
++    let claimedPosition = false;
++    for (let attempt = 0; attempt < matrix.positions.length + 1 && !claimedPosition; attempt++) {
++      const candidates = await tx.position.findMany({
++        where: { matrixId: matrix.id, estValide: false },
++        orderBy: { numeroPosition: 'asc' },
++      });
++      if (candidates.length === 0) return;
++      const claim = await tx.position.updateMany({
++        where: { id: candidates[0].id, estValide: false },
++        data: { filleulId, estValide: true, dateValidation: new Date() },
++      });
++      claimedPosition = claim.count === 1;
++    }
++    if (!claimedPosition) return;
+ 
+-    await tx.position.update({
+-      where: { id: emptyPosition.id },
+-      data: {
+-        filleulId,
+-        estValide: true,
+-        dateValidation: new Date(),
+-      },
+-    });
++    // ── Rémunération À CHAQUE filleul validé (règle « X USD / filleul ») ──
++    // Le parrain n'attend pas 4/4 : chaque filleul qui occupe une position
++    // génère sa propre commission, avec le split 60/40 du niveau.
++    await this._creditFilleulCommission(tx, parrainId, filleulId, mlmLevelId);
+ 
+-    const newFilleulsValides = matrix.filleulsValides + 1;
+-    const isNowComplete = newFilleulsValides >= 4;
++    // Compteur incrémenté (jamais absolu) pour rester correct si une autre
++    // transaction concurrente a validé une position du même entre-temps.
++    const freshMatrix = await tx.matrix.findUnique({ where: { id: matrix.id } }) as any;
++    const isNowComplete = Number(freshMatrix.filleulsValides) + 1 >= 4;
+ 
+     await tx.matrix.update({
+       where: { id: matrix.id },
+@@ -194,9 +221,81 @@ export class MlmMatrixService {
+   }
+ 
+   /**
+-   * OPTION B: Promote the member to the next level.
+-   * Creates a Commission record with EN_ATTENTE status (NO automatic wallet credit).
+-   * Wallet is only credited when admin validates the commission.
++   * Rémunération à CHAQUE filleul validé : crée une Commission VALIDEE de
++   * `commissionParFilleul` et crédite IMMÉDIATEMENT 100 % du portefeuille :
++   * - 60 % (montantSysteme) → soldeDisponible (retirable de suite)
++   * - 40 % (montantRetour)  → soldeReinvesti, bloqué J+30 (creditReinvestInTx)
++   * La validation admin ne porte plus sur la commission, uniquement sur les
++   * demandes de retrait. Idempotent via referenceId (parrain+filleul+niveau).
++   */
++  private async _creditFilleulCommission(
++    tx: Prisma.TransactionClient,
++    parrainId: string,
++    filleulId: string,
++    mlmLevelId: number,
++  ): Promise<void> {
++    const level = await tx.mlmLevel.findUnique({ where: { id: mlmLevelId } });
++    if (!level) return;
++
++    const commissionRef = `commission-${parrainId}-level${level.ordre}-${filleulId}`;
++    const existing = await tx.commission.findUnique({ where: { referenceId: commissionRef } });
++    if (existing) return;
++
++    const montantParFilleul = Number(level.commissionParFilleul);
++    const montantSysteme = Number(level.commissionSysteme);
++    const montantRetour = Number(level.commissionRetour);
++    // Repli pour un niveau sans split configuré : tout va dans la poche dispo.
++    const dispo = montantSysteme + montantRetour > 0 ? montantSysteme : montantParFilleul;
++    const retourn = montantSysteme + montantRetour > 0 ? montantRetour : 0;
++
++    const commission = await tx.commission.create({
++      data: {
++        membreId: parrainId,
++        filleulId,
++        mlmLevelId,
++        montant: montantParFilleul,
++        montantSysteme,
++        montantRetour,
++        statut: 'VALIDEE',
++        valideeAt: new Date(),
++        referenceId: commissionRef,
++        description: `Commission niveau ${level.nom} — filleul validé (${montantParFilleul} USD/filleul, split 60/40)`,
++      },
++    });
++
++    // Garantir l'existence du portefeuille avant les deux crédits
++    let portefeuille = await tx.portefeuille.findUnique({
++      where: { membreId: parrainId },
++      select: { id: true },
++    });
++    if (!portefeuille) {
++      await tx.portefeuille.create({
++        data: { membreId: parrainId, soldeDisponible: 0, totalGagne: 0 },
++      });
++    }
++
++    // 60 % → soldeDisponible, retirable immédiatement
++    if (dispo > 0) {
++      await this.walletService.creditWalletInTx(
++        tx,
++        parrainId,
++        dispo,
++        'COMMISSION',
++        commission.description,
++        commissionRef,
++      );
++    }
++
++    // 40 % → poche réinvestissement bloquée J+30
++    if (retourn > 0) {
++      await this.walletService.creditReinvestInTx(tx, parrainId, retourn, commission.id, level.nom);
++    }
++  }
++
++  /**
++   * Promotion au niveau suivant quand la matrice est complète (4/4).
++   * Ne crée AUCUNE commission : la rémunération est déjà versée à chaque
++   * filleul validé (voir _creditFilleulCommission), crédit immediate 100 %.
+    */
+   private async _triggerPromotion(
+     tx: Prisma.TransactionClient,
+@@ -238,46 +337,10 @@ export class MlmMatrixService {
+         },
+       });
+ 
+-      // OPTION B + AUTO-REINVESTISSEMENT: Create Commission EN_ATTENTE with split amounts.
+-      // montantSysteme (60%) stays pending until admin validates.
+-      // montantRetour (40%) is credited IMMEDIATELY to the member's wallet.
+-      const commissionRef = `commission-${membreId}-level${completedLevel.ordre}-${triggerFilleulId}`;
+-      const existingCommission = await tx.commission.findUnique({
+-        where: { referenceId: commissionRef },
+-      });
+-      if (!existingCommission) {
+-        const montantTotal = Number(completedLevel.commissionTotale);
+-        const montantSysteme = Number(completedLevel.commissionSysteme);
+-        const montantRetour = Number(completedLevel.commissionRetour);
+-
+-        const commission = await tx.commission.create({
+-          data: {
+-            membreId,
+-            filleulId: triggerFilleulId,
+-            mlmLevelId: completedLevelId,
+-            montant: montantTotal,
+-            montantSysteme,
+-            montantRetour,
+-            statut: 'EN_ATTENTE',
+-            referenceId: commissionRef,
+-            description: `Commission niveau ${completedLevel.nom} — 4 filleuls complétés`,
+-          },
+-        });
+-
+-        // Crédit 40 % → poche réinvestissement bloquée J+30 (voir creditReinvestInTx)
+-        if (montantRetour > 0) {
+-          let portefeuille = await tx.portefeuille.findUnique({
+-            where: { membreId },
+-            select: { id: true },
+-          });
+-          if (!portefeuille) {
+-            await tx.portefeuille.create({
+-              data: { membreId, soldeDisponible: 0, totalGagne: 0 },
+-            });
+-          }
+-          await this.walletService.creditReinvestInTx(tx, membreId, montantRetour, commission.id, completedLevel.nom);
+-        }
+-      }
++      // NOTE : la rémunération est versée À CHAQUE FILLEUL validé (voir
++      // _creditFilleulPosition → _creditFilleulCommission), pas à la complétion.
++      // Les 4 filleuls du niveau ont donc déjà généré 4 × montantParFilleul
++      // (= commissionTotale), split 60/40. Ne PAS re-créditer ici.
+ 
+       // Create BonusAttribue (physical bonus — also EN_ATTENTE by default)
+       await tx.bonusAttribue.create({
+@@ -462,11 +525,23 @@ export class MlmMatrixService {
+       this.prisma.commission.count({ where }),
+     ]);
+ 
++    // Résumé GLOBAL par statut (indépendant du filtre/pagination de la page)
++    const groups = await this.prisma.commission.groupBy({
++      by: ['statut'],
++      _count: { id: true },
++      _sum: { montant: true },
++    });
++    const summary: Record<string, { count: number; montant: number }> = {};
++    for (const g of groups) {
++      summary[g.statut] = { count: g._count.id, montant: Number(g._sum.montant ?? 0) };
++    }
++
+     return {
+       commissions: commissions.map((c) => ({
+         ...c,
+         montant: Number(c.montant),
+       })),
++      summary,
+       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+     };
+   }
+@@ -478,10 +553,16 @@ export class MlmMatrixService {
+       throw new BadRequestException(`Commission déjà traitée (statut: ${commission.statut})`);
+ 
+     return this.prisma.$transaction(async (tx) => {
+-      const updated = await tx.commission.update({
+-        where: { id: commissionId },
++      // Transition atomique EN_ATTENTE → VALIDEE : sans ce verrou, deux clics
++      // simultanés créditent deux fois le portefeuille.
++      const transition = await tx.commission.updateMany({
++        where: { id: commissionId, statut: 'EN_ATTENTE' },
+         data: { statut: 'VALIDEE', valideeAt: new Date() },
+       });
++      if (transition.count === 0) {
++        throw new BadRequestException('Commission déjà traitée (course)');
++      }
++      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
+ 
+       // Credit wallet with montantSysteme only: montantRetour was already auto-credited
+       // at commission creation (réinvestissement automatique).
+@@ -502,60 +583,98 @@ export class MlmMatrixService {
+     }, { timeout: 30000, maxWait: 10000 });
+   }
+ 
++  /**
++   * Simple marquage comptable : sous le modèle « crédit 100 % immédiat »,
++   * l'argent est déjà dans le portefeuille et le débit réel intervient à
++   * l'approbation du retrait (voir approveWithdrawalRequest). Ne PAS débiter
++   * ici — sinon double débit.
++   */
+   async payCommission(commissionId: string): Promise<any> {
+     const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+     if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
+     if (commission.statut !== 'VALIDEE')
+       throw new BadRequestException(`La commission doit être validée avant d'être marquée comme payée`);
+ 
+-    return this.prisma.$transaction(async (tx) => {
+-      const updated = await tx.commission.update({
+-        where: { id: commissionId },
+-        data: { statut: 'PAYEE', payeeAt: new Date() },
+-      });
+-
+-      // Débiter le portefeuille maintenant que la commission est payée
+-      const portefeuille = await tx.portefeuille.findUnique({
+-        where: { membreId: commission.membreId },
+-        select: { id: true, soldeDisponible: true },
+-      });
+-
+-      if (portefeuille) {
+-        const montantDecimal = new Prisma.Decimal(Number(commission.montant));
+-        
+-        await tx.portefeuille.update({
+-          where: { id: portefeuille.id },
+-          data: {
+-            soldeDisponible: { decrement: montantDecimal },
+-          },
+-        });
+-
+-        await tx.transactionPortefeuille.create({
+-          data: {
+-            portefeuilleId: portefeuille.id,
+-            type: 'DEBIT',
+-            montant: montantDecimal,
+-            description: `Paiement commission — ${commission.description}`,
+-            referenceId: commission.id,
+-          },
+-        });
+-      }
+-
+-      return { ...updated, montant: Number(updated.montant) };
+-    }, { timeout: 30000, maxWait: 10000 });
++    const updated = await this.prisma.commission.update({
++      where: { id: commissionId },
++      data: { statut: 'PAYEE', payeeAt: new Date() },
++    });
++    return { ...updated, montant: Number(updated.montant) };
+   }
+ 
++  /**
++   * Annulation comptable : comme le crédit est immédiat (modèle « 100 % au
++   * portefeuille »), annuler une commission RESTITUE l'argent au système.
++   * - 60 % non retirés → débit de soldeDisponible.
++   * - 40 % : lot J+30 encore bloqué → débit de soldeReinvesti + lot supprimé ;
++   *   lot déjà libéré → débit de soldeDisponible.
++   * Refusé si le membre a déjà retiré l'argent (solde insuffisant).
++   */
+   async cancelCommission(commissionId: string, notes?: string): Promise<any> {
+     const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+     if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
+     if (commission.statut === 'PAYEE')
+       throw new BadRequestException(`Impossible d'annuler une commission déjà payée`);
++    if (commission.statut === 'ANNULEE') return { ...commission, montant: Number(commission.montant) };
+ 
+-    const updated = await this.prisma.commission.update({
+-      where: { id: commissionId },
+-      data: { statut: 'ANNULEE', notes },
+-    });
+-    return { ...updated, montant: Number(updated.montant) };
++    return this.prisma.$transaction(async (tx) => {
++      // Transition atomique (EN_ATTENTE|VALIDEE) → ANNULEE : deux annulations
++      // simultanées ne doivent pas débiter deux fois.
++      const transition = await tx.commission.updateMany({
++        where: { id: commissionId, statut: { in: ['EN_ATTENTE', 'VALIDEE'] } },
++        data: { statut: 'ANNULEE', notes },
++      });
++      if (transition.count === 0) {
++        const already = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
++        return { ...already, montant: Number(already.montant) };
++      }
++
++      const pf = await tx.portefeuille.findUnique({ where: { membreId: commission.membreId } });
++      if (pf) {
++        // Restituer UNIQUEMENT ce qui a réellement été crédité (via le journal
++        // et les lots), sinon une commission jamais créditée (legacy EN_ATTENTE)
++        // creuserait un solde négatif.
++        const credits = await tx.transactionPortefeuille.findMany({
++          where: { referenceId: commission.referenceId, type: 'COMMISSION' },
++          select: { montant: true },
++        });
++        const dispoCredite = credits.reduce((s, c) => s.plus(new Prisma.Decimal(Number(c.montant))), new Prisma.Decimal(0));
++        const lots = await tx.reinvestLote.findMany({ where: { commissionId: commission.id } });
++        const bloques = lots.filter((l) => !l.released).reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
++        const lotsCredites = lots.reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
++        const liberes = lotsCredites.minus(bloques); // part 40 % déjà basculée en dispo
++        const aDebiterDispo = dispoCredite.plus(liberes);
++        const totalRestitue = dispoCredite.plus(lotsCredites);
++
++        if (Number(pf.soldeDisponible) < Number(aDebiterDispo) || Number(pf.soldeReinvesti) < Number(bloques)) {
++          throw new BadRequestException(
++            'Solde insuffisant pour annuler : le membre a déjà retiré une partie de cette commission.',
++          );
++        }
++        if (aDebiterDispo.gt(0) || bloques.gt(0)) {
++          await tx.portefeuille.update({
++            where: { id: pf.id },
++            data: {
++              soldeDisponible: { decrement: aDebiterDispo },
++              soldeReinvesti: { decrement: bloques },
++              totalGagne: { decrement: totalRestitue },
++            },
++          });
++          await tx.reinvestLote.deleteMany({ where: { commissionId: commission.id, released: false } });
++          await tx.transactionPortefeuille.create({
++            data: {
++              portefeuilleId: pf.id,
++              type: 'DEBIT',
++              montant: totalRestitue,
++              description: `Annulation commission — ${commission.description}`,
++              referenceId: commission.id,
++            },
++          });
++        }
++      }
++      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
++      return { ...updated, montant: Number(updated.montant) };
++    }, { timeout: 30000, maxWait: 10000 });
+   }
+ 
+   // ── Pending bonuses ─────────────────────────────────────────────────────────
+diff --git a/techshop-manager/backend/src/modules/mlm/mlm-wallet.service.ts b/techshop-manager/backend/src/modules/mlm/mlm-wallet.service.ts
+index 150a6d9..ae81ba9 100644
+--- a/techshop-manager/backend/src/modules/mlm/mlm-wallet.service.ts
++++ b/techshop-manager/backend/src/modules/mlm/mlm-wallet.service.ts
+@@ -163,21 +163,36 @@ export class MlmWalletService implements OnModuleInit {
+     const payout = await this.prisma.mlmPayout.findUnique({ where: { id: payoutId } });
+     if (!payout) throw new NotFoundException('Demande de retrait introuvable');
+     if (payout.statut !== MlmPayoutStatus.PENDING) throw new BadRequestException('Cette demande ne peut plus être annulée');
+-    await this.prisma.portefeuille.update({ where: { membreId: payout.membreId }, data: { soldeReserve: { decrement: payout.montant } } });
+-    return this.prisma.mlmPayout.update({ where: { id: payoutId }, data: { statut: MlmPayoutStatus.CANCELLED } });
++    await this.prisma.$transaction(async (tx) => {
++      // Transition atomique PENDING → CANCELLED : sans verrou, une annulation
++      // simultanée à une approbation décrémenterait la réserve deux fois.
++      const transition = await tx.mlmPayout.updateMany({
++        where: { id: payoutId, statut: MlmPayoutStatus.PENDING },
++        data: { statut: MlmPayoutStatus.CANCELLED },
++      });
++      if (transition.count === 0) throw new BadRequestException('Cette demande ne peut plus être annulée');
++      await tx.portefeuille.update({ where: { membreId: payout.membreId }, data: { soldeReserve: { decrement: payout.montant } } });
++    });
++    return this.prisma.mlmPayout.findUnique({ where: { id: payoutId } }) as any;
+   }
+ 
+   private async finalizePayout(transactionId: string, status: KpayTransactionStatus) {
+     const transaction = await this.prisma.kpayTransaction.findUnique({ where: { id: transactionId }, include: { payout: true } });
+     if (!transaction?.payout || !['PENDING', 'PROCESSING'].includes(transaction.payout.statut)) return;
+     await this.prisma.$transaction(async (tx) => {
++      // Transition atomique (PENDING|PROCESSING) → statut terminal : un webhook
++      // relu et une réconciliation simultanés ne doivent pas rembourser deux fois.
++      const transition = await tx.mlmPayout.updateMany({
++        where: { id: transaction.payout!.id, statut: { in: [MlmPayoutStatus.PENDING, MlmPayoutStatus.PROCESSING] } },
++        data: { statut: status as MlmPayoutStatus, completedAt: status === 'COMPLETED' ? new Date() : null, failureReason: status === 'COMPLETED' ? null : transaction.failureReason },
++      });
++      if (transition.count === 0) return;
+       const wallet = await tx.portefeuille.findUnique({ where: { membreId: transaction.payout!.membreId } });
+       if (!wallet) throw new NotFoundException('Portefeuille introuvable');
+       if (status !== 'COMPLETED') {
+         await tx.portefeuille.update({ where: { id: wallet.id }, data: { soldeDisponible: { increment: transaction.payout!.montant } } });
+         await tx.transactionPortefeuille.create({ data: { portefeuilleId: wallet.id, type: TransactionType.COMMISSION, montant: transaction.payout!.montant, description: 'Rétablissement après échec du retrait KPay', referenceId: transaction.id } });
+       }
+-      await tx.mlmPayout.update({ where: { id: transaction.payout!.id }, data: { statut: status as MlmPayoutStatus, completedAt: status === 'COMPLETED' ? new Date() : null, failureReason: status === 'COMPLETED' ? null : transaction.failureReason } });
+     });
+   }
+ 
+@@ -424,6 +439,17 @@ export class MlmWalletService implements OnModuleInit {
+       this.prisma.withdrawalRequest.count({ where }),
+     ]);
+ 
++    // Résumé GLOBAL par statut (indépendant du filtre/pagination affichés)
++    const groups = await this.prisma.withdrawalRequest.groupBy({
++      by: ['statut'],
++      _count: { id: true },
++      _sum: { montant: true },
++    });
++    const summary: Record<string, { count: number; montant: number }> = {};
++    for (const g of groups) {
++      summary[g.statut] = { count: g._count.id, montant: Number(g._sum.montant ?? 0) };
++    }
++
+     return {
+       requests: requests.map((r) => ({
+         id: r.id,
+@@ -472,6 +498,16 @@ export class MlmWalletService implements OnModuleInit {
+     }
+ 
+     return this.prisma.$transaction(async (tx) => {
++      // Transition atomique EN_ATTENTE → APPROUVE : le guard de statut doit être
++      // DANS la transaction (sinon deux admins / double-clic débitent deux fois).
++      const transition = await tx.withdrawalRequest.updateMany({
++        where: { id: withdrawalRequestId, statut: 'EN_ATTENTE' },
++        data: { statut: 'APPROUVE', approvedAt: new Date(), approvedById, notes: notes || request.notes },
++      });
++      if (transition.count === 0) {
++        throw new BadRequestException(`Cette demande a déjà été traitée (course: ${withdrawalRequestId})`);
++      }
++
+       const montant = new Prisma.Decimal(Number(request.montant));
+ 
+       const portefeuille = await tx.portefeuille.findUnique({
+@@ -552,6 +588,15 @@ export class MlmWalletService implements OnModuleInit {
+     }
+ 
+     return this.prisma.$transaction(async (tx) => {
++      // Transition atomique EN_ATTENTE → REJETE (empêche rejet+approbation simultanés)
++      const rejected = await tx.withdrawalRequest.updateMany({
++        where: { id: withdrawalRequestId, statut: 'EN_ATTENTE' },
++        data: { statut: 'REJETE', rejectReason, updatedAt: new Date() },
++      });
++      if (rejected.count === 0) {
++        throw new BadRequestException(`Cette demande a déjà été traitée (course: ${withdrawalRequestId})`);
++      }
++
+       // Restituer la réserve : l'argent redevient retirable
+       const pf = await tx.portefeuille.findUnique({ where: { membreId: request.membreId }, select: { id: true } });
+       if (pf) {
+@@ -562,11 +607,7 @@ export class MlmWalletService implements OnModuleInit {
+       }
+       return tx.withdrawalRequest.update({
+         where: { id: withdrawalRequestId },
+-        data: {
+-          statut: 'REJETE',
+-          rejectReason,
+-          updatedAt: new Date(),
+-        },
++        data: { statut: 'REJETE', rejectReason, updatedAt: new Date() },
+       });
+     });
+   }
+diff --git a/techshop-manager/backend/src/modules/mlm/reinvest-release.service.ts b/techshop-manager/backend/src/modules/mlm/reinvest-release.service.ts
+index 3b8f83a..e1d25e8 100644
+--- a/techshop-manager/backend/src/modules/mlm/reinvest-release.service.ts
++++ b/techshop-manager/backend/src/modules/mlm/reinvest-release.service.ts
+@@ -28,20 +28,28 @@ export class ReinvestReleaseService {
+     let released = 0;
+     for (const lot of lots) {
+       try {
+-        await this.prisma.$transaction(async (tx) => {
++        const moved = await this.prisma.$transaction(async (tx) => {
+           const pf = await tx.portefeuille.findUnique({
+             where: { membreId: lot.membreId },
+             select: { id: true },
+           });
+           if (!pf) throw new Error(`Portefeuille introuvable pour ${lot.membreId}`);
+           const amount = new Prisma.Decimal(lot.amount);
++          // Verrou : ne transférer que si cette instance passe bien released
++          // false → true. Deux cron (multi-réplicas) ne doivent pas doubler
++          // le transfert soldeReinvesti → soldeDisponible.
++          const claim = await tx.reinvestLote.updateMany({
++            where: { id: lot.id, released: false },
++            data: { released: true },
++          });
++          if (claim.count === 0) return false;
+           await tx.portefeuille.update({
+             where: { id: pf.id },
+             data: { soldeDisponible: { increment: amount }, soldeReinvesti: { decrement: amount } },
+           });
+-          await tx.reinvestLote.update({ where: { id: lot.id }, data: { released: true } });
++          return true;
+         });
+-        released++;
++        if (moved) released++;
+       } catch (err) {
+         this.logger.error(`Libération lot ${lot.id} échouée: ${err instanceof Error ? err.message : err}`);
+       }
+diff --git a/techshop-manager/backend/src/modules/portal/portal.service.ts b/techshop-manager/backend/src/modules/portal/portal.service.ts
+index c7386a3..1fc310f 100644
+--- a/techshop-manager/backend/src/modules/portal/portal.service.ts
++++ b/techshop-manager/backend/src/modules/portal/portal.service.ts
+@@ -402,12 +402,14 @@ export class PortalService {
+ 
+     // Plafond : uniquement la poche « retirable » (60 % validés + lots J+30 libérés),
+     // déduction faite de la réserve des demandes en attente.
++    // Le contrôle de cohérence est REFait DANS la transaction ci-dessous
++    // (le pré-check n'est qu'une expérience utilisateur anticipée).
+     const pf = membre.portefeuille;
+     const retirable = pf ? Number(pf.soldeDisponible) - Number(pf.soldeReserve) : 0;
+-    if (dto.montant > retirable) {
++    if (!(dto.montant > 0) || dto.montant > retirable) {
+       throw new BadRequestException({
+         code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
+-        message: `Retrait maximum : ${retirable.toFixed(2)} USD`,
++        message: `Retrait maximum : ${Math.max(0, retirable).toFixed(2)} USD`,
+       });
+     }
+ 
+@@ -426,6 +428,19 @@ export class PortalService {
+     // Réserver le montant + créer la demande (empêche deux demandes cumulées sur le même argent)
+     const request = await this.prisma.$transaction(async (tx) => {
+       if (pf) {
++        // Re-contrôle À FROID dans la transaction : le pré-check ci-dessus
++        // pourrait passer deux fois sous concurrence et surréserver le solde.
++        const fresh = await tx.portefeuille.findUnique({
++          where: { id: pf.id },
++          select: { soldeDisponible: true, soldeReserve: true },
++        });
++        const freshRetirable = Number(fresh?.soldeDisponible ?? 0) - Number(fresh?.soldeReserve ?? 0);
++        if (dto.montant > freshRetirable) {
++          throw new BadRequestException({
++            code: 'ERR_INSUFFICIENT_WITHDRAWABLE',
++            message: `Retrait maximum : ${Math.max(0, freshRetirable).toFixed(2)} USD`,
++          });
++        }
+         await tx.portefeuille.update({
+           where: { id: pf.id },
+           data: { soldeReserve: { increment: new Prisma.Decimal(dto.montant) } },
+@@ -542,6 +557,18 @@ export class PortalService {
+     }
+ 
+     return this.prisma.$transaction(async (tx) => {
++      // Transition atomique EN_ATTENTE → ANNULE : sans ce verrou, une
++      // annulation concurrente à une approbation restituerait la réserve deux fois.
++      const transition = await tx.withdrawalRequest.updateMany({
++        where: { id: requestId, statut: 'EN_ATTENTE' },
++        data: { statut: 'ANNULE' },
++      });
++      if (transition.count === 0) {
++        throw new BadRequestException({
++          code: 'ERR_NOT_CANCELLABLE',
++          message: 'Seules les demandes en attente peuvent être annulées',
++        });
++      }
+       // Restituer la réserve prise à la création de la demande
+       if (membre.portefeuille) {
+         await tx.portefeuille.update({

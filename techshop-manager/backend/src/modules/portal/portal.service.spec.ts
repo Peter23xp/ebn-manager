@@ -43,7 +43,7 @@ describe('PortalService', () => {
         findMany: jest.fn<any>().mockResolvedValue([]),
       },
       // SELECT ... FOR UPDATE (verrou de ligne portefeuille)
-      $queryRaw: jest.fn<any>().mockResolvedValue([{ solde_disponible: 120, solde_reserve: 20 }]),
+      $queryRaw: jest.fn<any>().mockResolvedValue([{ soldeDisponible: 120, soldeReserve: 20 }]),
       $transaction: jest.fn<any>(async (cb: any) => cb(prisma)),
     };
 

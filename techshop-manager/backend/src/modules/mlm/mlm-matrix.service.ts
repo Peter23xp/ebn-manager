@@ -692,8 +692,8 @@ export class MlmMatrixService {
         // Même ordre de verrous que le cron de libération (portefeuille →
         // lots) pour éviter l'interblocage ; le lock rend les lectures qui
         // suivent stables (check-then-decrement non verrouillé impossible).
-        const locked = await tx.$queryRaw<Array<{ solde_disponible: Prisma.Decimal; solde_reserve: Prisma.Decimal; solde_reinvesti: Prisma.Decimal }>>`
-          SELECT solde_disponible, solde_reserve, solde_reinvesti FROM portefeuilles WHERE id = ${pfRow.id} FOR UPDATE
+        const locked = await tx.$queryRaw<Array<{ soldeDisponible: Prisma.Decimal; soldeReserve: Prisma.Decimal; soldeReinvesti: Prisma.Decimal }>>`
+          SELECT "soldeDisponible", "soldeReserve", "soldeReinvesti" FROM portefeuilles WHERE id = ${pfRow.id} FOR UPDATE
         `;
         if (!locked.length) throw new BadRequestException('Portefeuille introuvable (course)');
         const [pf] = locked;
@@ -716,9 +716,9 @@ export class MlmMatrixService {
         // Solvabilité : le débit doit laisser soldeDisponible >= soldeReserve
         // (l'argent engagé dans une demande de retrait en attente n'est pas
         // réstituable — sinon l'approbation future serait insolvable).
-        const soldeDispo = Number(pf.solde_disponible);
-        const soldeReserve = Number(pf.solde_reserve);
-        const soldeReinvesti = Number(pf.solde_reinvesti);
+        const soldeDispo = Number(pf.soldeDisponible);
+        const soldeReserve = Number(pf.soldeReserve);
+        const soldeReinvesti = Number(pf.soldeReinvesti);
         const apresDebit = soldeDispo - Number(aDebiterDispo);
         if (apresDebit < soldeReserve || soldeReinvesti < Number(bloques)) {
           throw new BadRequestException(
