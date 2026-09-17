@@ -21,6 +21,11 @@ const ascent: PlacementHistory = {
   ...reconciliation, id: 'history-ascent', newParentId: 'grandparent', newPosition: 3,
   reason: 'Branche complète', operationType: 'AUTO_ASCEND',
 };
+const descent: PlacementHistory = {
+  ...reconciliation, id: 'history-descent', memberId: 'other-member',
+  oldParentId: 'grandparent', newParentId: 'parent', oldPosition: 3, newPosition: 2,
+  reason: 'Branche remplacée', operationType: 'AUTO_DESCEND',
+};
 let currentNode: MatrixTreeNode;
 let historyItems: PlacementHistory[];
 let client: QueryClient;
@@ -53,10 +58,11 @@ afterEach(() => {
 
 describe('Vérification administrative de la remontée automatique', () => {
   it('traduit les opérations de remontée dans l’historique sans masquer les autres opérations', async () => {
-    historyItems = [reconciliation, ascent, { ...reconciliation, id: 'history-move', operationType: 'MOVE' }];
+    historyItems = [reconciliation, ascent, descent, { ...reconciliation, id: 'history-move', operationType: 'MOVE' }];
     renderDetails();
     expect(await screen.findByText(/^Vérification de remontée ·/)).toBeInTheDocument();
     expect(screen.getByText(/^Remontée automatique ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^Descente après échange ·/)).toBeInTheDocument();
     expect(screen.getByText(/^MOVE ·/)).toBeInTheDocument();
   });
 
@@ -99,6 +105,7 @@ describe('Vérification administrative de la remontée automatique', () => {
     { label: 'réponse vide', result: [], message: 'Vérification terminée : aucune remontée effectuée.' },
     { label: 'marqueur seul', result: [reconciliation], message: 'Vérification terminée : aucune remontée effectuée.' },
     { label: 'une remontée', result: [reconciliation, ascent], message: 'Vérification terminée : 1 remontée automatique effectuée.' },
+    { label: 'un échange de branches', result: [reconciliation, ascent, descent], message: 'Vérification terminée : 1 remontée automatique effectuée.' },
     { label: 'remontées successives', result: [reconciliation, ascent, { ...ascent, id: 'history-ascent-2' }], message: 'Vérification terminée : 2 remontées automatiques effectuées.' },
   ])('distingue les mouvements effectifs : $label', async ({ result, message }) => {
     post.mockResolvedValue({ data: result });

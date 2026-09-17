@@ -1,5 +1,7 @@
 # Vérification de la remontée automatique MLM
 
+Le rapport initial ci-dessous décrit la première livraison. Le complément en fin de document remplace la règle de blocage systématique devant un grand-parent complet.
+
 ## Livraison locale
 
 - MlmPlacementService applique les remontées après placement, déplacement et échange, dans la transaction et sous le verrou existants.
@@ -40,3 +42,14 @@ Les fixtures négatives qui modifient activité/validation doivent aussi recalcu
 Deux lectures SQL ciblées, dans des transactions READ ONLY terminées par ROLLBACK, ont contrôlé le cas signalé. Le membre est à 4/4 et son parent matriciel à 3/4, mais la destination chez le grand-parent est déjà à 4/4. La remontée y est donc bloquée par la règle approuvée. Le lien recruteur est distinct du parent matriciel. Aucun déplacement, recalcul, changement financier ou autre écriture distante n'a été exécuté.
 
 Après déploiement, les nouveaux placements déclenchent automatiquement le moteur. Pour un membre déjà complet, utiliser « Vérifier la remontée » avec un rôle autorisé ; une destination pleine reste bloquante et ne provoque pas le déplacement forcé d'une autre branche.
+
+## Complément — échange entre branches, approuvé le 17 septembre 2026
+
+- Si aucune place libre n'existe chez le grand-parent, remplacer la moins remplie des trois autres branches ayant moins de quatre enfants matriciels. Exclure le propre parent du membre ; départager les égalités par position.
+- L'échange réutilise une primitive commune avec les échanges manuels. Les deux sous-arbres, recruteurs, états et dates de validation sont conservés. Historique AUTO_ASCEND/AUTO_DESCEND relié par une même clé ; le compteur de l'interface compte une seule remontée.
+- Tests écrits avant la modification : cinq échecs backend et un échec frontend observés sur les nouveaux comportements, puis corrigés.
+- Validation finale backend : `npm test -- --runInBand` avec la base synthétique loopback : **502 tests passés, 96 ignorés**, dont **34 scénarios de remontée/échange**. Couverture complémentaire de cascade après descente, conflits à la libération/au second placement, rollback manuel/automatique, concurrence, rejeu et commissions déjà créditées.
+- Validation frontend : **103 tests MLM passés**, compilation de production réussie. La suite frontend complète n'a pas été relancée pour ce complément ; les 21 échecs préexistants du rapport initial restent hors périmètre.
+- TypeScript backend et Prisma valides ; huit migrations locales appliquées, aucune différence de schéma. Audit final synthétique en lecture seule : aucun doublon, cycle, parent surchargé ou écart de compteurs/rangs.
+- Contrôle navigateur local à 390 et 1440 px avec API simulée : bouton, actualisation de la génération, recruteur conservé, vue liste, aucune erreur JavaScript ni débordement. Historique descendant et comptage d'un échange vérifiés par les tests de composant.
+- Revue indépendante sans défaut bloquant ; les deux compléments de couverture signalés sont intégrés. Aucun changement de schéma, aucune écriture distante, aucune purge. Ce complément est local, non commité et non déployé au moment de cette vérification.

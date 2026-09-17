@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { MlmLevel, Prisma } from '@prisma/client';
+import { MlmLevel, Position, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generationCapacity, generationProgress, MATRIX_GENERATIONS } from './mlm-generation';
 
@@ -81,6 +81,16 @@ export class MlmPlacementService {
     if (claimed.count !== 1) throw new ConflictException('Position occupee, recharger la matrice');
   }
 
+  private async exchangePositions(tx: Prisma.TransactionClient, first: Position, second: Position) {
+    const released = await tx.position.updateMany({
+      where: { OR: [{ id: first.id, filleulId: first.filleulId }, { id: second.id, filleulId: second.filleulId }] },
+      data: { filleulId: null, estValide: false, dateValidation: null },
+    });
+    if (released.count !== 2) throw new ConflictException('Les placements ont change pendant l echange');
+    await this.claim(tx, second.id, first.filleulId, first.estValide, first.dateValidation);
+    await this.claim(tx, first.id, second.filleulId, second.estValide, second.dateValidation);
+  }
+
   private async rejectCycle(tx: Prisma.TransactionClient, memberId: string, parentId: string) {
     if (memberId === parentId) throw new BadRequestException('Un membre ne peut pas etre son propre parent');
     const ancestors = await tx.$queryRaw<Array<{ id: string }>>`
@@ -154,9 +164,9 @@ export class MlmPlacementService {
       if (first.matrix.membre.statut !== 'ACTIF' || second.matrix.membre.statut !== 'ACTIF') throw new BadRequestException('Parent cible inactif');
       await this.rejectCycle(tx, first.filleulId, second.matrix.membreId);
       await this.rejectCycle(tx, second.filleulId, first.matrix.membreId);
-      await tx.position.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { filleulId: null, estValide: false, dateValidation: null } });
-      await this.claim(tx, second.id, first.filleulId, first.filleul.statut === 'ACTIF');
-      await this.claim(tx, first.id, second.filleulId, second.filleul.statut === 'ACTIF');
+      await this.exchangePositions(tx,
+        { ...first, estValide: first.filleul.statut === 'ACTIF', dateValidation: new Date() },
+        { ...second, estValide: second.filleul.statut === 'ACTIF', dateValidation: new Date() });
       for (const [from, to] of [[first, second], [second, first]]) {
         await tx.placementHistory.create({ data: {
           memberId: from.filleulId, recruiterId: from.filleul.parrainId,
@@ -211,22 +221,52 @@ export class MlmPlacementService {
         include: { matrix: { include: { membre: true, level: true, positions: { orderBy: { numeroPosition: 'asc' } } } } },
       });
       if (!parentPosition?.estValide || parentPosition.matrix.level.ordre !== 1 || parentPosition.matrix.membre.statut !== 'ACTIF') continue;
-      const destination = parentPosition.matrix.positions.find(slot => !slot.filleulId);
+      let destination = parentPosition.matrix.positions.find(slot => !slot.filleulId);
+      let displaced: { id: string; parrainId: string | null } | null = null;
+      let displacedChildren = 0;
+      if (!destination) {
+        const siblings = parentPosition.matrix.positions.filter(slot => slot.filleulId && slot.filleulId !== parent.id);
+        const branches = await tx.matrix.findMany({
+          where: { membreId: { in: siblings.map(slot => slot.filleulId) }, level: { ordre: 1 } },
+          select: { membreId: true, _count: { select: { positions: { where: { filleulId: { not: null } } } } } },
+        });
+        const counts = new Map(branches.map(branch => [branch.membreId, branch._count.positions]));
+        destination = siblings.filter(slot => counts.has(slot.filleulId) && counts.get(slot.filleulId) < generationCapacity(1))
+          .sort((first, second) => counts.get(first.filleulId) - counts.get(second.filleulId) || first.numeroPosition - second.numeroPosition)[0];
+        if (destination) {
+          displaced = await tx.membre.findUniqueOrThrow({ where: { id: destination.filleulId }, select: { id: true, parrainId: true } });
+          displacedChildren = counts.get(displaced.id);
+        }
+      }
       if (!destination) continue;
       const newParentId = parentPosition.matrix.membreId;
       await this.rejectCycle(tx, member.id, newParentId);
-      const released = await tx.position.updateMany({
-        where: { id: current.id, filleulId: member.id }, data: { filleulId: null, estValide: false, dateValidation: null },
-      });
-      if (released.count !== 1) throw new ConflictException('Le placement a change pendant la remontee');
-      await this.claim(tx, destination.id, member.id, current.estValide, current.dateValidation);
+      if (displaced) {
+        await this.rejectCycle(tx, displaced.id, parent.id);
+        await this.exchangePositions(tx, current, destination);
+      } else {
+        const released = await tx.position.updateMany({
+          where: { id: current.id, filleulId: member.id }, data: { filleulId: null, estValide: false, dateValidation: null },
+        });
+        if (released.count !== 1) throw new ConflictException('Le placement a change pendant la remontee');
+        await this.claim(tx, destination.id, member.id, current.estValide, current.dateValidation);
+      }
+      const ascentOperationId = `${operationId}:ascend:${member.id}:${current.id}:${destination.id}`;
+      const exchangeReason = displaced ? ` Echange avec la branche ${displaced.id} (${displacedChildren}/4 places occupees), hors propre parent ; egalite departagee par position.` : '';
       await tx.placementHistory.create({ data: {
         memberId: member.id, recruiterId: member.parrainId, oldParentId: parent.id, newParentId,
         oldPosition: current.numeroPosition, newPosition: destination.numeroPosition, actorId,
-        operationType: 'AUTO_ASCEND', operationId: `${operationId}:ascend:${member.id}:${current.id}:${destination.id}`,
-        reason: `Remontee automatique : 4/4 avant le parent matriciel (${occupied}/4). Evenement : ${operationId}. Membre declencheur : ${triggeringMemberId}`,
+        operationType: 'AUTO_ASCEND', operationId: ascentOperationId,
+        reason: `Remontee automatique : 4/4 avant le parent matriciel (${occupied}/4).${exchangeReason} Evenement : ${operationId}. Membre declencheur : ${triggeringMemberId}`,
+      } });
+      if (displaced) await tx.placementHistory.create({ data: {
+        memberId: displaced.id, recruiterId: displaced.parrainId, oldParentId: newParentId, newParentId: parent.id,
+        oldPosition: destination.numeroPosition, newPosition: current.numeroPosition, actorId,
+        operationType: 'AUTO_DESCEND', operationId: ascentOperationId,
+        reason: `Descente apres echange avec ${member.id} (4/4).${exchangeReason} Evenement : ${operationId}. Membre declencheur : ${triggeringMemberId}`,
       } });
       await this.updateDescendantTotals(tx, member.id, parent.id, newParentId);
+      if (displaced) await this.updateDescendantTotals(tx, displaced.id, newParentId, parent.id);
       await this.recalculateAncestors(tx, [parent.id, newParentId], triggeringMemberId, destination.id);
       await enqueueNeighborhood([member.id, parent.id, newParentId]);
     }

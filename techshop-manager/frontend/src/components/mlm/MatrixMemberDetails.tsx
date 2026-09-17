@@ -10,6 +10,7 @@ import { Pagination } from '@/components/ui/Pagination';
 
 const placementLabels: Record<string, string> = {
   AUTO_ASCEND: 'Remontée automatique',
+  AUTO_DESCEND: 'Descente après échange',
   RECONCILE: 'Vérification de remontée',
 };
 
@@ -72,7 +73,8 @@ function ReconcileAscents({ memberId }: { memberId: string }) {
   return <div className="space-y-3 border-t border-border pt-4">
     <h3 className="font-semibold text-text">Remontée automatique</h3>
     <p className="text-sm text-text-muted">Le serveur vérifie et applique les remontées possibles. Le sous-arbre et le recruteur sont conservés.</p>
-    <p className="text-sm text-text-muted">La remontée s’arrête devant un parent complet, une destination pleine ou inactive, ou à la racine.</p>
+    <p className="text-sm text-text-muted">Si le grand-parent a une place libre, elle est utilisée en priorité. Sinon, le membre échange sa place avec la moins remplie des trois autres branches : moins de 4 enfants matriciels, jamais son propre parent. À égalité, la première position est choisie. Chacun garde ses descendants et son recruteur.</p>
+    <p className="text-sm text-text-muted">La remontée s’arrête devant un parent complet, sans branche remplaçable, si la destination est inactive ou à la racine.</p>
     <button type="button" className="btn-secondary" disabled={mutation.isPending} onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>{mutation.isPending ? 'Vérification…' : 'Vérifier la remontée'}</button>
     {mutation.isError && <p role="alert" className="text-sm text-text">{(mutation.error as any)?.response?.data?.message ?? 'Vérification non confirmée. Réessayez.'}</p>}
     {mutation.isSuccess && <p role="status" className="text-sm text-text">Vérification terminée : {moves === 0 ? 'aucune remontée effectuée' : `${moves} remontée${moves > 1 ? 's' : ''} automatique${moves > 1 ? 's' : ''} effectuée${moves > 1 ? 's' : ''}`}.</p>}
