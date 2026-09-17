@@ -64,6 +64,7 @@ describe('core review boundary regressions', () => {
       membre: { findMany: jest.fn<any>().mockResolvedValue([]), count: jest.fn<any>().mockResolvedValue(0) },
       mlmLevel: { findMany: jest.fn<any>().mockResolvedValue([]) },
     };
+    prisma.$transaction = jest.fn<any>(async callback => callback(prisma));
     await new MlmService(prisma, {} as never).listMembers({ levelId: 101 });
     const where = { mlmLevelId: 101, matrices: { some: { mlmLevelId: 101, estComplete: true } } };
     expect(prisma.membre.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));

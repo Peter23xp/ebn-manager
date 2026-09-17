@@ -480,7 +480,6 @@ export class MlmService {
   }) {
     const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(100, Math.max(1, params.limit ?? 20));
-    const skip = (page - 1) * limit;
 
     const where: Prisma.MembreWhereInput = {};
     if (params.statut) where.statut = params.statut as any;
@@ -498,8 +497,16 @@ export class MlmService {
       ];
     }
 
+    return this.prisma.$transaction(
+      tx => this.readMembersList(where, page, limit, tx),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  private async readMembersList(where: Prisma.MembreWhereInput, page: number, limit: number, tx: Prisma.TransactionClient) {
+    const skip = (page - 1) * limit;
     const [membres, total] = await Promise.all([
-      this.prisma.membre.findMany({
+      tx.membre.findMany({
         where,
         skip,
         take: limit,
@@ -512,16 +519,36 @@ export class MlmService {
               client: { select: { id: true, prenom: true, nom: true } },
             },
           },
-          portefeuille: { select: { soldeDisponible: true, totalGagne: true } },
+          portefeuille: { select: { soldeDisponible: true, soldeReserve: true, totalGagne: true } },
           _count: { select: { filleuls: true } },
           matrices: { include: { level: true } },
-          matrixPosition: { include: { matrix: { select: { membreId: true } } } },
+          matrixPosition: { include: { matrix: { select: {
+            membreId: true,
+            membre: { select: { id: true, matricule: true, client: { select: { id: true, prenom: true, nom: true } } } },
+          } } } },
         },
       }),
-      this.prisma.membre.count({ where }),
+      tx.membre.count({ where }),
     ]);
 
-    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    const commissionGroups = membres.length ? await tx.commission.groupBy({
+      by: ['membreId', 'statut'],
+      where: { membreId: { in: membres.map(member => member.id) }, statut: { not: 'ANNULEE' } },
+      _sum: { montant: true },
+    }) : [];
+    const commissionSummaries = new Map<string, { generatedTotal: Prisma.Decimal; pendingTotal: Prisma.Decimal; validatedTotal: Prisma.Decimal }>();
+    for (const group of commissionGroups) {
+      const summary = commissionSummaries.get(group.membreId) ?? {
+        generatedTotal: new Prisma.Decimal(0), pendingTotal: new Prisma.Decimal(0), validatedTotal: new Prisma.Decimal(0),
+      };
+      const amount = group._sum.montant ?? new Prisma.Decimal(0);
+      summary.generatedTotal = summary.generatedTotal.plus(amount);
+      if (group.statut === 'EN_ATTENTE') summary.pendingTotal = summary.pendingTotal.plus(amount);
+      if (group.statut === 'VALIDEE' || group.statut === 'PAYEE') summary.validatedTotal = summary.validatedTotal.plus(amount);
+      commissionSummaries.set(group.membreId, summary);
+    }
+
+    const levels = await tx.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
     return {
       membres: membres.map((m) => ({
         id: m.id,
@@ -533,6 +560,7 @@ export class MlmService {
         currentLevel: generationProgress(levels, m.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), m.highestLevelAchieved).currentLevel,
         progression: generationProgress(levels, m.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), m.highestLevelAchieved),
         matrixParentId: m.matrixPosition?.matrix.membreId ?? null,
+        matrixParent: m.matrixPosition?.matrix.membre ?? null,
         position: m.matrixPosition?.numeroPosition ?? null,
         positionId: m.matrixPosition?.id ?? null,
         directMatrixChildrenCount: m.matrices.find(matrix => matrix.level.ordre === 1)?.occupiedPositions ?? 0,
@@ -544,10 +572,16 @@ export class MlmService {
         portefeuille: m.portefeuille
           ? {
               soldeDisponible: Number(m.portefeuille.soldeDisponible),
+              soldeDisponibleRetrait: new Prisma.Decimal(m.portefeuille.soldeDisponible).minus(m.portefeuille.soldeReserve).toNumber(),
               totalGagne: Number(m.portefeuille.totalGagne),
             }
           : null,
         nbFilleuls: m._count.filleuls,
+        commissionSummary: {
+          generatedTotal: commissionSummaries.get(m.id)?.generatedTotal.toFixed(2) ?? '0.00',
+          pendingTotal: commissionSummaries.get(m.id)?.pendingTotal.toFixed(2) ?? '0.00',
+          validatedTotal: commissionSummaries.get(m.id)?.validatedTotal.toFixed(2) ?? '0.00',
+        },
       })),
       meta: {
         total,

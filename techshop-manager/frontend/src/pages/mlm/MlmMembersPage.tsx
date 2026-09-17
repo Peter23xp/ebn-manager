@@ -94,6 +94,9 @@ export default function MlmMembersPage() {
 
       {/* Table */}
       <div className="rounded-xl border border-border bg-bg-card shadow-card overflow-hidden">
+        <p className="px-6 py-3 text-xs text-text-muted border-b border-border">
+          Les commissions à valider ne sont pas encore créditées. Les gains crédités incluent les montants retenus.
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -150,7 +153,16 @@ export default function MlmMembersPage() {
                         <span className="text-xs text-text-subtle italic">—</span>
                       )}
                       <p className="text-xs text-text-muted mt-1">Parent matriciel :</p>
-                      <p className="text-xs text-text break-all">{m.matrixParentId ?? (m.matrixParentId === null ? 'Racine' : 'Non fourni')}</p>
+                      {m.matrixParent ? (
+                        <div>
+                          <Link to={`/mlm/members/${m.matrixParent.id}`} className="inline-flex min-h-11 items-center text-xs font-semibold text-primary-accent hover:underline">
+                            {m.matrixParent.client.prenom} {m.matrixParent.client.nom}
+                          </Link>
+                          <p className="text-[11px] text-text-muted font-mono">{m.matrixParent.matricule}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-text">{m.matrixParentId === null ? 'Racine' : 'Parent non fourni'}</p>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {m.currentLevel !== undefined ? <MlmLevelBadge level={m.currentLevel?.ordre ?? null} name={m.currentLevel?.nom} size="sm" /> : <span className="text-xs text-text-muted">Rang non fourni</span>}
@@ -159,8 +171,21 @@ export default function MlmMembersPage() {
                       <p>{m.personalRecruitCount ?? m.nbFilleuls ?? '—'} recrutements personnels directs</p>
                       <p className="text-xs text-text-muted">{m.directMatrixChildrenCount ?? '—'} enfants matriciels · {m.totalDescendants ?? '—'} descendants</p>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs font-bold text-success">
-                      {m.portefeuille ? formatUSD(m.portefeuille.totalGagne) : '—'}
+                    <td className="px-6 py-4 text-xs">
+                      <div className="space-y-1 min-w-52">
+                        {m.portefeuille ? (
+                          <>
+                            <p className="font-semibold text-success">Gains crédités : <span className="font-mono">{formatUSD(m.portefeuille.totalGagne)}</span></p>
+                            <p className="text-text">Disponibles : <span className="font-mono">{m.portefeuille.soldeDisponibleRetrait != null ? formatUSD(m.portefeuille.soldeDisponibleRetrait) : 'Non fourni'}</span></p>
+                          </>
+                        ) : <p className="text-text-muted">Portefeuille non disponible</p>}
+                        {m.commissionSummary ? (
+                          <>
+                            <p className="text-text">Commissions générées : <span className="font-mono">{formatUSD(Number(m.commissionSummary.generatedTotal))}</span></p>
+                            <p className="text-text">À valider : <span className="font-mono">{formatUSD(Number(m.commissionSummary.pendingTotal))}</span></p>
+                          </>
+                        ) : <p className="text-text-muted">Commissions non fournies</p>}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-xs text-text-muted">
                       {formatDate(m.dateActivation)}

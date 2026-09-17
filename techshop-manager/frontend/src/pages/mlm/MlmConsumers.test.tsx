@@ -47,7 +47,8 @@ describe('Task 6 — consommateurs MLM et portail', () => {
   it('la liste des membres ne présente pas le niveau technique comme acquis', async () => {
     renderMlm(<MlmMembersPage />);
     expect(await screen.findByText('Builder en cours')).toBeInTheDocument();
-    expect(screen.getByText('parent-id')).toBeInTheDocument();
+    expect(screen.getByText('Parent non fourni')).toBeInTheDocument();
+    expect(screen.queryByText('parent-id')).not.toBeInTheDocument();
     expect(screen.getByText(/7 recrutements personnels directs/)).toBeInTheDocument();
   });
 
