@@ -22,6 +22,7 @@ import { PortalAuthService } from '../portal/portal-auth.service';
 import { MailerService } from '../mailer/mailer.service';
 import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 import { MlmClaimService, invoiceCodeSeq, matchesInvoiceCode } from '../mlm/mlm-claim.service';
+import { MlmPlacementService } from '../mlm/mlm-placement.service';
 
 @Injectable()
 export class ClientsService implements OnModuleInit {
@@ -33,6 +34,7 @@ export class ClientsService implements OnModuleInit {
     private readonly kpay: KpayService,
     private readonly kpayWebhooks: KpayWebhookService,
     private readonly mlmClaimService: MlmClaimService,
+    private readonly mlmPlacementService: MlmPlacementService,
   ) {}
 
   onModuleInit() {
@@ -1014,7 +1016,19 @@ export class ClientsService implements OnModuleInit {
     }
     const externalId = `ONB-RECIT-${randomUUID()}`;
     const pending = await this.prisma.$transaction(async (tx) => {
-      const client = existingClient ?? await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: kpayParrainId, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
+      await this.mlmPlacementService.lock(tx);
+      const resumedClient = existingClient ? await tx.client.findUnique({
+        where: { id: existingClient.id },
+        include: { onboardingEtapes: true, filleulClaim: true, membre: { select: { parrain: { select: { clientId: true } } } } },
+      }) : null;
+      if (existingClient && !resumedClient) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Client introuvable' });
+      if (resumedClient && kpayParrainId) {
+        const recruiters = [resumedClient.parrainClientId, resumedClient.membre?.parrain?.clientId, resumedClient.filleulClaim?.parrainClientId];
+        if (recruiters.some(recruiterId => recruiterId && recruiterId !== kpayParrainId)) {
+          throw new ConflictException({ code: 'ERR_CONFLICT', message: 'Ce client possède déjà un autre parrain ou une autre réclamation de parrainage' });
+        }
+      }
+      const client = resumedClient ?? await tx.client.create({ data: { prenom: dto.prenom, nom: dto.nom, telephone: dto.telephone, email: dto.email, parrainClientId: kpayParrainId, siteInscriptionId: dto.siteId, createdById: dto.agentId, statut: StatutClient.EN_COURS } });
       if (kpayParrainEnCours) {
         await tx.parrainClaim.upsert({
           where: { filleulClientId: client.id },
@@ -1030,7 +1044,7 @@ export class ClientsService implements OnModuleInit {
       const etape = await tx.onboardingEtape.upsert({ where: { clientId_etape: { clientId: client.id, etape: EtapeOnboarding.RECIT } }, create: { etape: EtapeOnboarding.RECIT, statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, clientId: client.id, agentId: dto.agentId, siteId: dto.siteId }, update: { statut: StatutEtape.EN_COURS, montant: dto.montantRecit, modePaiement: ModePaiement.MPESA, agentId: dto.agentId, notes: null } });
       const transaction = await tx.kpayTransaction.create({ data: { operationType: KpayOperationType.ONBOARDING_PAYMENT, status: KpayTransactionStatus.PENDING, amount: dto.montantRecit, currency: 'CDF', externalId, provider: dto.provider, phoneNumber: dto.phoneNumber, onboardingEtapeId: etape.id, metadata: { recit: true, clientId: client.id, onboardingEtapeId: etape.id } } });
       return { client, transaction };
-    });
+    }, { timeout: 30000, maxWait: 10000 });
     let payment;
     try {
       payment = await this.kpay.initDeposit({ amount: dto.montantRecit, currency: 'CDF', provider: dto.provider as any, phoneNumber: dto.phoneNumber, externalId, description: `Récit onboarding ${dto.prenom} ${dto.nom}` });

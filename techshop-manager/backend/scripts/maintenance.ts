@@ -11,7 +11,7 @@ export const DELETE_TABLES = [
   'membres', 'matrices', 'positions', 'placement_history', 'portefeuilles',
   'transactions_portefeuille', 'mlm_payouts', 'kpay_transactions', 'promotions',
   'bonus_attribues', 'salaires_verses', 'bonus_retraites', 'commissions',
-  'parrain_claims', 'withdrawal_requests', 'reinvest_lots', 'categories', 'password_reset_tokens',
+  'parrain_claims', 'client_parrain_attributions', 'withdrawal_requests', 'reinvest_lots', 'categories', 'password_reset_tokens',
 ];
 export const PRESERVE_TABLES = ['config_generale', 'mlm_levels', 'mlm_calendar_years', '_prisma_migrations'];
 const requiredTables = ['utilisateurs', 'sites', 'config_generale', 'kpay_transactions', 'mlm_payouts', 'withdrawal_requests'];
@@ -21,6 +21,7 @@ const reviewedForeignKeys: Record<string, string[]> = {
   bonus_attribues: ['membreId:membres:r', 'mlmLevelId:mlm_levels:r'],
   bonus_retraites: ['filleulCrownId:membres:r', 'membreId:membres:r'],
   clients: ['createdById:utilisateurs:r', 'parrainClientId:clients:n', 'siteInscriptionId:sites:r'],
+  client_parrain_attributions: ['clientId:clients:r', 'parrainClientId:clients:r', 'actorId:utilisateurs:r'],
   commissions: ['filleulId:membres:r', 'membreId:membres:r', 'mlmLevelId:mlm_levels:r', 'matrixId:matrices:n', 'positionId:positions:n'],
   kpay_transactions: ['onboardingEtapeId:onboarding_etapes:n', 'payoutId:mlm_payouts:n', 'retourId:retours:n', 'venteId:ventes:n'],
   lignes_retour: ['produitId:produits:r', 'retourId:retours:r'],

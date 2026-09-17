@@ -18,6 +18,7 @@ interface CodeParrainInputProps {
   currentClientPhone?: string;
   disabled?: boolean;
   error?: string;
+  allowedStatuses?: readonly string[];
 }
 
 export function CodeParrainInput({
@@ -26,6 +27,7 @@ export function CodeParrainInput({
   currentClientPhone,
   disabled,
   error,
+  allowedStatuses,
 }: CodeParrainInputProps) {
   // Texte tapé par l'utilisateur (matricule ou nom)
   const [query, setQuery] = useState('');
@@ -78,7 +80,9 @@ export function CodeParrainInput({
           `/clients/search-parrain?q=${encodeURIComponent(query.trim())}`,
         );
         if (!active) return;
-        setResults(res.data.results ?? []);
+        setResults((res.data.results ?? []).filter(parrain =>
+          !allowedStatuses || allowedStatuses.includes(parrain.statut ?? ''),
+        ));
         setOpen(true);
       } catch {
         if (active) setResults([]);
@@ -91,7 +95,7 @@ export function CodeParrainInput({
       active = false;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, value]);
+  }, [query, value, allowedStatuses]);
 
   const handleSelect = (parrain: ParrainResult) => {
     // Anti auto-parrainage
@@ -191,6 +195,7 @@ export function CodeParrainInput({
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(r); }}
+                onClick={(event) => { if (event.detail === 0) handleSelect(r); }}
                 className="w-full text-left px-3 py-2.5 text-[13px] hover:bg-primary-accent/10 transition-colors flex items-center gap-2"
               >
                 <span className="font-mono font-semibold text-primary">{r.codeParrain}</span>

@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { ClientRecruiterAssignment } from '@/components/clients/ClientRecruiterAssignment';
 import { api } from '@/lib/api';
 import type { ClientDetail } from '@/lib/clients.api';
 
@@ -283,6 +284,8 @@ export function ClientInfoTab({ client }: ClientInfoTabProps) {
           </div>
         </div>
       </div>
+
+      <ClientRecruiterAssignment client={client} />
 
       {/* PIN portail — uniquement pour les clients ACTIF */}
       {client.statut === 'ACTIF' && (

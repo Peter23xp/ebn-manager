@@ -51,9 +51,12 @@ export interface ClientDetail extends Client {
   membre: {
     matricule: string;
     statut: string;
+    parrainId?: string | null;
     level: Pick<MlmLevel, 'ordre' | 'nom' | 'couleur' | 'icone'> | null;
   } | null;
   parrain: { id: string; prenom: string; nom: string; matricule?: string; codeParrain?: string; telephone?: string; siteNom?: string } | null;
+  parrainClientId?: string | null;
+  parrainClaim?: { id: string; statut: string; parrain?: { nomComplet?: string } } | null;
   onboardingEtapes: OnboardingEtapeDetail[];
   ventes: AchatRow[];
   hasTransactions: boolean;
@@ -125,6 +128,21 @@ export interface UpdateClientDto {
   notes?: string;
 }
 
+export interface AssignClientParrainDto {
+  codeParrain: string;
+  reason: string;
+}
+
+export interface ClientParrainAttribution {
+  id: string;
+  clientId: string;
+  parrainClientId: string;
+  reason: string;
+  createdAt: string;
+  actor: { id: string; nom: string };
+  parrain: { id: string; prenom: string; nom: string; statut: StatutClient };
+}
+
 export interface ImportPreviewRow {
   ligne: number;
   matricule: string;
@@ -192,6 +210,13 @@ export const clientsApi = {
 
   update: (id: string, body: UpdateClientDto) =>
     api.patch<{ client: Client }>(`/clients/${id}`, body).then((r) => r.data),
+
+  getParrainAttribution: (id: string) =>
+    api.get<ClientParrainAttribution | null | ''>(`/clients/${id}/parrain/attribution`)
+      .then((response) => response.data || null),
+
+  assignParrain: (id: string, body: AssignClientParrainDto) =>
+    api.post<ClientParrainAttribution>(`/clients/${id}/parrain`, body).then((response) => response.data),
 
   // SCR-007 — Onboarding étape 1
   createOnboardingRecit: (body: OnboardingRecitDto) =>

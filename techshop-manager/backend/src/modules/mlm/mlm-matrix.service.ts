@@ -17,55 +17,63 @@ export class MlmMatrixService {
   async onClientActivated(clientId: string, parrainCode?: string): Promise<void> {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        await this.prisma.$transaction(async tx => {
-          await this.placementService.lock(tx);
-          const client = await tx.client.findUnique({ where: { id: clientId } });
-          if (!client) throw new NotFoundException('Client introuvable');
-          if (client.statut !== 'ACTIF') throw new BadRequestException('Le client doit etre actif avant placement');
-          const identifier = parrainCode || client.parrainClientId;
-          const recruiter = identifier ? await tx.membre.findFirst({
-            where: { OR: [
-              { id: identifier }, { clientId: identifier }, { matricule: identifier },
-              { client: { id: identifier } }, { client: { codeParrain: identifier } },
-              { client: { matriculeExterne: identifier } },
-            ] },
-          }) : null;
-          let member = await tx.membre.findUnique({ where: { clientId } });
-          if (recruiter?.clientId === clientId) throw new BadRequestException('Auto-parrainage interdit');
-          if (member?.parrainId && recruiter && member.parrainId !== recruiter.id) throw new BadRequestException('Le recruteur original ne peut pas etre remplace');
-          const level = await tx.mlmLevel.findFirst({ where: { ordre: 1 } });
-          if (!level) throw new BadRequestException('Configurer les huit niveaux MLM avant activation');
-          if (!member) {
-            const now = new Date();
-            const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-            const occupied = new Set((await tx.membre.findMany({
-              where: { matricule: { startsWith: prefix } }, select: { matricule: true },
-            })).map(existing => existing.matricule));
-            const available = Array.from({ length: 10000 }, (_, suffix) => prefix + String(suffix).padStart(4, '0'))
-              .filter(candidate => !occupied.has(candidate));
-            if (!available.length) throw new ConflictException('Tous les matricules du jour sont attribues');
-            const matricule = available[randomInt(available.length)];
-            member = await tx.membre.create({ data: {
-              clientId, matricule, parrainId: recruiter?.id, mlmLevelId: level.id, statut: 'ACTIF',
-            } });
-            await tx.portefeuille.create({ data: { membreId: member.id } });
-            await tx.matrix.create({ data: {
-              membreId: member.id, mlmLevelId: level.id,
-              positions: { createMany: { data: [1, 2, 3, 4].map(numeroPosition => ({ numeroPosition })) } },
-            } });
-          } else if (!member.parrainId && recruiter) {
-            member = await tx.membre.update({ where: { id: member.id }, data: { parrainId: recruiter.id } });
-          }
-          if (!client.parrainClientId && recruiter) {
-            await tx.client.update({ where: { id: clientId }, data: { parrainClientId: recruiter.clientId } });
-          }
-          if (member.parrainId) await this.placementService.place(tx, member.id, member.parrainId);
-        }, { timeout: 30000, maxWait: 10000 });
+        await this.prisma.$transaction(
+          tx => this.onClientActivatedInTx(tx, clientId, parrainCode),
+          { timeout: 30000, maxWait: 10000 },
+        );
         return;
       } catch (error) {
         if (attempt < 4 && (error?.code === 'P2034' || (error?.code === 'P2002' && String(error?.meta?.target).includes('matricule')))) continue;
         throw error;
       }
+    }
+  }
+
+  async onClientActivatedInTx(tx: Prisma.TransactionClient, clientId: string, parrainCode?: string, actorId?: string): Promise<void> {
+    await this.placementService.lock(tx);
+    const client = await tx.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('Client introuvable');
+    if (client.statut !== 'ACTIF') throw new BadRequestException('Le client doit etre actif avant placement');
+    const identifier = parrainCode || client.parrainClientId;
+    const recruiter = identifier ? await tx.membre.findFirst({
+      where: { OR: [
+        { id: identifier }, { clientId: identifier }, { matricule: identifier },
+        { client: { id: identifier } }, { client: { codeParrain: identifier } },
+        { client: { matriculeExterne: identifier } },
+      ] },
+    }) : null;
+    let member = await tx.membre.findUnique({ where: { clientId } });
+    if (recruiter?.clientId === clientId) throw new BadRequestException('Auto-parrainage interdit');
+    if (member?.parrainId && recruiter && member.parrainId !== recruiter.id) throw new BadRequestException('Le recruteur original ne peut pas etre remplace');
+    const level = await tx.mlmLevel.findFirst({ where: { ordre: 1 } });
+    if (!level) throw new BadRequestException('Configurer les huit niveaux MLM avant activation');
+    if (!member) {
+      const now = new Date();
+      const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      const occupied = new Set((await tx.membre.findMany({
+        where: { matricule: { startsWith: prefix } }, select: { matricule: true },
+      })).map(existing => existing.matricule));
+      const available = Array.from({ length: 10000 }, (_, suffix) => prefix + String(suffix).padStart(4, '0'))
+        .filter(candidate => !occupied.has(candidate));
+      if (!available.length) throw new ConflictException('Tous les matricules du jour sont attribues');
+      const matricule = available[randomInt(available.length)];
+      member = await tx.membre.create({ data: {
+        clientId, matricule, parrainId: recruiter?.id, mlmLevelId: level.id, statut: 'ACTIF',
+      } });
+      await tx.portefeuille.create({ data: { membreId: member.id } });
+      await tx.matrix.create({ data: {
+        membreId: member.id, mlmLevelId: level.id,
+        positions: { createMany: { data: [1, 2, 3, 4].map(numeroPosition => ({ numeroPosition })) } },
+      } });
+    } else if (!member.parrainId && recruiter) {
+      member = await tx.membre.update({ where: { id: member.id }, data: { parrainId: recruiter.id } });
+    }
+    if (!client.parrainClientId && recruiter) {
+      await tx.client.update({ where: { id: clientId }, data: { parrainClientId: recruiter.clientId } });
+    }
+    if (member.parrainId) {
+      if (actorId) await this.placementService.place(tx, member.id, member.parrainId, actorId);
+      else await this.placementService.place(tx, member.id, member.parrainId);
     }
   }
 

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
-import { StatutClient } from '@prisma/client';
+import { Prisma, StatutClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MlmMatrixService } from './mlm-matrix.service';
 
@@ -47,10 +47,10 @@ export class MlmClaimService {
    * Résout un parrain par codeParrain, matricule Membre, ou téléphone
    * (l'agent peut saisir le téléphone d'un parrain non encore activé).
    */
-  async resolveParrain(identifier: string): Promise<ParrainResolution | null> {
+  async resolveParrain(identifier: string, tx: Prisma.TransactionClient = this.prisma): Promise<ParrainResolution | null> {
     const term = identifier.trim();
     if (!term) return null;
-    const parrain = await this.prisma.client.findFirst({
+    const parrain = await tx.client.findFirst({
       where: {
         OR: [
           { codeParrain: term },

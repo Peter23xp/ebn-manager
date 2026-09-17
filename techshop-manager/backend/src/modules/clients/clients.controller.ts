@@ -15,6 +15,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientsService } from './clients.service';
+import { ClientParrainService } from './client-parrain.service';
+import { AssignParrainDto } from './dto/assign-parrain.dto';
 import { UpdateClientDto, OnboardingFormationDto, OnboardingFicheDto, OnboardingActivateDto, InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -25,7 +27,19 @@ import { Role } from '@prisma/client';
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(private readonly clientsService: ClientsService, private readonly clientParrain: ClientParrainService) {}
+
+  @Post(':id/parrain')
+  @Roles(Role.GERANT)
+  assignParrain(@Param('id') id: string, @Body() dto: AssignParrainDto, @CurrentUser() user: any) {
+    return this.clientParrain.assign(id, dto, user);
+  }
+
+  @Get(':id/parrain/attribution')
+  @Roles(Role.GERANT)
+  getParrainAttribution(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.clientParrain.getAttribution(id, user);
+  }
 
   @Get()
   @Roles(Role.AGENT)

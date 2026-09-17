@@ -228,6 +228,7 @@ model Utilisateur {
   etapesValidees    OnboardingEtape[]
   entreesStock      MouvementStock[]
   transfertsInities TransfertStock[]  @relation("TransfertInitiateur")
+  parrainAttributions ClientParrainAttribution[]
 
   @@map("utilisateurs")
 }
@@ -267,6 +268,8 @@ model Client {
   filleulsParrainage Client[]          @relation("ClientParrainage")
   filleulClaim       ParrainClaim?     @relation("ClaimFilleul")
   parrainClaims      ParrainClaim[]    @relation("ClaimParrain")
+  parrainAttribution ClientParrainAttribution? @relation("AttributionFilleul")
+  attributionsRecues ClientParrainAttribution[] @relation("AttributionParrain")
 
   @@map("clients")
 }
@@ -274,6 +277,21 @@ model Client {
 // ============================================
 // ONBOARDING
 // ============================================
+
+model ClientParrainAttribution {
+  id              String      @id @default(uuid())
+  clientId        String      @unique
+  parrainClientId String
+  actorId         String
+  reason          String
+  createdAt       DateTime    @default(now())
+  client          Client      @relation("AttributionFilleul", fields: [clientId], references: [id])
+  parrain         Client      @relation("AttributionParrain", fields: [parrainClientId], references: [id])
+  actor           Utilisateur @relation(fields: [actorId], references: [id])
+
+  @@index([parrainClientId])
+  @@map("client_parrain_attributions")
+}
 
 model OnboardingEtape {
   id                   String          @id @default(uuid())

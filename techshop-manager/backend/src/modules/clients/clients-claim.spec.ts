@@ -53,6 +53,7 @@ describe('Enregistrement filleul — parrain EN_COURS → claim', () => {
       { initDeposit: jest.fn<any>() } as any, // kpay
       { registerFinalizer: jest.fn<any>() } as any, // kpayWebhooks
       mlmClaim as any, // mlmClaimService
+      { lock: jest.fn<any>() } as any,
     );
   });
 
@@ -120,6 +121,7 @@ describe('Enregistrement filleul — parrain EN_COURS → claim', () => {
       { onClientActivated: jest.fn<any>() } as any,
       kpay as any, { registerFinalizer: jest.fn<any>() } as any,
       mlmClaim as any,
+      { lock: jest.fn<any>() } as any,
     );
     // requireConfiguredAdminPhone passe si KPAY_CONFIGURED — on stub la méthode privée
     (service as any).requireConfiguredAdminPhone = jest.fn<any>().mockResolvedValue(undefined);

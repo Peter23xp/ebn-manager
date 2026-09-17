@@ -61,6 +61,7 @@ describe('ClientsService - Recit Resume', () => {
       kpay,
       kpayWebhooks,
       { resolveParrain: jest.fn() } as any, // mlmClaimService
+      { lock: jest.fn<any>() } as any,
     );
   });
 

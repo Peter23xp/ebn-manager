@@ -12,6 +12,27 @@ const placeholder = 'Matricule, téléphone ou nom du parrain…';
 beforeEach(() => { get.mockReset(); });
 
 describe('Recruiter selection synchronization', () => {
+  it('restricts assignment search to active or pending recruiters when requested', async () => {
+    get.mockResolvedValue({ data: { results: [
+      { ...alice, statut: 'ACTIF' }, { ...bruno, statut: 'EN_COURS' },
+      { id: 'archived', codeParrain: 'EBN-X', nom: 'Archived', telephone: '000', statut: 'ARCHIVE' },
+    ] } });
+    render(<CodeParrainInput value="" onChange={() => {}} allowedStatuses={['ACTIF', 'EN_COURS']} />);
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Parrain' } });
+    expect(await screen.findByRole('button', { name: /Alice/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Bruno/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Archived/ })).not.toBeInTheDocument();
+  });
+
+  it('allows choosing a recruiter with the keyboard', async () => {
+    get.mockResolvedValue({ data: { results: [alice] } });
+    const onChange = vi.fn();
+    render(<CodeParrainInput value="" onChange={onChange} />);
+    fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Alice' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Alice/ }));
+    expect(onChange).toHaveBeenCalledWith('EBN-A');
+  });
+
   it('discards a slow response from an older search', async () => {
     let resolveOld!: (result: unknown) => void;
     get.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }));
