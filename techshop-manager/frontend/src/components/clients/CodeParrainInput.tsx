@@ -32,12 +32,22 @@ export function CodeParrainInput({
   // Résultats de la suggestion
   const [results, setResults] = useState<ParrainResult[]>([]);
   // Parrain sélectionné (confirmé)
-  const [selected, setSelected] = useState<ParrainResult | null>(null);
+  const [selectedParrain, setSelected] = useState<ParrainResult | null>(null);
+  const selected = selectedParrain?.codeParrain === value ? selectedParrain : null;
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [selfError, setSelfError] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSelected(previous => previous?.codeParrain === value ? previous : null);
+    setQuery('');
+    setResults([]);
+    setOpen(false);
+    setSelfError(false);
+    setLoading(false);
+  }, [value]);
 
   // Fermer la liste si clic en dehors
   useEffect(() => {
@@ -52,10 +62,12 @@ export function CodeParrainInput({
 
   // Lancer la recherche avec debounce de 350ms
   useEffect(() => {
+    let active = true;
     if (timerRef.current) clearTimeout(timerRef.current);
+    setResults([]);
+    setOpen(false);
     if (!query || query.trim().length < 2) {
-      setResults([]);
-      setOpen(false);
+      setLoading(false);
       return;
     }
 
@@ -65,17 +77,21 @@ export function CodeParrainInput({
         const res = await api.get<{ results: ParrainResult[] }>(
           `/clients/search-parrain?q=${encodeURIComponent(query.trim())}`,
         );
+        if (!active) return;
         setResults(res.data.results ?? []);
         setOpen(true);
       } catch {
-        setResults([]);
+        if (active) setResults([]);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }, 350);
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [query]);
+    return () => {
+      active = false;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [query, value]);
 
   const handleSelect = (parrain: ParrainResult) => {
     // Anti auto-parrainage
