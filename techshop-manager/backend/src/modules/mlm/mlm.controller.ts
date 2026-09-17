@@ -29,6 +29,9 @@ import {
   RejectWithdrawalRequestDto,
 } from '../portal/dto/withdrawal.dto';
 import { MlmPayoutStatus } from '@prisma/client';
+import { MlmPlacementService } from './mlm-placement.service';
+import { MlmCalendarService } from './mlm-calendar.service';
+import { MovePlacementDto, SwapPlacementDto, MlmCalendarYearDto } from './dto/matrix-placement.dto';
 
 @Controller('mlm')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,6 +41,8 @@ export class MlmController {
     private readonly matrixService: MlmMatrixService,
     private readonly walletService: MlmWalletService,
     private readonly mlmClaimService: MlmClaimService,
+    private readonly placementService: MlmPlacementService,
+    private readonly calendarService: MlmCalendarService,
   ) {}
 
   // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -96,8 +101,10 @@ export class MlmController {
 
   @Get('members/:memberId/filleuls')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
-  getMemberFilleuls(@Param('memberId') memberId: string) {
-    return this.mlmService.getMemberFilleuls(memberId);
+  getMemberFilleuls(@Param('memberId') memberId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number) {
+    return this.mlmService.getMemberFilleuls(memberId, page, limit);
   }
 
   @Get('members/:memberId/promotions')
@@ -117,6 +124,34 @@ export class MlmController {
     @Query('depth', new DefaultValuePipe(3), ParseIntPipe) depth: number,
   ) {
     return this.matrixService.getNetworkTree(memberId, depth);
+  }
+
+  @Post('matrix/move')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  movePlacement(@Body() input: MovePlacementDto, @CurrentUser('id') actorId: string) {
+    return this.placementService.move(input, actorId);
+  }
+
+  @Post('matrix/swap')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  swapPlacement(@Body() input: SwapPlacementDto, @CurrentUser('id') actorId: string) {
+    return this.placementService.swap(input, actorId);
+  }
+
+  @Get('matrix/:memberId/history')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  getPlacementHistory(@Param('memberId') memberId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number) {
+    return this.placementService.history(memberId, page, limit);
+  }
+
+  @Get('matrix/:memberId/generation/:generation')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
+  getGeneration(@Param('memberId') memberId: string, @Param('generation', ParseIntPipe) generation: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number) {
+    return this.matrixService.getNetworkGeneration(memberId, generation, page, limit);
   }
 
   @Get('matrix/:memberId/:levelId')
@@ -155,8 +190,8 @@ export class MlmController {
   @Put('commissions/:commissionId/validate')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
   @HttpCode(HttpStatus.OK)
-  validateCommission(@Param('commissionId') commissionId: string) {
-    return this.matrixService.validateCommission(commissionId);
+  validateCommission(@Param('commissionId') commissionId: string, @CurrentUser('id') actorId: string) {
+    return this.matrixService.validateCommission(commissionId, actorId);
   }
 
   @Put('commissions/:commissionId/pay')
@@ -199,8 +234,10 @@ export class MlmController {
 
   @Get('wallet/:memberId')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
-  getWallet(@Param('memberId') memberId: string) {
-    return this.walletService.getWallet(memberId);
+  getWallet(@Param('memberId') memberId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number) {
+    return this.walletService.getWallet(memberId, { page, limit });
   }
 
   @Post('wallet/:memberId/payouts')
@@ -235,11 +272,13 @@ export class MlmController {
 
   @Get('wallet')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
-  getWalletGlobal(@Query('memberId') memberId?: string) {
+  getWalletGlobal(@Query('memberId') memberId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number) {
     if (!memberId) {
       return { error: 'Paramètre memberId requis pour admin' };
     }
-    return this.walletService.getWallet(memberId);
+    return this.walletService.getWallet(memberId, { page, limit });
   }
 
   // ── Withdrawal Requests (Admin) ──────────────────────────────────────────────
@@ -294,6 +333,24 @@ export class MlmController {
   @Roles('SUPER_ADMIN')
   updateConfig(@Body() dto: UpdateMlmConfigDto) {
     return this.mlmService.updateConfig(dto);
+  }
+
+  @Get('config/calendar')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  getCalendar() {
+    return this.calendarService.listYears();
+  }
+
+  @Put('config/calendar/:year')
+  @Roles('SUPER_ADMIN')
+  updateCalendar(@Param('year', ParseIntPipe) year: number, @Body() input: MlmCalendarYearDto) {
+    return this.calendarService.saveYear(year, input);
+  }
+
+  @Post('reinvest/:lotId/release')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  releaseHeldLot(@Param('lotId') lotId: string, @CurrentUser('id') actorId: string) {
+    return this.walletService.releaseHeldLot(lotId, actorId);
   }
 
   // ── Bonuses ──────────────────────────────────────────────────────────────────

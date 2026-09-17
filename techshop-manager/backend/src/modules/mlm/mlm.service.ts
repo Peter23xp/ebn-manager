@@ -1,27 +1,29 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
+import { generationCapacity, generationProgress } from './mlm-generation';
+import { commissionAmounts } from './mlm-finance';
+import { MlmWalletService } from './mlm-wallet.service';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** EBN career path — 8 levels, each requiring 4 qualified referrals */
 export const MLM_LEVELS_COUNT = 8;
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
-export interface UpdateMlmConfigDto {
-  levelId: number;
-  commissionParFilleul?: number;
-  commissionTotale?: number;
-  bonusDescription?: string;
-  salaireMensuel?: number;
-  salaireActif?: boolean;
-  isActive?: boolean;
+export class UpdateMlmConfigDto {
+  @IsInt() @Min(1) levelId: number;
+  @IsOptional() @IsString() @Matches(/^\d+(\.\d{1,2})?$/) immediateAmount?: string;
+  @IsOptional() @IsString() bonusDescription?: string;
+  @IsOptional() @IsString() @Matches(/^\d+(\.\d{1,2})?$/) salaireMensuel?: string;
+  @IsOptional() @IsBoolean() salaireActif?: boolean;
+  @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
 @Injectable()
 export class MlmService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly walletService: MlmWalletService) {}
 
   // ── Network stats ───────────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ export class MlmService {
       promotionsRecentes,
       commissionsEnAttente,
       commissionsTotalesValidees,
+      commissionsGenerated,
     ] = await Promise.all([
       this.prisma.membre.count(),
       this.prisma.membre.count({ where: { statut: 'ACTIF' } }),
@@ -53,6 +56,10 @@ export class MlmService {
       }),
       this.prisma.commission.aggregate({
         where: { statut: { in: ['VALIDEE', 'PAYEE'] } },
+        _sum: { montant: true, montantSysteme: true },
+      }),
+      this.prisma.commission.aggregate({
+        where: { statut: { not: 'ANNULEE' } },
         _sum: { montant: true },
       }),
     ]);
@@ -61,8 +68,8 @@ export class MlmService {
       totalMembres,
       membresActifs,
       membresEnAttente,
-      commissionsGenerees: Number(portefeuilleAgg._sum.totalGagne ?? 0),
-      totalCommissionsVerseesUSD: Number(portefeuilleAgg._sum.totalGagne ?? 0),
+      commissionsGenerees: Number(commissionsGenerated._sum.montant ?? 0),
+      totalCommissionsVerseesUSD: Number(commissionsTotalesValidees._sum.montantSysteme ?? 0),
       soldeDisponibleTotalUSD: Number(portefeuilleAgg._sum.soldeDisponible ?? 0),
       promotionsMois: promotionsRecentes,
       promotionsDerniers30Jours: promotionsRecentes,
@@ -102,7 +109,7 @@ export class MlmService {
     const levels = await this.prisma.mlmLevel.findMany({
       orderBy: { ordre: 'asc' },
       include: {
-        _count: { select: { membres: { where: { statut: 'ACTIF' } } } },
+        _count: { select: { membres: { where: { statut: 'ACTIF', matrices: { some: { level: { ordre: 1 }, estComplete: true } } } } } },
       },
     });
 
@@ -115,6 +122,10 @@ export class MlmService {
       icone: l.icone,
       commissionParFilleul: Number(l.commissionParFilleul),
       commissionTotale: Number(l.commissionTotale),
+      immediateAmount: l.commissionSysteme.toFixed(2),
+      heldAmount: l.commissionRetour.toFixed(2),
+      totalAmount: l.commissionTotale.toFixed(2),
+      requiredPositions: generationCapacity(l.ordre),
       bonusDescription: l.bonusDescription,
       membresActifs: l._count.membres,
       count: l._count.membres,
@@ -176,6 +187,8 @@ export class MlmService {
       include: {
         client: { select: { id: true, prenom: true, nom: true, telephone: true, statut: true } },
         level: true,
+        _count: { select: { filleuls: true } },
+        matrixPosition: { include: { matrix: { include: { membre: { include: { client: { select: { nom: true, prenom: true } } } } } } } },
         parrain: {
           include: {
             client: { select: { id: true, prenom: true, nom: true, telephone: true } },
@@ -187,15 +200,14 @@ export class MlmService {
             client: { select: { id: true, prenom: true, nom: true } },
             level: { select: { id: true, ordre: true, nom: true, couleur: true } },
             matrices: {
-              select: { mlmLevelId: true, filleulsValides: true, estComplete: true },
-              orderBy: { level: { ordre: 'desc' } },
-              take: 1,
+              include: { level: true },
+              orderBy: { level: { ordre: 'asc' } },
             },
             _count: { select: { filleuls: true } },
           },
           orderBy: { dateActivation: 'desc' },
+          take: 100,
         },
-        portefeuille: true,
         matrices: {
           include: { positions: { orderBy: { numeroPosition: 'asc' } }, level: true },
           orderBy: { level: { ordre: 'asc' } },
@@ -231,10 +243,15 @@ export class MlmService {
 
     if (!membre) throw new NotFoundException(`Membre ${memberId} introuvable`);
 
-    const nextLevel = await this.prisma.mlmLevel.findFirst({
-      where: { ordre: { gt: membre.level.ordre }, isActive: true },
-      orderBy: { ordre: 'asc' },
+    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    const progress = generationProgress(levels, membre.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), membre.highestLevelAchieved);
+    const nextLevel = progress.nextLevel;
+    const wallet = await this.walletService.getWallet(memberId).catch(error => {
+      if (error instanceof NotFoundException) return null;
+      throw error;
     });
+    const financialSummary = wallet?.financialSummary;
+    const reinvestLots = wallet?.reinvestLots ?? [];
     // A position can point to a historical filleul that is not part of the
     // member's currently loaded direct-filleuls collection (for example after
     // a promotion/reorganisation). Load every referenced member explicitly so
@@ -257,9 +274,9 @@ export class MlmService {
     ]);
 
 
-    const currentMatrix = membre.matrices.find((m) => m.mlmLevelId === membre.mlmLevelId);
-    const filleulsValides = currentMatrix?.filleulsValides ?? 0;
-    const filleulsRequis = membre.level.filleulsRequis ?? 4;
+    const directMatrix = membre.matrices.find(matrix => matrix.level.ordre === 1);
+    const filleulsValides = progress.completedPositions;
+    const filleulsRequis = progress.requiredPositions;
 
     // Commissions by statut
     const commissionsByStatut = membre.commissionsRecues.reduce(
@@ -274,7 +291,7 @@ export class MlmService {
     );
 
     // Crown Ambassadeur global progression (level 8 = max)
-    const progressionGlobale = Math.round((membre.level.ordre / 8) * 100);
+    const progressionGlobale = Math.round(((progress.currentLevel?.ordre ?? 0) / 8) * 100);
 
     return {
       membre: {
@@ -284,6 +301,11 @@ export class MlmService {
         dateActivation: membre.dateActivation,
         dateInscription: membre.dateInscription,
         client: membre.client,
+        currentLevel: progress.currentLevel,
+        recruiter: membre.parrain,
+        matrixParent: membre.matrixPosition?.matrix.membre ?? null,
+        position: membre.matrixPosition?.numeroPosition ?? null,
+        positionId: membre.matrixPosition?.id ?? null,
         level: {
           ...membre.level,
           commissionParFilleul: Number(membre.level.commissionParFilleul),
@@ -300,6 +322,7 @@ export class MlmService {
           : null,
       },
       progression: {
+        ...progress,
         filleulsValidesNiveauActuel: filleulsValides,
         filleulsRequis,
         filleulsRestants: Math.max(0, filleulsRequis - filleulsValides),
@@ -312,16 +335,16 @@ export class MlmService {
           : null,
         pourcentage: Math.min(100, Math.round((filleulsValides / filleulsRequis) * 100)),
         progressionGlobaleCrownAmbassadeur: progressionGlobale,
-        estCrownAmbassadeur: membre.level.ordre === 8,
+        estCrownAmbassadeur: progress.currentLevel?.ordre === 8,
       },
-      portefeuille: membre.portefeuille
+      portefeuille: wallet
         ? {
-            soldeDisponible: Number(membre.portefeuille.soldeDisponible),
-            totalGagne: Number(membre.portefeuille.totalGagne),
+            soldeDisponible: wallet.soldeDisponible,
+            totalGagne: wallet.totalGagne,
           }
         : null,
       filleuls: membre.filleuls.map((f) => {
-        const fm = f.matrices[0];
+        const childProgress = generationProgress(levels, f.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), f.highestLevelAchieved);
         return {
           id: f.id,
           matricule: f.matricule,
@@ -330,15 +353,12 @@ export class MlmService {
           dateInscription: f.dateInscription,
           client: f.client,
           level: f.level,
+          currentLevel: childProgress.currentLevel,
           nbFilleuls: f._count.filleuls,
-          progression: fm
-            ? {
-                filleulsValides: fm.filleulsValides,
-                filleulsRequis: 4,
-                pourcentage: Math.min(100, Math.round((fm.filleulsValides / 4) * 100)),
-                estComplete: fm.estComplete,
-              }
-            : null,
+          progression: {
+            ...childProgress, filleulsValides: childProgress.completedPositions,
+            filleulsRequis: childProgress.requiredPositions, pourcentage: childProgress.progressPercentage,
+          },
         };
       }),
       matrices: membre.matrices.map((m) => ({
@@ -349,6 +369,9 @@ export class MlmService {
           commissionTotale: Number(m.level.commissionTotale),
         },
         filleulsValides: m.filleulsValides,
+        requiredPositions: generationCapacity(m.level.ordre),
+        occupiedPositions: m.occupiedPositions,
+        remainingPositions: generationCapacity(m.level.ordre) - m.filleulsValides,
         estComplete: m.estComplete,
         dateComplete: m.dateComplete,
         positions: m.positions.map((pos) => {
@@ -372,6 +395,11 @@ export class MlmService {
         montant: Number(c.montant),
       })),
       commissionsByStatut,
+      financialSummary,
+      reinvestLots,
+      directMatrixChildrenCount: directMatrix?.occupiedPositions ?? 0,
+      personalRecruitCount: membre._count.filleuls,
+      totalDescendants: membre.totalDescendants,
       bonusAttribues: membre.bonusAttribues,
       bonusRetraites: membre.bonusRetraites.map((b) => ({
         ...b,
@@ -390,72 +418,37 @@ export class MlmService {
 
   // ── Member filleuls ─────────────────────────────────────────────────────────
 
-  async getMemberFilleuls(memberId: string) {
-    const membre = await this.prisma.membre.findUnique({
-      where: { id: memberId },
-      include: { _count: { select: { filleuls: true } } }
-    });
-
-    if (!membre) throw new NotFoundException(`Membre ${memberId} introuvable`);
-
-    let currentGenerationIds = [membre.id];
-    let depth = 1;
-    const maxDepth = 10;
-    const allDescendants: any[] = [];
-
-    while (currentGenerationIds.length > 0 && depth <= maxDepth) {
-      const filleuls = await this.prisma.membre.findMany({
-        where: { parrainId: { in: currentGenerationIds } },
+  async getMemberFilleuls(memberId: string, page = 1, limit = 20) {
+    const member = await this.prisma.membre.findUnique({ where: { id: memberId }, select: { id: true } });
+    if (!member) throw new NotFoundException('Membre introuvable');
+    page = Math.max(1, page); limit = Math.min(100, Math.max(1, limit));
+    const where = { parrainId: memberId };
+    const [members, total, active, pending, levels] = await Promise.all([
+      this.prisma.membre.findMany({
+        where, take: limit, skip: (page - 1) * limit, orderBy: [{ dateActivation: 'desc' }, { id: 'asc' }],
         include: {
-          client: { select: { id: true, prenom: true, nom: true, telephone: true } },
-          level: { select: { id: true, ordre: true, nom: true, couleur: true } },
-          matrices: {
-            select: { mlmLevelId: true, filleulsValides: true, estComplete: true },
-            orderBy: { level: { ordre: 'desc' } },
-            take: 1,
-          },
-          _count: { select: { filleuls: true } },
+          client: { select: { id: true, prenom: true, nom: true, telephone: true } }, level: true,
+          matrices: { include: { level: true } }, _count: { select: { filleuls: true } },
+          matrixPosition: { include: { matrix: { select: { membreId: true } } } },
         },
-        orderBy: { dateActivation: 'desc' },
-      });
-
-      if (filleuls.length === 0) break;
-
-      for (const f of filleuls) {
-        allDescendants.push({ ...f, generation: depth });
-      }
-
-      currentGenerationIds = filleuls.map(f => f.id);
-      depth++;
-    }
-
-    const filleulsActifs = allDescendants.filter((f) => f.statut === 'ACTIF').length;
-    const filleulsEnAttente = allDescendants.filter((f) => f.statut === 'EN_ATTENTE').length;
-
+      }),
+      this.prisma.membre.count({ where }),
+      this.prisma.membre.count({ where: { ...where, statut: 'ACTIF' } }),
+      this.prisma.membre.count({ where: { ...where, statut: 'EN_ATTENTE' } }),
+      this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } }),
+    ]);
     return {
-      totalFilleuls: allDescendants.length,
-      filleulsActifs,
-      filleulsEnAttente,
-      filleuls: allDescendants.map((f) => {
-        const fm = f.matrices[0];
+      totalFilleuls: total, filleulsActifs: active, filleulsEnAttente: pending,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      filleuls: members.map(member => {
+        const progress = generationProgress(levels, member.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), member.highestLevelAchieved);
         return {
-          id: f.id,
-          matricule: f.matricule,
-          statut: f.statut,
-          dateActivation: f.dateActivation,
-          dateInscription: f.dateInscription,
-          client: f.client,
-          level: f.level,
-          nbFilleuls: f._count.filleuls,
-          generation: f.generation,
-          progression: fm
-            ? {
-                filleulsValides: fm.filleulsValides,
-                filleulsRequis: 4,
-                pourcentage: Math.min(100, Math.round((fm.filleulsValides / 4) * 100)),
-                estComplete: fm.estComplete,
-              }
-            : null,
+          id: member.id, matricule: member.matricule, statut: member.statut, client: member.client,
+          dateActivation: member.dateActivation, dateInscription: member.dateInscription,
+          level: member.level, currentLevel: progress.currentLevel, nbFilleuls: member._count.filleuls,
+          recruiterId: member.parrainId, matrixParentId: member.matrixPosition?.matrix.membreId ?? null,
+          position: member.matrixPosition?.numeroPosition ?? null,
+          progression: { ...progress, filleulsValides: progress.completedPositions, filleulsRequis: progress.requiredPositions, pourcentage: progress.progressPercentage },
         };
       }),
     };
@@ -485,13 +478,16 @@ export class MlmService {
     parrainId?: string;
     search?: string;
   }) {
-    const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
     const skip = (page - 1) * limit;
 
     const where: Prisma.MembreWhereInput = {};
     if (params.statut) where.statut = params.statut as any;
-    if (params.levelId) where.mlmLevelId = params.levelId;
+    if (params.levelId) {
+      where.mlmLevelId = params.levelId;
+      where.matrices = { some: { mlmLevelId: params.levelId, estComplete: true } };
+    }
     if (params.parrainId) where.parrainId = params.parrainId;
     if (params.search) {
       where.OR = [
@@ -518,11 +514,14 @@ export class MlmService {
           },
           portefeuille: { select: { soldeDisponible: true, totalGagne: true } },
           _count: { select: { filleuls: true } },
+          matrices: { include: { level: true } },
+          matrixPosition: { include: { matrix: { select: { membreId: true } } } },
         },
       }),
       this.prisma.membre.count({ where }),
     ]);
 
+    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
     return {
       membres: membres.map((m) => ({
         id: m.id,
@@ -531,6 +530,14 @@ export class MlmService {
         dateActivation: m.dateActivation,
         client: m.client,
         level: m.level,
+        currentLevel: generationProgress(levels, m.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), m.highestLevelAchieved).currentLevel,
+        progression: generationProgress(levels, m.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), m.highestLevelAchieved),
+        matrixParentId: m.matrixPosition?.matrix.membreId ?? null,
+        position: m.matrixPosition?.numeroPosition ?? null,
+        positionId: m.matrixPosition?.id ?? null,
+        directMatrixChildrenCount: m.matrices.find(matrix => matrix.level.ordre === 1)?.occupiedPositions ?? 0,
+        personalRecruitCount: m._count.filleuls,
+        totalDescendants: m.totalDescendants,
         parrain: m.parrain
           ? { id: m.parrain.id, matricule: m.parrain.matricule, client: m.parrain.client }
           : null,
@@ -554,53 +561,38 @@ export class MlmService {
   // ── Config ──────────────────────────────────────────────────────────────────
 
   async getConfig() {
-    const levels = await this.prisma.mlmLevel.findMany({
-      orderBy: { ordre: 'asc' },
-    });
-    return levels.map((l) => ({
-      ...l,
-      commissionParFilleul: Number(l.commissionParFilleul),
-      commissionTotale: Number(l.commissionTotale),
-      salaireMensuel: Number(l.salaireMensuel),
-    }));
+    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    return levels.map(level => this.levelConfiguration(level));
+  }
+
+  private levelConfiguration(level: any) {
+    return {
+      ...level, requiredPositions: generationCapacity(level.ordre),
+      immediateAmount: new Prisma.Decimal(level.commissionSysteme).toFixed(2),
+      heldAmount: new Prisma.Decimal(level.commissionRetour).toFixed(2),
+      totalAmount: new Prisma.Decimal(level.commissionTotale).toFixed(2),
+      commissionSysteme: Number(level.commissionSysteme), commissionRetour: Number(level.commissionRetour),
+      commissionTotale: Number(level.commissionTotale), salaireMensuel: Number(level.salaireMensuel),
+    };
   }
 
   async updateConfig(dto: UpdateMlmConfigDto) {
+    if ('commissionParFilleul' in dto || 'commissionTotale' in dto) throw new BadRequestException('Configurer le montant immediat du niveau, pas une commission par filleul');
     const level = await this.prisma.mlmLevel.findUnique({ where: { id: dto.levelId } });
-    if (!level) throw new NotFoundException(`MlmLevel ${dto.levelId} introuvable`);
-
+    if (!level) throw new NotFoundException('Niveau introuvable');
     const data: Prisma.MlmLevelUpdateInput = {};
-    if (dto.commissionParFilleul !== undefined) {
-      const par = new Prisma.Decimal(dto.commissionParFilleul);
-      if (par.lte(0)) throw new BadRequestException('commissionParFilleul doit être > 0');
-      data.commissionParFilleul = par;
-      // Invariant métier : systeme (60 %) + retour (40 %) == parFilleul.
-      // Sans ce recalcul, modifier le montant/filleul laisserait le split
-      // périmé → le crédit par filleul ne correspondrait plus à la commission
-      // enregistrée (sous/sur-paiement silencieux, revue max #11).
-      const systeme = par.mul(0.6).toDecimalPlaces(2);
-      data.commissionSysteme = systeme;
-      data.commissionRetour = par.minus(systeme);
+    if (dto.immediateAmount !== undefined) {
+      const amounts = commissionAmounts(dto.immediateAmount);
+      data.commissionSysteme = amounts.immediate;
+      data.commissionRetour = amounts.held;
+      data.commissionTotale = amounts.total;
     }
-    if (dto.commissionTotale !== undefined)
-      data.commissionTotale = new Prisma.Decimal(dto.commissionTotale);
     if (dto.bonusDescription !== undefined) data.bonusDescription = dto.bonusDescription;
-    if (dto.salaireMensuel !== undefined)
-      data.salaireMensuel = new Prisma.Decimal(dto.salaireMensuel);
+    if (dto.salaireMensuel !== undefined) data.salaireMensuel = new Prisma.Decimal(dto.salaireMensuel);
     if (dto.salaireActif !== undefined) data.salaireActif = dto.salaireActif;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
-
-    const updated = await this.prisma.mlmLevel.update({
-      where: { id: dto.levelId },
-      data,
-    });
-
-    return {
-      ...updated,
-      commissionParFilleul: Number(updated.commissionParFilleul),
-      commissionTotale: Number(updated.commissionTotale),
-      salaireMensuel: Number(updated.salaireMensuel),
-    };
+    const updated = await this.prisma.mlmLevel.update({ where: { id: dto.levelId }, data });
+    return this.levelConfiguration(updated);
   }
 
   // ── Promotion history for a member ─────────────────────────────────────────

@@ -12,25 +12,42 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useMlmMembers } from '@/hooks/useMlm';
+import { useDebounce } from '@/hooks/useDebounce';
+import { Pagination } from '@/components/ui/Pagination';
 import { useQuery } from '@tanstack/react-query';
 import { MlmApi } from '@/lib/mlm.api';
 import { formatDate, cn } from '@/lib/utils';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
+import { GenerationProgress } from '@/components/mlm/GenerationProgress';
+import { MatrixMemberDetails } from '@/components/mlm/MatrixMemberDetails';
+import type { MatrixTreeNode } from '@/types/mlm';
+
+type RootMember = Pick<MatrixTreeNode, 'id' | 'client' | 'matricule' | 'statut'>;
 
 export default function MlmTreePage() {
   const navigate = useNavigate();
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [selectedMember, setSelectedMember] = useState<RootMember | null>(null);
+  const selectedMemberId = selectedMember?.id ?? '';
   const [depth, setDepth] = useState<number>(3);
   const [searchMember, setSearchMember] = useState<string>('');
+  const search = useDebounce(searchMember.trim());
+  const [pagination, setPagination] = useState({ search: '', page: 1 });
+  const page = pagination.search === search ? pagination.page : 1;
+  useEffect(() => { setPagination({ search, page: 1 }); }, [search]);
+  const [detailNode, setDetailNode] = useState<MatrixTreeNode | null>(null);
 
-  const { data: membersData, isLoading: isLoadingMembers, refetch: refetchMembers } = useMlmMembers({ limit: 100 });
+  const { data: membersData, isFetching: isFetchingMembers, isError: membersError, refetch: refetchMembers } = useMlmMembers({ search, page, limit: 20 });
 
-  const membersList = membersData?.membres ?? [];
+  const membersList: RootMember[] = membersData?.membres ?? [];
+  const searching = isFetchingMembers || search !== searchMember.trim();
+  const rootOptions = selectedMember && !membersList.some(member => member.id === selectedMemberId)
+    ? [selectedMember, ...membersList] : membersList;
+  const selectMember = (member: RootMember | null) => { setSelectedMember(member); setDetailNode(null); };
 
   // Auto-select first member when data arrives if none selected
   useEffect(() => {
     if (!selectedMemberId && membersList.length > 0) {
-      setSelectedMemberId(membersList[0].id);
+      setSelectedMember(membersList[0]);
     }
   }, [membersList, selectedMemberId]);
 
@@ -39,21 +56,14 @@ export default function MlmTreePage() {
     isLoading: isLoadingTree,
     error: treeError,
     refetch: refetchTree,
+    dataUpdatedAt,
   } = useQuery({
     queryKey: ['mlm-tree', selectedMemberId, depth],
     queryFn: () => MlmApi.getNetworkTree(selectedMemberId, depth),
     enabled: !!selectedMemberId,
   });
 
-  const filteredMembers = membersList.filter((m: any) => {
-    if (!searchMember) return true;
-    const term = searchMember.toLowerCase();
-    const fullName = `${m.client?.prenom ?? ''} ${m.client?.nom ?? ''}`.toLowerCase();
-    const matricule = (m.matricule ?? '').toLowerCase();
-    return fullName.includes(term) || matricule.includes(term);
-  });
-
-  const selectedMember = membersList.find((m: any) => m.id === selectedMemberId);
+  const snapshot = `${selectedMemberId}-${depth}-${dataUpdatedAt}`;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -70,7 +80,7 @@ export default function MlmTreePage() {
           <div>
             <h1 className="text-page-title text-primary">Arbre MLM & parrainage</h1>
             <p className="text-xs text-text-muted mt-0.5">
-              Visualisation hiérarchique de l'arbre généalogique et de la progression des filleuls
+              Placements matriciels, générations et recruteurs personnels distincts
             </p>
           </div>
         </div>
@@ -93,20 +103,26 @@ export default function MlmTreePage() {
 
       {/* Selector & Filter Card */}
       <div className="rounded-xl border border-border bg-bg-card shadow-card p-5 space-y-4">
+        <label className="form-label" htmlFor="mlm-root-search">Rechercher un membre par nom ou matricule</label>
+        <input id="mlm-root-search" type="search" value={searchMember} onChange={event => setSearchMember(event.target.value)} placeholder="Nom ou matricule" />
+        {searching && <p role="status" className="text-sm text-text-muted">Recherche des membres…</p>}
+        {membersError && <p role="alert" className="text-sm text-danger">Recherche des membres indisponible. <button className="btn-secondary" onClick={() => refetchMembers()}>Réessayer la recherche</button></p>}
+        {!searching && !membersError && membersList.length === 0 && <p role="status" className="text-sm text-text-muted">Aucun membre ne correspond à cette recherche.</p>}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           {/* Member Dropdown */}
           <div className="md:col-span-2 space-y-1.5">
-            <label className="form-label">Sélectionner le membre racine</label>
+            <label className="form-label" htmlFor="mlm-tree-root">Sélectionner le membre racine</label>
             <div className="flex gap-2">
               <select
+                id="mlm-tree-root"
                 value={selectedMemberId}
-                onChange={(e) => setSelectedMemberId(e.target.value)}
-                disabled={isLoadingMembers}
+                onChange={event => selectMember(rootOptions.find(member => member.id === event.target.value) ?? null)}
+                disabled={searching}
               >
                 <option value="">— Choisir un membre ({membersList.length} disponibles) —</option>
-                {filteredMembers.map((m: any) => (
-                  <option key={m.id} value={m.id}>
-                    {m.client?.prenom} {m.client?.nom} — {m.matricule} ({m.level?.nom} • Niv {m.level?.ordre})
+                {rootOptions.map(member => (
+                  <option key={member.id} value={member.id}>
+                    {member.client?.prenom} {member.client?.nom} — {member.matricule}
                   </option>
                 ))}
               </select>
@@ -126,7 +142,7 @@ export default function MlmTreePage() {
           <div className="space-y-1.5">
             <label className="form-label">Profondeur de l'arbre</label>
             <div className="period-toggle" role="group" aria-label="Profondeur">
-              {[1, 2, 3, 4, 5].map((d) => (
+              {[1, 2, 3].map((d) => (
                 <button
                   key={d}
                   onClick={() => setDepth(d)}
@@ -138,6 +154,7 @@ export default function MlmTreePage() {
             </div>
           </div>
         </div>
+        {membersData?.meta && <Pagination page={membersData.meta.page} totalPages={membersData.meta.totalPages} total={membersData.meta.total} onPageChange={nextPage => setPagination({ search, page: nextPage })} isLoading={searching} />}
 
         {/* Quick select chips for root/leaders */}
         {membersList.length > 0 && (
@@ -146,7 +163,7 @@ export default function MlmTreePage() {
             {membersList.slice(0, 5).map((m: any) => (
               <button
                 key={m.id}
-                onClick={() => setSelectedMemberId(m.id)}
+                onClick={() => selectMember(m)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors duration-150 flex items-center gap-1.5 ${
                   selectedMemberId === m.id
                     ? 'bg-primary-light text-primary-accent ring-2 ring-primary-accent/40'
@@ -154,7 +171,6 @@ export default function MlmTreePage() {
                 }`}
               >
                 <span>{m.client?.prenom} {m.client?.nom}</span>
-                <span className="text-[10px] opacity-70">({m.level?.nom})</span>
               </button>
             ))}
           </div>
@@ -173,7 +189,7 @@ export default function MlmTreePage() {
                 <h3 className="text-base font-bold text-text">
                   {selectedMember.client?.prenom} {selectedMember.client?.nom}
                 </h3>
-                <MlmLevelBadge level={selectedMember.level?.ordre ?? 1} size="sm" />
+                {tree && <MlmLevelBadge level={tree.level?.ordre ?? null} name={tree.level?.nom} size="sm" />}
               </div>
               <p className="text-xs text-text-muted font-mono mt-0.5">
                 Matricule : <strong className="text-text">{selectedMember.matricule}</strong> • Statut : {selectedMember.statut}
@@ -212,7 +228,7 @@ export default function MlmTreePage() {
           </div>
         ) : tree ? (
           <div className="min-w-max pb-4">
-            <TreeNode node={tree} isRoot depthLevel={0} />
+            <TreeNode key={snapshot} snapshot={snapshot} node={tree} isRoot depthLevel={0} onDetails={setDetailNode} />
           </div>
         ) : (
           <div className="text-center py-20 text-text-muted">
@@ -220,6 +236,7 @@ export default function MlmTreePage() {
           </div>
         )}
       </div>
+      {detailNode && <MatrixMemberDetails key={detailNode.id} node={detailNode} />}
     </div>
   );
 }
@@ -230,15 +247,22 @@ function TreeNode({
   node,
   isRoot = false,
   depthLevel = 0,
+  onDetails,
+  snapshot,
 }: {
-  node: any;
+  node: MatrixTreeNode;
   isRoot?: boolean;
   depthLevel?: number;
+  onDetails: (node: MatrixTreeNode) => void;
+  snapshot: string;
 }) {
   const [expanded, setExpanded] = useState<boolean>(true);
-  const children = node.children ?? [];
+  const [loadChildren, setLoadChildren] = useState(false);
+  const branch = useQuery({ queryKey: ['mlm-tree-branch', node.id, snapshot], queryFn: () => MlmApi.getNetworkTree(node.id, 1), enabled: loadChildren });
+  const current = (loadChildren && branch.data) || node;
+  const children = current.children ?? [];
   const hasChildren = children.length > 0;
-  const levelOrdre = node.level?.ordre ?? 1;
+  const levelOrdre = current.level?.ordre ?? null;
 
   return (
     <div className="relative">
@@ -259,7 +283,7 @@ function TreeNode({
               </span>
             ) : (
               <span className="text-[11px] text-text-muted font-bold">
-                Niveau {levelOrdre}
+                Génération {depthLevel}
               </span>
             )}
           </div>
@@ -275,22 +299,9 @@ function TreeNode({
           <span className="text-xs text-text-muted font-mono mt-0.5">{node.matricule}</span>
 
           {/* Filleuls Progress Gauge (4 positions per level) */}
-          {node.progression && (
+          {current.progression && (
             <div className="mt-2.5 rounded-lg px-3 py-2 border border-border bg-bg">
-              <div className="flex justify-between text-[11px] font-bold text-text-muted mb-1">
-                <span>Matrice 4 positions</span>
-                <span className="text-primary-accent font-extrabold">
-                  {node.progression.filleulsValides} / {node.progression.filleulsRequis ?? 4}
-                </span>
-              </div>
-              <div className="w-full bg-bg-inset rounded-full h-1.5">
-                <div
-                  className="bg-primary-accent h-1.5 rounded-full transition-all duration-300 ease-out-quart"
-                  style={{
-                    width: `${Math.min(100, (node.progression.filleulsValides / (node.progression.filleulsRequis ?? 4)) * 100)}%`,
-                  }}
-                />
-              </div>
+              <GenerationProgress progression={current.progression} />
             </div>
           )}
 
@@ -300,9 +311,14 @@ function TreeNode({
               ● {node.statut}
             </span>
             <span className="text-text-muted font-medium">
-              {children.length} filleul{children.length > 1 ? 's' : ''} direct{children.length > 1 ? 's' : ''}
+              {current.directMatrixChildrenCount} enfants matriciels
             </span>
           </div>
+          {isRoot && <p className="text-xs text-text-muted">Génération 0</p>}
+          <p className="text-xs text-text-muted mt-2">Places libres : {current.emptyPositions.join(', ') || 'Aucune'}</p>
+          <button className="btn-secondary mt-3" onClick={() => onDetails({ ...current, generation: depthLevel })}>Détails de {current.client.prenom} {current.client.nom}</button>
+          {current.hasMore && <button className="btn-secondary mt-2" disabled={branch.isFetching} onClick={() => { setLoadChildren(true); setExpanded(true); if (loadChildren) void branch.refetch(); }}>Charger les enfants de {current.client.prenom} {current.client.nom}</button>}
+          {branch.isError && <p role="alert" className="text-sm text-danger">Chargement impossible. Réessayez avec le bouton de chargement.</p>}
         </div>
 
         {/* Expandable Children Tree */}
@@ -314,6 +330,7 @@ function TreeNode({
             {/* Toggle button */}
             <button
               onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
               className="ml-2 my-1.5 inline-flex items-center gap-1 text-xs font-bold text-primary-accent hover:text-blue-700 bg-primary-light/40 hover:bg-primary-light px-2.5 py-1 rounded-lg transition-colors duration-150"
             >
               {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -322,11 +339,13 @@ function TreeNode({
 
             {expanded && (
               <div className="border-l border-border ml-4 pl-3 space-y-2">
-                {children.map((child: any) => (
+                {children.map((child) => (
                   <TreeNode
                     key={child.id}
                     node={child}
+                    snapshot={snapshot}
                     depthLevel={depthLevel + 1}
+                    onDetails={onDetails}
                   />
                 ))}
               </div>
@@ -335,10 +354,10 @@ function TreeNode({
         )}
 
         {/* No children indicator for non-root */}
-        {!hasChildren && !isRoot && (
+        {!hasChildren && !current.hasMore && !isRoot && (
           <div className="ml-8 mt-1.5 flex items-center gap-1.5 text-xs text-text-subtle italic">
             <User size={12} />
-            Aucun filleul sous ce membre
+            Aucun enfant matriciel
           </div>
         )}
       </div>

@@ -4,6 +4,9 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { PortalFilleul } from '@/lib/portal.api';
+import type { MatrixTreeNode } from '@/types/mlm';
+import { GenerationProgress } from '@/components/mlm/GenerationProgress';
+import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 
 // ── Construction de la forêt ──────────────────────────────────────────────────
 
@@ -139,13 +142,14 @@ function Branch({ node, depth }: { node: TreeNode; depth: number }) {
 // ── Composant principal ───────────────────────────────────────────────────────
 
 interface ReferralTreeProps {
+  matrixTree?: MatrixTreeNode | null;
   nodes: PortalFilleul[];
   total: number;
   isLoading: boolean;
   codeParrain?: string;
 }
 
-export function ReferralTree({ nodes, total, isLoading, codeParrain }: ReferralTreeProps) {
+export function ReferralTree({ nodes, matrixTree, total, isLoading, codeParrain }: ReferralTreeProps) {
   if (isLoading) {
     return (
       <div className="space-y-2.5 rounded-2xl border border-border bg-bg-card p-4 shadow-card">
@@ -156,9 +160,17 @@ export function ReferralTree({ nodes, total, isLoading, codeParrain }: ReferralT
     );
   }
 
+  if (matrixTree) return <section className="rounded-xl border border-border bg-bg-card p-4 space-y-3">
+    <h2 className="text-sm font-semibold text-primary">Réseau matriciel</h2>
+    <p className="text-xs text-text-muted">Le recruteur personnel peut différer du parent matriciel. Générations relatives à votre racine.</p>
+    <ul><MatrixBranch node={matrixTree} /></ul>
+  </section>;
+
   if (nodes.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-8 text-center">
+        <p className="text-sm font-semibold text-text">Réseau de recrutement personnel</p>
+        <p className="text-xs text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
         <p className="mb-1.5 text-sm text-text-muted">
           Personne n'est encore inscrit avec votre matricule.
         </p>
@@ -184,11 +196,12 @@ export function ReferralTree({ nodes, total, isLoading, codeParrain }: ReferralT
         >
           <User size={13} />
         </span>
-        <p className="text-sm font-semibold text-primary">Votre réseau</p>
+        <p className="text-sm font-semibold text-primary">Réseau de recrutement personnel</p>
         <span className="ml-auto text-[11px] text-text-subtle">
           {nodes.length} membre{nodes.length > 1 ? 's' : ''} · {maxDepth} niveau{maxDepth > 1 ? 'x' : ''}
         </span>
       </div>
+      <p className="text-xs text-text-muted">Les placements matriciels ne sont pas fournis pour cette vue.</p>
 
       <ul className="mt-1">
         {roots.map((r) => (
@@ -203,4 +216,27 @@ export function ReferralTree({ nodes, total, isLoading, codeParrain }: ReferralT
       )}
     </div>
   );
+}
+
+function MatrixBranch({ node }: { node: MatrixTreeNode }) {
+  const [expanded, setExpanded] = useState(true);
+  return <li className="py-3 space-y-2 text-sm text-text">
+    <p className="font-semibold">{node.client.prenom} {node.client.nom}</p>
+    <MlmLevelBadge level={node.level?.ordre ?? null} name={node.level?.nom} size="sm" />
+    <p className="text-xs text-text-muted">Génération {node.generation} · Position {node.position ?? 'Racine'} · Places libres : {node.emptyPositions.join(', ') || 'Aucune'}</p>
+    <details>
+      <summary className="cursor-pointer font-medium">Détails de {node.client.prenom} {node.client.nom}</summary>
+      <dl className="py-2 space-y-2">
+        <div><dt>Recruteur personnel</dt><dd>{node.recruiter ? `${node.recruiter.client.prenom} ${node.recruiter.client.nom}` : 'Aucun'}</dd></div>
+        <div><dt>Parent matriciel</dt><dd>{node.matrixParent ? `${node.matrixParent.client.prenom} ${node.matrixParent.client.nom}` : 'Racine'}</dd></div>
+        <div><dt>Enfants matriciels / recrutements personnels / descendants</dt><dd>{node.directMatrixChildrenCount} / {node.personalRecruitCount} / {node.totalDescendants}</dd></div>
+      </dl>
+      <GenerationProgress progression={node.progression} />
+    </details>
+    {node.children.length > 0 && <>
+      <button type="button" className="btn-secondary text-xs" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Masquer' : 'Afficher'} les branches de {node.client.prenom}</button>
+      {expanded && <ul className="ml-2 border-l border-border pl-3">{node.children.map(child => <MatrixBranch key={child.id} node={child} />)}</ul>}
+    </>}
+    {node.hasMore && <p className="text-xs text-text-muted">Suite du réseau non chargée dans cet aperçu limité.</p>}
+  </li>;
 }

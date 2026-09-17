@@ -1,7 +1,8 @@
 import { Wallet, ArrowRight, ArrowDownRight } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import type { ReinvestLot } from '@/lib/portal.api';
+import type { FinancialSummary as Summary } from '@/types/mlm';
+import { FinancialSummary } from '@/components/mlm/FinancialSummary';
+import { ReinvestLots } from '@/components/mlm/ReinvestLots';
 
 interface WalletCardProps {
   solde: number; // soldeDisponibleRetrait
@@ -9,15 +10,17 @@ interface WalletCardProps {
   soldeReinvesti: number;
   reserve?: number; // montant immobilisé par des demandes de retrait en attente
   lots: ReinvestLot[];
+  financialSummary?: Summary;
+  available?: number | string;
   onWithdraw: () => void;
 }
 
-export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lots, onWithdraw }: WalletCardProps) {
+export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lots, financialSummary, available, onWithdraw }: WalletCardProps) {
   const fmt = (v: number) =>
-    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div
+    <div className="space-y-4"><div
       className="rounded-2xl text-white relative overflow-hidden"
       style={{ background: 'linear-gradient(150deg, #0A1628 0%, #13294b 55%, #1a3a5c 100%)' }}
     >
@@ -58,28 +61,6 @@ export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lo
         </p>
         <p className="mt-1.5 text-xs text-white/50">Disponible au retrait</p>
 
-        {soldeReinvesti > 0 && (
-          <div className="mt-3 rounded-xl bg-white/[0.06] px-3.5 py-2.5">
-            <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">
-              Réinvesti (libération sous 30 j) :{' '}
-              <strong className="text-white/80 tabular-nums">${fmt(soldeReinvesti)}</strong>
-            </p>
-            {lots.length > 0 && (
-              <ul className="mt-1.5 space-y-1">
-                {lots.map((l) => (
-                  <li
-                    key={l.id}
-                    className="flex items-center justify-between text-[11px] text-white/65 tabular-nums"
-                  >
-                    <span>${fmt(l.amount)}</span>
-                    <span>libéré le {format(new Date(l.releasedAt), 'd MMM yyyy', { locale: fr })}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
         <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3.5">
           <div>
             <p className="text-[9px] uppercase tracking-[0.12em] text-white/40">Gains totaux</p>
@@ -104,6 +85,11 @@ export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lo
             </span>
           )}
         </div>
+      </div>
+    </div>
+      <div className="rounded-xl border border-border bg-bg-card p-4 space-y-5">
+        <FinancialSummary summary={financialSummary} available={available} />
+        <ReinvestLots lots={lots} />
       </div>
     </div>
   );

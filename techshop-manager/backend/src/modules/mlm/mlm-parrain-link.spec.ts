@@ -5,6 +5,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
   let service: MlmMatrixService;
   let prisma: any;
   let walletService: any;
+  let placementService: any;
 
   beforeEach(() => {
     prisma = {
@@ -59,7 +60,8 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
     };
 
     walletService = { creditReinvestInTx: jest.fn<any>(), creditWalletInTx: jest.fn<any>() };
-    service = new MlmMatrixService(prisma, walletService);
+    placementService = { lock: jest.fn<any>(), place: jest.fn<any>() };
+    service = new MlmMatrixService(prisma, walletService, placementService);
   });
 
   it('attaches parrain when parrainCode is the Client.id of the sponsor (parrainClientId)', async () => {
@@ -69,6 +71,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
 
     prisma.client.findUnique.mockResolvedValueOnce({
       id: newClientId,
+      statut: 'ACTIF',
       matriculeExterne: null,
       codeParrain: null,
       parrainClientId: sponsorClientId,
@@ -121,6 +124,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
 
     prisma.client.findUnique.mockResolvedValueOnce({
       id: existingMemberClientId,
+      statut: 'ACTIF',
       parrainClientId: sponsorClientId,
     });
 
@@ -135,6 +139,7 @@ describe('MlmMatrixService - Parrain Attachment on Client Activation', () => {
       clientId: existingMemberClientId,
       parrainId: null,
     });
+    prisma.membre.update.mockResolvedValueOnce({ id: existingMembreId, clientId: existingMemberClientId, parrainId: sponsorMembreId });
 
     await service.onClientActivated(existingMemberClientId, sponsorClientId);
 

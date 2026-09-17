@@ -1,87 +1,78 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ReinvestReleaseService } from './reinvest-release.service';
 
-const resolved = (value: any) => {
-  const mock = jest.fn();
-  (mock as any).mockResolvedValue(value);
-  return mock;
-};
-
 describe('ReinvestReleaseService.releaseDueLots', () => {
-  it('transfère chaque lot échu de soldeReinvesti vers soldeDisponible', async () => {
-    const tx = {
-      portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
-      reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }) },
-      $queryRaw: resolved([]),
-    };
+  const now = new Date('2026-10-11T00:00:00Z');
+  const setup = () => {
     const prisma = {
       reinvestLote: {
-        findMany: resolved([{ id: 'l-1', membreId: 'm-1', amount: 40 }]),
+        findMany: jest.fn<any>().mockResolvedValue([]),
+        updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
       },
-      $transaction: jest.fn(async (cb: any) => cb(tx)),
+      portefeuille: { update: jest.fn(), updateMany: jest.fn() },
+      transactionPortefeuille: { create: jest.fn() },
+      $transaction: jest.fn(),
     };
-    const service = new ReinvestReleaseService(prisma as never);
+    return { prisma, service: new ReinvestReleaseService(prisma as never) };
+  };
 
-    const count = await service.releaseDueLots(new Date('2026-10-11T00:00:00Z'));
+  it('marks due holds RELEASABLE without moving funds or recording a release', async () => {
+    const { prisma, service } = setup();
+    prisma.reinvestLote.findMany.mockResolvedValueOnce([{ id: 'lot-1' }]);
 
-    expect(count).toBe(1);
-    expect(prisma.reinvestLote.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { released: false, releasedAt: { lte: new Date('2026-10-11T00:00:00Z') } },
-      }),
-    );
-    // Verrou : le lot n'est marqué libéré que s'il est encore released:false
-    expect(tx.reinvestLote.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'l-1', released: false }, data: { released: true } }),
-    );
-    expect(tx.portefeuille.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'pf-1' },
-        data: { soldeDisponible: { increment: expect.anything() }, soldeReinvesti: { decrement: expect.anything() } },
-      }),
-    );
+    expect(await service.releaseDueLots(now)).toBe(1);
+
+    expect(prisma.reinvestLote.findMany).toHaveBeenCalledWith({
+      where: { status: 'HOLD_PERIOD', releaseDate: { lte: now } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      take: 200,
+    });
+    expect(prisma.reinvestLote.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['lot-1'] }, status: 'HOLD_PERIOD', releaseDate: { lte: now } },
+      data: { status: 'RELEASABLE' },
+    });
+    expect(prisma.portefeuille.update).not.toHaveBeenCalled();
+    expect(prisma.portefeuille.updateMany).not.toHaveBeenCalled();
+    expect(prisma.transactionPortefeuille.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('ne transfère PAS si un autre cron a déjà libéré le lot (anti double-paiement)', async () => {
-    const tx = {
-      portefeuille: { findUnique: resolved({ id: 'pf-1' }), update: jest.fn() },
-      reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 0 }) },
-      $queryRaw: resolved([]),
-    };
-    const prisma = {
-      reinvestLote: { findMany: resolved([{ id: 'l-1', membreId: 'm-1', amount: 40 }]) },
-      $transaction: jest.fn(async (cb: any) => cb(tx)),
-    };
-    const service = new ReinvestReleaseService(prisma as never);
+  it('pages at most 200 holds with a stable cursor even if another worker claims a page', async () => {
+    const { prisma, service } = setup();
+    prisma.reinvestLote.findMany
+      .mockResolvedValueOnce(Array.from({ length: 200 }, (_, index) => ({ id: 'lot-' + String(index).padStart(3, '0') })))
+      .mockResolvedValueOnce([{ id: 'lot-200' }]);
+    prisma.reinvestLote.updateMany.mockResolvedValueOnce({ count: 0 });
 
-    const count = await service.releaseDueLots();
+    expect(await service.releaseDueLots(now)).toBe(1);
 
-    expect(count).toBe(0);
-    expect(tx.portefeuille.update).not.toHaveBeenCalled();
+    expect(prisma.reinvestLote.findMany).toHaveBeenNthCalledWith(2, {
+      where: { status: 'HOLD_PERIOD', releaseDate: { lte: now }, id: { gt: 'lot-199' } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      take: 200,
+    });
+    expect(prisma.reinvestLote.updateMany).toHaveBeenCalledTimes(2);
+    expect((prisma.reinvestLote.updateMany.mock.calls[0][0] as any).where.id.in).toHaveLength(200);
   });
 
-  it('ignore un lot sans portefeuille et ne casse pas les autres', async () => {
-    const tx = {
-      portefeuille: { findUnique: resolved(null), update: jest.fn() },
-      reinvestLote: { updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }) },
-      $queryRaw: resolved([]),
-    };
-    const prisma = {
-      reinvestLote: { findMany: resolved([{ id: 'l-1', membreId: 'm-x', amount: 10 }]) },
-      $transaction: jest.fn(async (cb: any) => cb(tx)),
-    };
-    const service = new ReinvestReleaseService(prisma as never);
+  it('does not count lots cancelled or marked eligible by another worker', async () => {
+    const { prisma, service } = setup();
+    prisma.reinvestLote.findMany.mockResolvedValueOnce([{ id: 'lot-1' }]);
+    prisma.reinvestLote.updateMany.mockResolvedValueOnce({ count: 0 });
 
-    const count = await service.releaseDueLots();
-
-    expect(count).toBe(0);
-    expect(tx.reinvestLote.updateMany).not.toHaveBeenCalled();
+    expect(await service.releaseDueLots(now)).toBe(0);
+    expect(prisma.reinvestLote.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: 'HOLD_PERIOD' }),
+    }));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("ne libère rien quand aucun lot n'est échu", async () => {
-    const prisma = { reinvestLote: { findMany: resolved([]) }, $transaction: jest.fn() };
-    const service = new ReinvestReleaseService(prisma as never);
-    expect(await service.releaseDueLots()).toBe(0);
+  it('does nothing when no holds are due', async () => {
+    const { prisma, service } = setup();
+    expect(await service.releaseDueLots(now)).toBe(0);
+    expect(prisma.reinvestLote.updateMany).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

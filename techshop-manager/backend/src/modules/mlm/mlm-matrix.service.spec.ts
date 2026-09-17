@@ -1,157 +1,84 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { Prisma } from '@prisma/client';
 import { MlmMatrixService } from './mlm-matrix.service';
 
-// Niveau 1 Builder : 10 USD/filleul → 6 USD système (60 %) + 4 USD réinvestis (40 %)
-const LEVEL1 = {
-  id: 7, ordre: 1, nom: 'Builder',
-  commissionParFilleul: 10, commissionTotale: 40,
-  commissionSysteme: 6, commissionRetour: 4,
-};
-
-const resolved = (value: any) => {
-  const mock = jest.fn();
-  (mock as any).mockResolvedValue(value);
-  return mock;
-};
-
-function buildTx(over: Record<string, any> = {}) {
-  const matrix = {
-    id: 'mx-1', membreId: 'p-1', mlmLevelId: 7,
-    estComplete: false, filleulsValides: 0,
-    positions: [
-      { id: 'pos-1', estValide: false },
-      { id: 'pos-2', estValide: false },
-      { id: 'pos-3', estValide: false },
-      { id: 'pos-4', estValide: true },
-    ],
+function fixture(statut = 'EN_ATTENTE') {
+  const commission = {
+    id: 'commission', membreId: 'member', filleulId: 'trigger', mlmLevelId: 1, matrixId: 'matrix',
+    montant: new Prisma.Decimal(40), montantSysteme: new Prisma.Decimal(24), montantRetour: new Prisma.Decimal(16),
+    statut, referenceId: 'generation:member:1', description: 'Builder complet',
   };
-  return {
-    matrix: {
-      findUnique: resolved(matrix),
-      create: jest.fn(),
-      update: jest.fn(),
+  const transaction: any = {
+    $queryRaw: jest.fn<any>().mockResolvedValue([{ id: 'wallet', soldeDisponible: new Prisma.Decimal(24), soldeReserve: new Prisma.Decimal(0), soldeReinvesti: new Prisma.Decimal(16) }]),
+    portefeuille: { findUnique: jest.fn<any>().mockResolvedValue({ id: 'wallet' }), update: jest.fn<any>() },
+    commission: {
+      findUnique: jest.fn<any>().mockResolvedValue(commission),
       updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
     },
-    position: {
-      findMany: resolved(matrix.positions.filter((p) => !p.estValide).map((p) => ({ id: p.id }))),
+    reinvestLote: {
+      findMany: jest.fn<any>().mockResolvedValue([{ id: 'lot', amount: new Prisma.Decimal(16), released: false, status: 'HOLD_PERIOD' }]),
       updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
-      count: jest.fn<any>().mockResolvedValue(
-        matrix.positions.filter((p) => p.estValide).length + 1,
-      ),
     },
-    mlmLevel: { findUnique: resolved(LEVEL1), findFirst: resolved(null) },
-    membre: { findUnique: resolved({ id: 'p-1', parrainId: null, level: LEVEL1, parrain: null }), update: jest.fn(), create: jest.fn() },
-    commission: { findUnique: resolved(null), create: jest.fn<any>().mockResolvedValue({ id: 'com-1', description: 'Commission niveau Builder — filleul validé (10 USD/filleul, split 60/40)' }) },
-    portefeuille: { findUnique: resolved({ id: 'pf-1' }), create: jest.fn() },
-    promotion: { create: jest.fn() },
-    bonusAttribue: { create: jest.fn() },
-    salaireVerse: { findUnique: resolved(null), create: jest.fn() },
-    bonusRetraite: { findUnique: resolved(null), create: jest.fn() },
-    ...over,
-  } as any;
-}
-
-function buildService(tx: any) {
-  const prisma = { $transaction: jest.fn(async (cb: any) => cb(tx)) };
-  const walletService = {
-    creditReinvestInTx: jest.fn(),
-    creditWalletInTx: jest.fn(),
+    transactionPortefeuille: {
+      findMany: jest.fn<any>().mockResolvedValue([{ montant: new Prisma.Decimal(24) }]),
+      create: jest.fn<any>(),
+    },
+    mlmLevel: { findUnique: jest.fn<any>().mockResolvedValue({ nom: 'Builder' }) },
   };
-  const service = new MlmMatrixService(prisma as never, walletService as never);
-  return { service, walletService };
+  const prisma: any = { ...transaction, $transaction: jest.fn<any>(async callback => callback(transaction)) };
+  const wallet: any = { creditWalletInTx: jest.fn<any>(), creditReinvestInTx: jest.fn<any>() };
+  return { commission, transaction, wallet, service: new MlmMatrixService(prisma, wallet) };
 }
 
-describe('MlmMatrixService — commission à CHAQUE filleul validé (règle 10 $/filleul)', () => {
-  it('crée une commission VALIDEE 10 $ et crédite 100 % (6 $ dispo + 4 $ bloqué) dès qu\'un filleul occupe une position', async () => {
-    const tx = buildTx();
-    const { service, walletService } = buildService(tx);
-
-    await (service as any)._fillParrainPosition(tx, 'p-1', 'f-5', 7);
-
-    expect(tx.position.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'pos-1', estValide: false }, data: expect.objectContaining({ filleulId: 'f-5', estValide: true }) }),
-    );
-    expect(tx.commission.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          membreId: 'p-1',
-          filleulId: 'f-5',
-          mlmLevelId: 7,
-          montant: 10,
-          montantSysteme: 6,
-          montantRetour: 4,
-          statut: 'VALIDEE',
-          referenceId: 'commission-p-1-level1-f-5',
-        }),
-      }),
-    );
-    // 60 % → soldeDisponible immédiatement (sans validation admin)
-    expect(walletService.creditWalletInTx).toHaveBeenCalledWith(
-      tx, 'p-1', 6, 'COMMISSION', expect.any(String), 'commission-p-1-level1-f-5',
-    );
-    // 40 % → poche réinvestissement bloquée J+30
-    expect(walletService.creditReinvestInTx).toHaveBeenCalledWith(tx, 'p-1', 4, 'com-1', 'Builder');
-    // matrice non complète (1/4) → pas de promotion
-    expect(tx.promotion.create).not.toHaveBeenCalled();
+describe('generation commissions', () => {
+  it('validates both pockets using captured Decimal amounts and the same validation instant', async () => {
+    const { service, wallet, transaction } = fixture();
+    await service.validateCommission('commission', 'admin');
+    expect(wallet.creditWalletInTx).toHaveBeenCalledWith(transaction, 'member', new Prisma.Decimal(24), 'COMMISSION', 'Builder complet', 'generation:member:1');
+    expect(wallet.creditReinvestInTx).toHaveBeenCalledWith(transaction, 'member', new Prisma.Decimal(16), 'commission', 'Builder', expect.any(Date));
+    expect(transaction.commission.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'commission', statut: 'EN_ATTENTE' },
+      data: expect.objectContaining({ validatedById: 'admin', valideeAt: expect.any(Date) }),
+    }));
   });
 
-  it('ne recrée pas de commission si la référence existe déjà (idempotence)', async () => {
-    const tx = buildTx({ commission: { findUnique: resolved({ id: 'com-existing' }), create: jest.fn() } });
-    const { service, walletService } = buildService(tx);
-
-    await (service as any)._fillParrainPosition(tx, 'p-1', 'f-5', 7);
-
-    expect(tx.commission.create).not.toHaveBeenCalled();
-    expect(walletService.creditReinvestInTx).not.toHaveBeenCalled();
+  it('does not double credit an already validated event', async () => {
+    const { service, wallet } = fixture('VALIDEE');
+    await service.validateCommission('commission', 'admin');
+    expect(wallet.creditWalletInTx).not.toHaveBeenCalled();
+    expect(wallet.creditReinvestInTx).not.toHaveBeenCalled();
   });
 
-  it('à 4/4 : la 4e commission est créée, la promotion a lieu SANS commission de complétion', async () => {
-    const tx = buildTx();
-    tx.matrix.findUnique = resolved({
-      id: 'mx-1', membreId: 'p-1', mlmLevelId: 7, estComplete: false, filleulsValides: 3,
-      positions: [{ id: 'pos-4', estValide: false }],
-    });
-    tx.position.count = jest.fn<any>().mockResolvedValue(4);
-    const nextLevel = { id: 8, ordre: 2, nom: 'Sapphire', bonusDescription: 'kit', salaireActif: false, salaireMensuel: 0 };
-    tx.mlmLevel.findFirst = resolved(nextLevel);
-    const { service, walletService } = buildService(tx);
-
-    await (service as any)._fillParrainPosition(tx, 'p-1', 'f-9', 7);
-
-    // commission du 4e filleul uniquement (10 $, split 6/4)
-    expect(tx.commission.create).toHaveBeenCalledTimes(1);
-    expect(tx.commission.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ montant: 10, montantSysteme: 6, montantRetour: 4 }) }),
-    );
-    expect(walletService.creditReinvestInTx).toHaveBeenCalledWith(tx, 'p-1', 4, 'com-1', 'Builder');
-    // promotion au niveau 2, sans créer de seconde commission de « complétion »
-    expect(tx.promotion.create).toHaveBeenCalledTimes(1);
-    expect(tx.membre.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'p-1' }, data: { mlmLevelId: 8 } }),
-    );
-    expect(tx.commission.create).not.toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ montant: 40 }) }),
-    );
+  it('does not credit when a concurrent transition has already won', async () => {
+    const { service, wallet, transaction } = fixture();
+    transaction.commission.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.validateCommission('commission', 'admin')).rejects.toThrow();
+    expect(wallet.creditWalletInTx).not.toHaveBeenCalled();
   });
 
-  it('course 4/4 concurrent : celui qui gagne le flip estComplete promeut, l\'autre NON', async () => {
-    const tx = buildTx();
-    tx.matrix.findUnique = resolved({
-      id: 'mx-1', membreId: 'p-1', mlmLevelId: 7, estComplete: false, filleulsValides: 3,
-      positions: [{ id: 'pos-4', estValide: false }],
-    });
-    tx.position.count = jest.fn<any>().mockResolvedValue(4);
-    // L'autre transaction a déjà fait le flip false→true : updateMany → 0
-    tx.matrix.updateMany = jest.fn<any>().mockResolvedValue({ count: 0 });
-    const nextLevel = { id: 8, ordre: 2, nom: 'Sapphire', bonusDescription: 'kit', salaireActif: false, salaireMensuel: 0 };
-    tx.mlmLevel.findFirst = resolved(nextLevel);
-    const { service } = buildService(tx);
+  it('cancels a credited commission without deleting hold history', async () => {
+    const { service, transaction } = fixture('VALIDEE');
+    await service.cancelCommission('commission', 'Correction administrative');
+    expect(transaction.reinvestLote.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { commissionId: 'commission', status: { not: 'CANCELLED' } }, data: { status: 'CANCELLED' },
+    }));
+    expect(transaction.portefeuille.update).toHaveBeenCalledWith(expect.objectContaining({ data: {
+      soldeDisponible: { decrement: new Prisma.Decimal(24) },
+      soldeReinvesti: { decrement: new Prisma.Decimal(16) },
+      totalGagne: { decrement: new Prisma.Decimal(40) },
+    } }));
+  });
 
-    await (service as any)._fillParrainPosition(tx, 'p-1', 'f-9', 7);
+  it('does not touch balances when cancelling a pending commission', async () => {
+    const { service, transaction } = fixture();
+    await service.cancelCommission('commission', 'Correction');
+    expect(transaction.portefeuille.update).not.toHaveBeenCalled();
+  });
 
-    // la commission de ce filleul est bien versée…
-    expect(tx.commission.create).toHaveBeenCalledTimes(1);
-    // …mais pas de double promotion (celui qui gagne le flip la déclenche)
-    expect(tx.promotion.create).not.toHaveBeenCalled();
+  it('preserves reserved funds during cancellation', async () => {
+    const { service, transaction } = fixture('VALIDEE');
+    transaction.$queryRaw.mockResolvedValue([{ id: 'wallet', soldeDisponible: new Prisma.Decimal(24), soldeReserve: new Prisma.Decimal(1), soldeReinvesti: new Prisma.Decimal(16) }]);
+    await expect(service.cancelCommission('commission')).rejects.toThrow();
+    expect(transaction.portefeuille.update).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,7 @@
 import { PrismaClient, Role, StatutClient, EtapeOnboarding, StatutEtape, ModePaiement, StatutVente, TypeMouvement, StatutTransfert, MembreStatut, TransactionType, BonusStatut, TicketType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { initializeMlmLevels } from './mlm-levels';
+import { MlmPlacementService } from '../src/modules/mlm/mlm-placement.service';
 
 const prisma = new PrismaClient();
 
@@ -29,7 +31,7 @@ async function main() {
     // ── Super Admin ──────────────────────────────────────────────
     await prisma.utilisateur.upsert({
       where: { telephone: '+243902238740' },
-      update: { passwordHash, nom: 'Peter AKILIMALI', role: Role.SUPER_ADMIN, actif: true, langue: 'fr' },
+      update: {},
       create: {
         id: 'user-admin-001',
         nom: 'Peter AKILIMALI',
@@ -44,23 +46,7 @@ async function main() {
     console.log('  ✓ Super Admin : Peter AKILIMALI (+243902238740)');
 
     // ── 8 Niveaux MLM (split Système 60% / Auto-réinvest 40%) ────
-    const mlmLevels = [
-      ['Builder',           4, 10,       40,       6,      4,       '#f59e0b', 'hammer'],
-      ['Sapphire',          4, 20.83,    83.32,    12.5,   8.33,    '#3b82f6', 'gem'],
-      ['Ruby',              4, 33.33,    133.32,   20,     13.33,   '#ef4444', 'sparkles'],
-      ['Emerald',           4, 83.33,    333.32,   50,     33.33,   '#10b981', 'tv'],
-      ['Diamond',           4, 416.67,   1666.68,  250,    166.67,  '#06b6d4', 'bike'],
-      ['Crown Diamond',     4, 833.33,   3333.32,  500,    333.33,  '#8b5cf6', 'crown'],
-      ['Ambassadeur',       4, 8333.33,  33333.32, 5000,   3333.33, '#6366f1', 'globe'],
-      ['Crown Ambassadeur', 4, 20833.33, 83333.32, 12500,  8333.33, '#d97706', 'award'],
-    ] as const;
-    for (const [index, [nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, couleur, icone]] of mlmLevels.entries()) {
-      await prisma.mlmLevel.upsert({
-        where: { ordre: index + 1 },
-        update: { nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, bonusDescription: '', couleur, icone, isActive: true },
-        create: { ordre: index + 1, nom, filleulsRequis, commissionParFilleul, commissionTotale, commissionSysteme, commissionRetour, bonusDescription: '', couleur, icone, isActive: true },
-      });
-    }
+    await initializeMlmLevels(prisma);
     console.log('  ✓ 8 niveaux MLM configurés');
 
     // ── Catégories de produits ────────────────────────────────────
@@ -142,7 +128,7 @@ async function main() {
   // Super Admin
   const superAdmin = await prisma.utilisateur.upsert({
     where: { telephone: '+243902238740' },
-    update: { passwordHash, nom: 'Peter AKILIMALI', role: Role.SUPER_ADMIN, actif: true, langue: 'fr' },
+    update: {},
     create: {
       id: 'user-admin-001',
       nom: 'Peter AKILIMALI',
@@ -293,27 +279,9 @@ async function main() {
   // ============================================
   console.log('⭐ 3. Configuration des 8 niveaux MLM...');
 
-  const mlmLevelsData = [
-    { ordre: 1, nom: 'Builder',           filleulsRequis: 4, commissionParFilleul: 10.00,     commissionTotale: 40.00,      commissionSysteme: 6.00,     commissionRetour: 4.00,     bonusDescription: '2 pagnes',                                           salaireMensuel: 0, salaireActif: false, couleur: '#f59e0b', icone: 'hammer' },
-    { ordre: 2, nom: 'Sapphire',          filleulsRequis: 4, commissionParFilleul: 20.83,     commissionTotale: 83.32,      commissionSysteme: 12.50,    commissionRetour: 8.33,     bonusDescription: '1er kit alimentaire',                               salaireMensuel: 0, salaireActif: false, couleur: '#3b82f6', icone: 'gem' },
-    { ordre: 3, nom: 'Ruby',              filleulsRequis: 4, commissionParFilleul: 33.33,     commissionTotale: 133.32,     commissionSysteme: 20.00,    commissionRetour: 13.33,    bonusDescription: '2e kit alimentaire',                                salaireMensuel: 0, salaireActif: false, couleur: '#ef4444', icone: 'sparkles' },
-    { ordre: 4, nom: 'Emerald',           filleulsRequis: 4, commissionParFilleul: 83.33,     commissionTotale: 333.32,     commissionSysteme: 50.00,    commissionRetour: 33.33,    bonusDescription: 'Écran plat 52 pouces',                              salaireMensuel: 0, salaireActif: false, couleur: '#10b981', icone: 'tv' },
-    { ordre: 5, nom: 'Diamond',           filleulsRequis: 4, commissionParFilleul: 416.67,    commissionTotale: 1666.68,    commissionSysteme: 250.00,   commissionRetour: 166.67,   bonusDescription: 'Moto de luxe de 2 000 USD',                         salaireMensuel: 0, salaireActif: false, couleur: '#06b6d4', icone: 'bike' },
-    { ordre: 6, nom: 'Crown Diamond',     filleulsRequis: 4, commissionParFilleul: 833.33,    commissionTotale: 3333.32,    commissionSysteme: 500.00,   commissionRetour: 333.33,   bonusDescription: '1re voiture de 6 000 USD',                          salaireMensuel: 0, salaireActif: false, couleur: '#8b5cf6', icone: 'crown' },
-    { ordre: 7, nom: 'Ambassadeur',       filleulsRequis: 4, commissionParFilleul: 8333.33,   commissionTotale: 33333.32,   commissionSysteme: 5000.00,  commissionRetour: 3333.33,  bonusDescription: '1re maison de 30 000 USD + 2e voiture de 15 000 USD', salaireMensuel: 0, salaireActif: false, couleur: '#6366f1', icone: 'globe' },
-    { ordre: 8, nom: 'Crown Ambassadeur', filleulsRequis: 4, commissionParFilleul: 20833.33,  commissionTotale: 83333.32,   commissionSysteme: 12500.00, commissionRetour: 8333.33,  bonusDescription: '2e maison + 3e voiture',                            salaireMensuel: 0, salaireActif: false, couleur: '#d97706', icone: 'award' },
-  ];
-
-  const dbLevels: Record<number, any> = {};
-  for (const level of mlmLevelsData) {
-    const saved = await prisma.mlmLevel.upsert({
-      where: { ordre: level.ordre },
-      update: level,
-      create: level,
-    });
-    dbLevels[level.ordre] = saved;
-  }
-  console.log(`  ✓ ${mlmLevelsData.length} niveaux MLM validés`);
+  const initializedLevels = await initializeMlmLevels(prisma);
+  const dbLevels: Record<number, any> = Object.fromEntries(initializedLevels.map(level => [level.ordre, level]));
+  console.log(`  ✓ ${initializedLevels.length} niveaux MLM valides`);
 
   // ============================================
   // 4. CATÉGORIES DE PRODUITS
@@ -705,7 +673,7 @@ async function main() {
   for (const c of clientsDefinitions) {
     if (c.statut !== StatutClient.ACTIF || !c.matricule || !c.levelOrdre) continue;
 
-    const level = dbLevels[c.levelOrdre];
+    const level = dbLevels[1];
     const client = dbClients[c.id];
 
     // Résolution du parrain
@@ -722,7 +690,6 @@ async function main() {
       update: {
         id: `mem-${c.id}`,
         matricule: c.matricule,
-        mlmLevelId: level.id,
         parrainId,
         statut: MembreStatut.ACTIF,
       },
@@ -741,156 +708,33 @@ async function main() {
     // Portefeuille USD
     const portefeuille = await prisma.portefeuille.upsert({
       where: { membreId: membre.id },
-      update: { soldeDisponible: c.soldePortefeuille ?? 0, totalGagne: c.totalGagne ?? 0 },
+      update: {},
       create: {
         membreId: membre.id,
-        soldeDisponible: c.soldePortefeuille ?? 0,
-        totalGagne: c.totalGagne ?? 0,
+        soldeDisponible: 0,
+        totalGagne: 0,
       },
     });
 
-    // Transactions de portefeuille
-    await prisma.transactionPortefeuille.createMany({
-      data: [
-        {
-          portefeuilleId: portefeuille.id,
-          type: TransactionType.COMMISSION,
-          montant: 40.00,
-          description: 'Commissions 4 filleuls validés - Niveau 1',
-          createdAt: new Date(Date.now() - 20 * 24 * 3600 * 1000),
-        },
-        {
-          portefeuilleId: portefeuille.id,
-          type: TransactionType.PROMOTION,
-          montant: 60.00,
-          description: 'Bonus promotion Niveau 2',
-          createdAt: new Date(Date.now() - 15 * 24 * 3600 * 1000),
-        },
-        ...(c.levelOrdre >= 5 ? [
-          {
-            portefeuilleId: portefeuille.id,
-            type: TransactionType.SALAIRE,
-            montant: 100.00,
-            description: 'Salaire mensuel Niveau 5 - Mois 07/2026',
-            createdAt: new Date(Date.now() - 10 * 24 * 3600 * 1000),
-          },
-        ] : []),
-      ],
-      skipDuplicates: true,
-    }).catch(() => {});
   }
 
-  // 3. Création des Matrices et Assignation des Positions (Filleuls réels)
-  for (const c of clientsDefinitions) {
-    if (c.statut !== StatutClient.ACTIF || !c.levelOrdre) continue;
-    const membre = dbMembres[c.id];
-    if (!membre) continue;
-
-    const filleulsList = (c as any).filleulsIds ?? [];
-
-    for (let lvl = 1; lvl <= c.levelOrdre; lvl++) {
-      const isCurrentLevel = (lvl === c.levelOrdre);
-      const filleulsCount = isCurrentLevel ? filleulsList.length : 4;
-      const isComplete = !isCurrentLevel || filleulsCount >= 4;
-
-      const matrix = await prisma.matrix.upsert({
-        where: { membreId_mlmLevelId: { membreId: membre.id, mlmLevelId: dbLevels[lvl].id } },
-        update: { filleulsValides: filleulsCount, estComplete: isComplete },
+  const placement = new MlmPlacementService(prisma as any);
+  await prisma.$transaction(async transaction => {
+    await placement.lock(transaction);
+    for (const member of Object.values(dbMembres) as any[]) {
+      await transaction.matrix.upsert({
+        where: { membreId_mlmLevelId: { membreId: member.id, mlmLevelId: dbLevels[1].id } },
+        update: {},
         create: {
-          membreId: membre.id,
-          mlmLevelId: dbLevels[lvl].id,
-          filleulsValides: filleulsCount,
-          estComplete: isComplete,
-          dateComplete: isComplete ? new Date(Date.now() - (c.levelOrdre - lvl) * 5 * 24 * 3600 * 1000) : null,
+          membreId: member.id, mlmLevelId: dbLevels[1].id,
+          positions: { createMany: { data: [1, 2, 3, 4].map(numeroPosition => ({ numeroPosition })) } },
         },
       });
-
-      // Remplissage des 4 positions avec les vrais filleuls
-      for (let pos = 1; pos <= 4; pos++) {
-        const filleulClientId = isCurrentLevel ? filleulsList[pos - 1] : undefined;
-        const filleulMembre = filleulClientId ? dbMembres[filleulClientId] : undefined;
-        const estValide = !isCurrentLevel || !!filleulMembre;
-
-        await prisma.position.upsert({
-          where: { matrixId_numeroPosition: { matrixId: matrix.id, numeroPosition: pos } },
-          update: {
-            filleulId: filleulMembre?.id ?? null,
-            estValide,
-            dateValidation: estValide ? new Date() : null,
-          },
-          create: {
-            matrixId: matrix.id,
-            numeroPosition: pos,
-            filleulId: filleulMembre?.id ?? null,
-            estValide,
-            dateValidation: estValide ? new Date() : null,
-          },
-        });
-      }
     }
-  }
-
-  // Historique des promotions & Bonus attribués pour Séraphin Bagalwa
-  const membreSeraphin = dbMembres['cli-001'];
-  if (membreSeraphin) {
-    // Promotions
-    await prisma.promotion.createMany({
-      data: [
-        { membreId: membreSeraphin.id, niveauAvantId: 1, niveauApresId: 2, commissionVersee: 60, declencheParId: 'auto' },
-        { membreId: membreSeraphin.id, niveauAvantId: 2, niveauApresId: 3, commissionVersee: 100, declencheParId: 'auto' },
-        { membreId: membreSeraphin.id, niveauAvantId: 3, niveauApresId: 4, commissionVersee: 200, declencheParId: 'auto' },
-        { membreId: membreSeraphin.id, niveauAvantId: 4, niveauApresId: 5, commissionVersee: 400, declencheParId: 'auto' },
-      ],
-      skipDuplicates: true,
-    }).catch(() => {});
-
-    // Bonus physiques
-    await prisma.bonusAttribue.createMany({
-      data: [
-        {
-          membreId: membreSeraphin.id,
-          mlmLevelId: dbLevels[2].id,
-          description: 'Kit Santé EBN + Polo Officiel',
-          statut: BonusStatut.LIVRE,
-          dateAttribution: new Date(Date.now() - 20 * 24 * 3600 * 1000),
-          dateLivraison: new Date(Date.now() - 18 * 24 * 3600 * 1000),
-        },
-        {
-          membreId: membreSeraphin.id,
-          mlmLevelId: dbLevels[3].id,
-          description: 'Smartphone Android 4G EBN',
-          statut: BonusStatut.LIVRE,
-          dateAttribution: new Date(Date.now() - 15 * 24 * 3600 * 1000),
-          dateLivraison: new Date(Date.now() - 12 * 24 * 3600 * 1000),
-        },
-        {
-          membreId: membreSeraphin.id,
-          mlmLevelId: dbLevels[4].id,
-          description: 'Ordinateur Portable & Formation Pro',
-          statut: BonusStatut.LIVRE,
-          dateAttribution: new Date(Date.now() - 10 * 24 * 3600 * 1000),
-          dateLivraison: new Date(Date.now() - 8 * 24 * 3600 * 1000),
-        },
-        {
-          membreId: membreSeraphin.id,
-          mlmLevelId: dbLevels[5].id,
-          description: 'Voyage International de Découverte',
-          statut: BonusStatut.EN_ATTENTE,
-          dateAttribution: new Date(Date.now() - 3 * 24 * 3600 * 1000),
-        },
-      ],
-      skipDuplicates: true,
-    }).catch(() => {});
-
-    // Salaires versés
-    await prisma.salaireVerse.createMany({
-      data: [
-        { membreId: membreSeraphin.id, montant: 100.00, moisAnnee: '2026-07', statut: 'VERSE' },
-        { membreId: membreSeraphin.id, montant: 100.00, moisAnnee: '2026-08', statut: 'VERSE' },
-      ],
-      skipDuplicates: true,
-    }).catch(() => {});
-  }
+    for (const member of Object.values(dbMembres) as any[]) {
+      if (member.parrainId) await placement.place(transaction, member.id, member.parrainId, superAdmin.id);
+    }
+  }, { timeout: 60000 });
 
   console.log('  ✓ 15 Clients créés avec matricules AAAAMJXXXX, arbre MLM complet interconnecté et matrices 4 positions');
 

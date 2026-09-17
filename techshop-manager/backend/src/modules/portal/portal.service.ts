@@ -6,6 +6,7 @@ import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 import { KpayProvider } from '../kpay/kpay.types';
 import { CreateWithdrawalRequestDto } from './dto/withdrawal.dto';
 import { Prisma } from '@prisma/client';
+import { excludeHeldReleaseTransfers, walletJournalKind } from '../mlm/mlm-wallet-journal';
 
 @Injectable()
 export class PortalService {
@@ -106,7 +107,7 @@ export class PortalService {
 
   // ── GET /portal/wallet ────────────────────────────────────────────────────
 
-  async getWallet(clientId: string) {
+  async getWallet(clientId: string, params?: { page?: number; limit?: number }) {
     const membre = await this.ensureMember(clientId);
 
     if (!membre || !membre.portefeuille) {
@@ -119,33 +120,34 @@ export class PortalService {
           totalGagne: 0,
         },
         reinvestLots: [],
+        reinvestLotsMeta: { total: 0, page: 1, limit: 100, totalPages: 0 },
+        financialSummary: {
+          generatedTotal: '0.00', validatedTotal: '0.00', immediateAmount: '0.00',
+          heldAmount: '0.00', releasableAmount: '0.00', releasedAmount: '0.00',
+        },
         stats: {
           gainsTotaux: 0,
         },
       };
     }
 
-    const pf = membre.portefeuille;
-    const lots = await this.prisma.reinvestLote.findMany({
-      where: { membreId: membre.id, released: false },
-      orderBy: { releasedAt: 'asc' },
-      select: { id: true, amount: true, releasedAt: true },
-    });
+    const snapshot = await (params
+      ? this.mlmWallet.getWallet(membre.id, params)
+      : this.mlmWallet.getWallet(membre.id));
 
     return {
       wallet: {
-        soldeDisponible: Number(pf.soldeDisponible),
-        soldeReserve: Number(pf.soldeReserve),
-        // En centimes arrondis : evite l'epsilon IEEE qui rend le « maximum »
-        // légèrement inférieur au montant légal (0.30-0.10=0.19999…).
-        soldeDisponibleRetrait:
-          (Math.round(Number(pf.soldeDisponible) * 100) - Math.round(Number(pf.soldeReserve) * 100)) / 100,
-        soldeReinvesti: Number(pf.soldeReinvesti),
-        totalGagne: Number(pf.totalGagne),
+        soldeDisponible: snapshot.soldeDisponible,
+        soldeReserve: snapshot.soldeReserve,
+        soldeDisponibleRetrait: snapshot.soldeDisponibleRetrait,
+        soldeReinvesti: snapshot.soldeReinvesti,
+        totalGagne: snapshot.totalGagne,
       },
-      reinvestLots: lots.map((l) => ({ id: l.id, amount: Number(l.amount), releasedAt: l.releasedAt.toISOString() })),
+      financialSummary: snapshot.financialSummary,
+      reinvestLots: snapshot.reinvestLots,
+      reinvestLotsMeta: snapshot.reinvestLotsMeta,
       stats: {
-        gainsTotaux: Number(pf.totalGagne),
+        gainsTotaux: snapshot.totalGagne,
       },
     };
   }
@@ -273,10 +275,11 @@ export class PortalService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { portefeuilleId: membre.portefeuille.id };
+    const where: Prisma.TransactionPortefeuilleWhereInput = { portefeuilleId: membre.portefeuille.id };
     if (query.typeFilter && query.typeFilter !== 'all') {
       if (query.typeFilter === 'gains') {
-        where.type = { in: ['COMMISSION', 'PROMOTION', 'SALAIRE', 'BONUS_RETRAITE'] };
+        where.type = { in: ['COMMISSION', 'PROMOTION', 'SALAIRE', 'BONUS_RETRAITE', 'REINVESTISSEMENT'] };
+        Object.assign(where, excludeHeldReleaseTransfers);
       } else if (query.typeFilter === 'retraits') {
         where.type = 'DEBIT';
       }
@@ -296,6 +299,8 @@ export class PortalService {
       transactions: transactions.map((t) => ({
         id: t.id,
         type: t.type,
+        kind: walletJournalKind(t),
+        referenceId: t.referenceId ?? null,
         montant: Number(t.montant),
         description: t.description,
         createdAt: t.createdAt.toISOString(),
@@ -371,9 +376,11 @@ export class PortalService {
     }));
 
     const paginatedFilleuls = mappedFilleuls.slice(skip, skip + limit);
+    const matrixTree = await this.mlmMatrix.getNetworkTree(membre.id, 2);
 
     return {
       codeParrain: client.codeParrain ?? '—',
+      matrixTree,
       stats: {
         nbFilleulsActifs: allDescendants.filter((f) => f.statut === 'ACTIF').length,
         nbFilleulsTotal: allDescendants.length,

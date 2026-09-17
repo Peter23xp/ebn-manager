@@ -8,6 +8,9 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Modal } from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import { getCommissionStatusLabel } from '@/lib/mlm-status';
+import { formatMlmMoney } from '@/lib/mlm-display';
+import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { invalidateMlm } from '@/lib/mlm-query';
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
   EN_ATTENTE: {
@@ -63,7 +66,7 @@ export default function MlmCommissionsPage() {
   });
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['mlm-commissions'] });
+    void invalidateMlm(queryClient);
   };
 
   const validateMut = useMutation({
@@ -116,7 +119,7 @@ export default function MlmCommissionsPage() {
         </button>
         <div>
           <h1 className="text-page-title text-primary">Gestion des commissions</h1>
-          <p className="text-xs text-text-muted mt-0.5">Suivi des commissions MLM — créditées automatiquement au portefeuille (retraits approuvés dans « Retraits »)</p>
+          <p className="text-xs text-text-muted mt-0.5">Commissions par génération — crédit après validation, retenue et restitution distinctes du retrait.</p>
         </div>
       </div>
 
@@ -183,7 +186,7 @@ export default function MlmCommissionsPage() {
             <thead>
               <tr>
                 <th className="px-5 py-3.5">Bénéficiaire</th>
-                <th className="px-5 py-3.5">Filleul</th>
+                <th className="px-5 py-3.5">Membre déclencheur</th>
                 <th className="px-5 py-3.5">Niveau</th>
                 <th className="px-5 py-3.5">Montant</th>
                 <th className="px-5 py-3.5">Statut</th>
@@ -229,7 +232,10 @@ export default function MlmCommissionsPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3 font-mono font-bold text-text">
-                          {formatUSD(c.montant)}
+                          {formatMlmMoney(c.montant)}
+                          <p className="text-xs font-normal">Immédiat : {formatMlmMoney(c.montantSysteme)}</p>
+                          <p className="text-xs font-normal">Retenu : {formatMlmMoney(c.montantRetour)}</p>
+                          {c.reinvestLot && <details className="mt-2 font-sans font-normal"><summary className="cursor-pointer">Retenue et échéance</summary><ReinvestLots lots={[c.reinvestLot]} /></details>}
                         </td>
                         <td className="px-5 py-3">
                           <span className={`badge ${cfg.badge}`}>

@@ -23,8 +23,10 @@ export class PortalController {
   }
 
   @Get('wallet')
-  getWallet(@CurrentUser() user: any) {
-    return this.portalService.getWallet(user.id);
+  getWallet(@CurrentUser() user: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number) {
+    return this.portalService.getWallet(user.id, { page, limit });
   }
 
   @Post('wallet/payouts')

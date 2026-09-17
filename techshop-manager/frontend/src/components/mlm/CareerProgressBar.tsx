@@ -18,7 +18,7 @@ export const CareerProgressBar: React.FC<CareerProgressBarProps> = ({ currentLev
         {/* Ligne de progression */}
         <div
           className="absolute top-1/2 left-0 h-1 bg-primary-accent -translate-y-1/2 rounded-full transition-all duration-500 ease-out-quart"
-          style={{ width: `${((currentLevel - 1) / (MLM_LEVELS_REF.length - 1)) * 100}%` }}
+          style={{ width: `${(Math.max(0, currentLevel - 1) / (MLM_LEVELS_REF.length - 1)) * 100}%` }}
         />
 
         {MLM_LEVELS_REF.map((level, idx) => {

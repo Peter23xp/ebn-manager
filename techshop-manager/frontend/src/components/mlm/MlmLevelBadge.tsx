@@ -4,7 +4,7 @@ import { MLM_LEVELS_REF } from '@/types';
 import { Award, Crown, Gem, Shield, Star, TrendingUp, Zap } from 'lucide-react';
 
 interface MlmLevelBadgeProps {
-  level: number;
+  level: number | null;
   name?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
@@ -59,7 +59,7 @@ export const MlmLevelBadge: React.FC<MlmLevelBadgeProps> = ({
       }}
     >
       {showIcon && <Icon size={iconSizes[size]} strokeWidth={2.5} />}
-      {name ?? levelData.nom}
+      {name ?? (level === null || level === 0 ? 'Builder en cours' : levelData.nom)}
     </span>
   );
 };

@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { CalendarYear, MatrixTreeNode, MoveMemberInput, PlacementHistory, SwapMembersInput } from '@/types/mlm';
 
 export const MlmApi = {
   // ── Stats & Dashboard ───────────────────────────────────────────────────────
@@ -31,8 +32,8 @@ export const MlmApi = {
     const { data } = await api.get(`/mlm/members/${memberId}/progress`);
     return data;
   },
-  getMemberFilleuls: async (memberId: string) => {
-    const { data } = await api.get(`/mlm/members/${memberId}/filleuls`);
+  getMemberFilleuls: async (memberId: string, params: { page?: number; limit?: number } = {}) => {
+    const { data } = await api.get(`/mlm/members/${memberId}/filleuls`, { params });
     return data;
   },
   getPromotionHistory: async (memberId: string) => {
@@ -45,8 +46,33 @@ export const MlmApi = {
     const { data } = await api.get(`/mlm/matrix/${memberId}/${level}`);
     return data;
   },
-  getNetworkTree: async (memberId: string, depth = 3) => {
+  getNetworkTree: async (memberId: string, depth = 3): Promise<MatrixTreeNode> => {
     const { data } = await api.get(`/mlm/matrix/${memberId}/tree`, { params: { depth } });
+    return data;
+  },
+
+  moveMember: async (input: MoveMemberInput) => {
+    const { data } = await api.post('/mlm/matrix/move', input);
+    return data;
+  },
+  swapMembers: async (input: SwapMembersInput) => {
+    const { data } = await api.post('/mlm/matrix/swap', input);
+    return data;
+  },
+  getPlacementHistory: async (memberId: string, page = 1, limit = 20): Promise<{ items: PlacementHistory[]; meta: { total: number; page: number; limit: number; totalPages: number } }> => {
+    const { data } = await api.get(`/mlm/matrix/${memberId}/history`, { params: { page, limit } });
+    return data;
+  },
+  getCalendar: async (): Promise<CalendarYear[]> => {
+    const { data } = await api.get('/mlm/config/calendar');
+    return data;
+  },
+  updateCalendar: async (year: number, input: Omit<CalendarYear, 'year'>) => {
+    const { data } = await api.put(`/mlm/config/calendar/${year}`, input);
+    return data;
+  },
+  releaseReinvestLot: async (lotId: string) => {
+    const { data } = await api.post(`/mlm/reinvest/${lotId}/release`);
     return data;
   },
 

@@ -5,7 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useMlmConfig, useMlmMembersByLevel } from '@/hooks/useMlm';
 import { formatUSD } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { MLM_LEVELS_REF } from '@/types';
+import { formatMlmMoney } from '@/lib/mlm-display';
 
 // Level icons map (lucide, matching MLM_LEVELS_REF.icone)
 const LEVEL_ICONS: Record<string, LucideIcon> = {
@@ -20,10 +20,9 @@ const LEVEL_ICONS: Record<string, LucideIcon> = {
 
 export default function MlmLevelsPage() {
   const navigate = useNavigate();
-  const { data: levels, isLoading } = useMlmConfig();
+  const { data: levels, isLoading, error, refetch } = useMlmConfig();
   const { data: levelMembers } = useMlmMembersByLevel();
-  const displayedLevels = levels?.length ? levels : MLM_LEVELS_REF;
-  const totalGains = displayedLevels.reduce((sum: number, level: any) => sum + Number(level.commissionTotale ?? 0), 0);
+  const displayedLevels = levels ?? [];
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -53,13 +52,15 @@ export default function MlmLevelsPage() {
           <div>
             <h2 className="text-section-title text-primary">Crown Ambassadeur — le sommet</h2>
             <p className="text-sm text-text-muted max-w-2xl mt-1">
-              Atteignez le niveau ultime après avoir complété 8 matrices de 4 filleuls chacune.
-              Gain total annoncé sur les 8 étapes : <strong className="font-semibold text-text">{formatUSD(totalGains)}</strong>.
+              Atteignez le niveau ultime après avoir complété les 8 générations : 4, 16, 64, 256, 1 024, 4 096, 16 384 puis 65 536 positions.
+              Les montants de chaque génération sont fournis par le serveur.
               Votre parrain personnel reçoit également un bonus retraite de 50 000 $.
             </p>
           </div>
         </div>
       </div>
+
+      {error && <div role="alert">Niveaux indisponibles. <button className="btn-secondary" onClick={() => refetch()}>Réessayer</button></div>}
 
       {/* Levels grid */}
       {isLoading ? (
@@ -85,19 +86,19 @@ export default function MlmLevelsPage() {
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-primary-accent">
               <span className="text-xs font-bold">1</span>
             </div>
-            <p>Chaque <strong className="font-semibold text-text">filleul validé</strong> occupe une position dans votre matrice et génère immédiatement sa commission (montant « Com. / personne » du niveau).</p>
+            <p>Builder est acquis à 4/4 en génération 1, puis Sapphire à 16/16 en génération 2. Avant 4/4 : <strong className="font-semibold text-text">Builder en cours</strong>. Un recrutement seul ne génère pas de commission.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-success">
               <span className="text-xs font-bold">2</span>
             </div>
-            <p>Sur chaque commission, <strong className="font-semibold text-emerald-600">40% (Auto-réinvestissement)</strong> sont crédités immédiatement — <strong className="font-semibold text-emerald-600">retirables après 30 jours</strong>.</p>
+            <p>Chaque génération accomplie crée une commission en attente. La validation administrative crédite le montant immédiat et constitue la retenue.</p>
           </div>
           <div className="flex items-start gap-3">
             <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-warning">
               <span className="text-xs font-bold">3</span>
             </div>
-            <p>Les <strong className="font-semibold text-text">60% restants (Système)</strong> sont crédités aussitôt, <strong className="font-semibold text-text">sans validation</strong> ; seule la demande de retrait est approuvée par l'administration. À 4/4, vous êtes <strong className="font-semibold text-text">promu au niveau suivant</strong> — avec des montants plus élevés.</p>
+            <p>La retenue devient restituable après <strong className="font-semibold text-text">30 jours ouvrables</strong> : lundi à samedi, hors dimanches et jours fériés RDC. La restitution administrative est distincte du retrait.</p>
           </div>
         </div>
       </div>
@@ -127,34 +128,34 @@ function LevelCard({ level }: { level: any }) {
       </div>
 
       <h3 className="text-base font-bold text-text leading-snug">{level.nom}</h3>
-      <p className="text-xs text-text-muted mt-0.5">4 personnes requises</p>
+      <p className="text-xs text-text-muted mt-0.5">{level.requiredPositions ?? '—'} positions requises</p>
 
       {/* Details */}
       <div className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-border bg-bg p-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Com. / personne</p>
+          <p className="text-xs font-semibold text-text-muted">Immédiat</p>
           <p className="text-lg font-black text-text font-mono mt-0.5">
-            {formatUSD(level.commissionParFilleul)}
+            {formatMlmMoney(level.immediateAmount)}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-bg p-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Total annoncé</p>
           <p className="text-lg font-black text-success font-mono mt-0.5">
-            {formatUSD(level.commissionTotale)}
+            {formatMlmMoney(level.totalAmount)}
           </p>
         </div>
       </div>
 
       {/* Split Système 60% / Auto-réinvestissement 40% */}
-      {(Number(level.commissionSysteme) > 0 || Number(level.commissionRetour) > 0) && (
+      {(level.immediateAmount != null || level.heldAmount != null) && (
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-blue-50/70 border border-blue-100 p-2 text-center">
-            <span className="text-[10px] font-semibold text-[#2E86C1] uppercase tracking-wider block">Système 60%</span>
-            <span className="font-bold text-slate-800 font-mono text-xs">{formatUSD(level.commissionSysteme)}</span>
+            <span className="text-xs font-semibold text-text-muted block">Immédiat validé</span>
+            <span className="font-bold text-slate-800 font-mono text-xs">{formatMlmMoney(level.immediateAmount)}</span>
           </div>
           <div className="rounded-lg bg-emerald-50/70 border border-emerald-100 p-2 text-center">
-            <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">↻ Auto 40% · 30j</span>
-            <span className="font-bold text-emerald-800 font-mono text-xs">{formatUSD(level.commissionRetour)}</span>
+            <span className="text-xs font-semibold text-emerald-700 block">Retenu · 30 jours ouvrables</span>
+            <span className="font-bold text-emerald-800 font-mono text-xs">{formatMlmMoney(level.heldAmount)}</span>
           </div>
         </div>
       )}

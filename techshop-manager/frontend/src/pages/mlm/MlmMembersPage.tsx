@@ -100,9 +100,9 @@ export default function MlmMembersPage() {
               <tr>
                 <th className="px-6 py-3.5">Membre</th>
                 <th className="px-6 py-3.5">Matricule</th>
-                <th className="px-6 py-3.5">Parrain</th>
+                <th className="px-6 py-3.5">Recruteur / parent matriciel</th>
                 <th className="px-6 py-3.5">Niveau</th>
-                <th className="px-6 py-3.5">Filleuls</th>
+                <th className="px-6 py-3.5">Réseau</th>
                 <th className="px-6 py-3.5">Gains USD</th>
                 <th className="px-6 py-3.5">Activation</th>
                 <th className="px-6 py-3.5 text-right">Action</th>
@@ -139,25 +139,25 @@ export default function MlmMembersPage() {
                       {m.matricule}
                     </td>
                     <td className="px-6 py-4">
-                      {m.parrain ? (
+                      {(m.recruiter ?? m.parrain) ? (
                         <div>
                           <p className="text-xs font-semibold text-text">
-                            {m.parrain.client?.prenom} {m.parrain.client?.nom}
+                            {(m.recruiter ?? m.parrain).client?.prenom} {(m.recruiter ?? m.parrain).client?.nom}
                           </p>
-                          <p className="text-[11px] text-text-muted font-mono">{m.parrain.matricule}</p>
+                          <p className="text-[11px] text-text-muted font-mono">Recruteur · {(m.recruiter ?? m.parrain).matricule}</p>
                         </div>
                       ) : (
                         <span className="text-xs text-text-subtle italic">—</span>
                       )}
+                      <p className="text-xs text-text-muted mt-1">Parent matriciel :</p>
+                      <p className="text-xs text-text break-all">{m.matrixParentId ?? (m.matrixParentId === null ? 'Racine' : 'Non fourni')}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <MlmLevelBadge
-                        level={m.level.ordre}
-                        size="sm"
-                      />
+                      {m.currentLevel !== undefined ? <MlmLevelBadge level={m.currentLevel?.ordre ?? null} name={m.currentLevel?.nom} size="sm" /> : <span className="text-xs text-text-muted">Rang non fourni</span>}
                     </td>
                     <td className="px-6 py-4 font-semibold text-text">
-                      {m.nbFilleuls}
+                      <p>{m.personalRecruitCount ?? m.nbFilleuls ?? '—'} recrutements personnels directs</p>
+                      <p className="text-xs text-text-muted">{m.directMatrixChildrenCount ?? '—'} enfants matriciels · {m.totalDescendants ?? '—'} descendants</p>
                     </td>
                     <td className="px-6 py-4 font-mono text-xs font-bold text-success">
                       {m.portefeuille ? formatUSD(m.portefeuille.totalGagne) : '—'}

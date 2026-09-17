@@ -180,7 +180,7 @@ export default function App() {
             <Route path="mlm/members" element={<RoleGuard minRole="GERANT"><MlmMembersPage /></RoleGuard>} />
             <Route path="mlm/members/:id" element={<RoleGuard minRole="AGENT"><MemberProgressPage /></RoleGuard>} />
             <Route path="mlm/wallet" element={<RoleGuard minRole="AGENT"><WalletPage /></RoleGuard>} />
-            <Route path="mlm/config" element={<RoleGuard minRole="SUPER_ADMIN"><MlmConfigPage /></RoleGuard>} />
+            <Route path="mlm/config" element={<RoleGuard minRole="DIRECTEUR_REGIONAL"><MlmConfigPage /></RoleGuard>} />
 
             {/* Rapports */}
             <Route path="reports" element={<RoleGuard minRole="GERANT"><RapportsDashboardPage /></RoleGuard>} />

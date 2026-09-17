@@ -4,6 +4,8 @@ import { KpayOperationType, KpayTransactionStatus, MlmPayoutStatus, Prisma, Tran
 import { KpayProvider } from '../kpay/kpay.types';
 import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
+import { MlmCalendarService } from './mlm-calendar.service';
+import { excludeHeldReleaseTransfers, walletJournalKind } from './mlm-wallet-journal';
 
 @Injectable()
 export class MlmWalletService implements OnModuleInit {
@@ -13,6 +15,7 @@ export class MlmWalletService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly kpay: KpayService,
     private readonly webhooks: KpayWebhookService,
+    private readonly calendar: MlmCalendarService,
   ) {}
 
   onModuleInit() {
@@ -23,30 +26,98 @@ export class MlmWalletService implements OnModuleInit {
 
   // ── Get wallet ──────────────────────────────────────────────────────────────
 
-  async getWallet(memberId: string) {
-    const wallet = await this.prisma.portefeuille.findUnique({
-      where: { membreId: memberId },
-      include: {
-        membre: {
-          include: {
-            client: { select: { id: true, prenom: true, nom: true } },
-            level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+  async getWallet(memberId: string, params: { page?: number; limit?: number } = {}) {
+    const page = params.page ?? 1;
+    const requestedLimit = params.limit ?? 100;
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1) {
+      throw new BadRequestException('Pagination des retenues invalide');
+    }
+    const limit = Math.min(requestedLimit, 100);
+    const skip = (page - 1) * limit;
+    if (!Number.isSafeInteger(skip)) throw new BadRequestException('Pagination des retenues invalide');
+    return this.prisma.$transaction(async (tx) => {
+      const wallet = await tx.portefeuille.findUnique({
+        where: { membreId: memberId },
+        include: {
+          membre: {
+            include: {
+              client: { select: { id: true, prenom: true, nom: true } },
+              level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+            },
           },
         },
-      },
-    });
-    if (!wallet) throw new NotFoundException(`Portefeuille introuvable pour membre ${memberId}`);
+      });
+      if (!wallet) throw new NotFoundException(`Portefeuille introuvable pour membre ${memberId}`);
 
+      const [financialSummary, lots, total] = await Promise.all([
+        this.getFinancialSummary(memberId, tx),
+        tx.reinvestLote.findMany({
+          where: { membreId: memberId },
+          select: {
+            id: true, amount: true, releaseDate: true, releasedAt: true, status: true,
+            commissionId: true, calendarVersion: true, timezone: true,
+          },
+          orderBy: [{ releaseDate: 'asc' }, { id: 'asc' }],
+          skip,
+          take: limit,
+        }),
+        tx.reinvestLote.count({ where: { membreId: memberId } }),
+      ]);
+
+      return {
+        id: wallet.id,
+        membreId: wallet.membreId,
+        soldeDisponible: Number(wallet.soldeDisponible),
+        soldeReserve: Number(wallet.soldeReserve),
+        soldeReinvesti: Number(wallet.soldeReinvesti),
+        soldeDisponibleRetrait: new Prisma.Decimal(wallet.soldeDisponible).minus(wallet.soldeReserve).toNumber(),
+        totalGagne: Number(wallet.totalGagne),
+        membre: wallet.membre,
+        updatedAt: wallet.updatedAt,
+        financialSummary,
+        reinvestLots: lots.map((lot) => ({
+          ...lot,
+          amount: lot.amount.toFixed(2),
+          releaseDate: lot.releaseDate.toISOString(),
+          releasedAt: lot.releasedAt?.toISOString() ?? null,
+        })),
+        reinvestLotsMeta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
+
+  async getFinancialSummary(memberId: string, tx?: Prisma.TransactionClient) {
+    if (tx) return this.readFinancialSummary(memberId, tx);
+    return this.prisma.$transaction(
+      (snapshot) => this.readFinancialSummary(memberId, snapshot),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  private async readFinancialSummary(memberId: string, tx: Prisma.TransactionClient) {
+    const [generated, validated, holds] = await Promise.all([
+      tx.commission.aggregate({
+        where: { membreId: memberId, statut: { not: 'ANNULEE' } },
+        _sum: { montant: true },
+      }),
+      tx.commission.aggregate({
+        where: { membreId: memberId, statut: { in: ['VALIDEE', 'PAYEE'] } },
+        _sum: { montant: true, montantSysteme: true },
+      }),
+      tx.reinvestLote.groupBy({
+        by: ['status'],
+        where: { membreId: memberId, status: { in: ['HOLD_PERIOD', 'RELEASABLE', 'RELEASED'] } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const amounts = new Map(holds.map((hold) => [hold.status, hold._sum.amount]));
     return {
-      id: wallet.id,
-      membreId: wallet.membreId,
-      soldeDisponible: Number(wallet.soldeDisponible),
-      soldeReserve: Number(wallet.soldeReserve),
-      soldeReinvesti: Number(wallet.soldeReinvesti),
-      soldeDisponibleRetrait: Number(wallet.soldeDisponible) - Number(wallet.soldeReserve),
-      totalGagne: Number(wallet.totalGagne),
-      membre: wallet.membre,
-      updatedAt: wallet.updatedAt,
+      generatedTotal: new Prisma.Decimal(generated._sum.montant ?? 0).toFixed(2),
+      validatedTotal: new Prisma.Decimal(validated._sum.montant ?? 0).toFixed(2),
+      immediateAmount: new Prisma.Decimal(validated._sum.montantSysteme ?? 0).toFixed(2),
+      heldAmount: new Prisma.Decimal(amounts.get('HOLD_PERIOD') ?? 0).toFixed(2),
+      releasableAmount: new Prisma.Decimal(amounts.get('RELEASABLE') ?? 0).toFixed(2),
+      releasedAmount: new Prisma.Decimal(amounts.get('RELEASED') ?? 0).toFixed(2),
     };
   }
 
@@ -276,6 +347,7 @@ export class MlmWalletService implements OnModuleInit {
       transactions: transactions.map((t) => ({
         id: t.id,
         type: t.type,
+        kind: walletJournalKind(t),
         montant: Number(t.montant),
         description: t.description,
         referenceId: t.referenceId,
@@ -306,7 +378,7 @@ export class MlmWalletService implements OnModuleInit {
 
     const transactions = await this.prisma.transactionPortefeuille.groupBy({
       by: ['type'],
-      where: { portefeuilleId: pf.id },
+      where: { portefeuilleId: pf.id, ...excludeHeldReleaseTransfers },
       _sum: { montant: true },
       _count: { id: true },
     });
@@ -322,7 +394,7 @@ export class MlmWalletService implements OnModuleInit {
 
   async creditWallet(
     memberId: string,
-    montant: number,
+    montant: Prisma.Decimal.Value,
     type: TransactionType,
     description: string,
     referenceId?: string,
@@ -337,7 +409,7 @@ export class MlmWalletService implements OnModuleInit {
   async creditWalletInTx(
     tx: Prisma.TransactionClient,
     memberId: string,
-    montant: number,
+    montant: Prisma.Decimal.Value,
     type: TransactionType,
     description: string,
     referenceId?: string,
@@ -369,40 +441,94 @@ export class MlmWalletService implements OnModuleInit {
     });
   }
 
-  /** Crédit 40 % réinvestissement — bloqué jusqu'à releasedAt (J+30). */
   async creditReinvestInTx(
     tx: Prisma.TransactionClient,
     memberId: string,
-    montant: number,
-    commissionId: string | null,
+    montant: Prisma.Decimal.Value,
+    commissionId: string,
     levelNom: string,
     now: Date = new Date(),
   ) {
+    if (!commissionId) throw new BadRequestException('Une commission est requise pour constituer une retenue');
     const pf = await tx.portefeuille.findUnique({ where: { membreId: memberId }, select: { id: true } });
     if (!pf) throw new NotFoundException(`Portefeuille introuvable pour membre ${memberId}`);
+    const existing = await tx.reinvestLote.findUnique({ where: { commissionId } });
+    if (existing) return existing;
+    const schedule = await this.calendar.getReleaseSchedule(now, tx);
     const montantDecimal = new Prisma.Decimal(montant);
-    await tx.portefeuille.update({
-      where: { id: pf.id },
-      data: { soldeReinvesti: { increment: montantDecimal }, totalGagne: { increment: montantDecimal } },
-    });
-    await tx.reinvestLote.create({
+    const lot = await tx.reinvestLote.create({
       data: {
         membreId: memberId,
         amount: montantDecimal,
-        releasedAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+        ...schedule,
+        releasedAt: null,
         released: false,
+        status: 'HOLD_PERIOD',
         commissionId,
       },
+    });
+    await tx.portefeuille.update({
+      where: { id: pf.id },
+      data: { soldeReinvesti: { increment: montantDecimal }, totalGagne: { increment: montantDecimal } },
     });
     await tx.transactionPortefeuille.create({
       data: {
         portefeuilleId: pf.id,
         type: 'REINVESTISSEMENT',
         montant: montantDecimal,
-        description: `Réinvestissement auto niveau ${levelNom} — ${montant} USD bloqués 30 jours`,
+        description: `Retenue niveau ${levelNom} — ${montantDecimal.toFixed(2)} USD bloqués 30 jours ouvrables`,
         referenceId: commissionId,
       },
     });
+    return lot;
+  }
+
+  async releaseHeldLot(lotId: string, actorId: string) {
+    if (!actorId?.trim()) throw new BadRequestException('Un acteur est requis pour restituer une retenue');
+    return this.prisma.$transaction(async (tx) => {
+      const initial = await tx.reinvestLote.findUnique({ where: { id: lotId } });
+      if (!initial) throw new NotFoundException('Retenue introuvable');
+      const wallet = await tx.portefeuille.findUnique({
+        where: { membreId: initial.membreId }, select: { id: true },
+      });
+      if (!wallet) throw new NotFoundException('Portefeuille introuvable');
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM portefeuilles WHERE id = ${wallet.id} FOR UPDATE
+      `;
+      if (!locked.length) throw new NotFoundException('Portefeuille introuvable');
+      const lot = await tx.reinvestLote.findUnique({ where: { id: lotId } });
+      if (!lot) throw new NotFoundException('Retenue introuvable');
+      if (lot.status === 'RELEASED') return lot;
+      const now = new Date();
+      if (lot.status !== 'RELEASABLE' || lot.released || lot.releaseDate > now) {
+        throw new BadRequestException('Cette retenue ne peut pas encore être restituée ou a été annulée');
+      }
+      const claim = await tx.reinvestLote.updateMany({
+        where: { id: lotId, status: 'RELEASABLE', released: false, releaseDate: { lte: now } },
+        data: { status: 'RELEASED', released: true, releasedAt: now, releasedById: actorId },
+      });
+      if (claim.count !== 1) {
+        const current = await tx.reinvestLote.findUnique({ where: { id: lotId } });
+        if (current?.status === 'RELEASED') return current;
+        throw new BadRequestException('Cette retenue a déjà été traitée');
+      }
+      const amount = new Prisma.Decimal(lot.amount);
+      const moved = await tx.portefeuille.updateMany({
+        where: { id: wallet.id, soldeReinvesti: { gte: amount } },
+        data: { soldeReinvesti: { decrement: amount }, soldeDisponible: { increment: amount } },
+      });
+      if (moved.count !== 1) throw new BadRequestException('Solde retenu insuffisant pour restituer ce lot');
+      await tx.transactionPortefeuille.create({
+        data: {
+          portefeuilleId: wallet.id,
+          type: 'REINVESTISSEMENT',
+          montant: amount,
+          description: `Restitution de la retenue ${lotId}`,
+          referenceId: `release:${lotId}`,
+        },
+      });
+      return tx.reinvestLote.findUnique({ where: { id: lotId } });
+    }, { timeout: 30000, maxWait: 10000 });
   }
 
   // ── Withdrawal Requests Management (Admin) ──────────────────────────────────

@@ -1,10 +1,10 @@
 import React from 'react';
 import { CheckCircle2, Circle, Clock, User } from 'lucide-react';
 import { cn, formatDate } from '@/lib/utils';
-import type { Matrix, Position } from '@/types';
+import type { Position } from '@/types';
 
 interface MatrixGridProps {
-  matrix?: Matrix | null;
+  matrix?: { id: string; niveau?: { ordre: number }; level?: { ordre: number }; requiredPositions?: number; occupiedPositions?: number; filleulsValides: number; estComplete?: boolean; positions?: Position[] } | null;
   isLoading?: boolean;
 }
 
@@ -19,26 +19,13 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
     );
   }
 
-  const positions: Position[] = matrix?.positions ?? [1, 2, 3, 4].map((n) => ({
-    id: `placeholder-${n}`,
-    matrixId: matrix?.id ?? '',
-    numeroPosition: n,
-    filleulId: undefined,
-    estValide: false,
-  }));
-
-  // Ensure 4 positions sorted
-  const sortedPositions = [...positions].sort((a, b) => a.numeroPosition - b.numeroPosition);
-  while (sortedPositions.length < 4) {
-    const nextNum = sortedPositions.length + 1;
-    sortedPositions.push({
-      id: `placeholder-${nextNum}`,
-      matrixId: matrix?.id ?? '',
-      numeroPosition: nextNum,
-      filleulId: undefined,
-      estValide: false,
-    });
-  }
+  if (!matrix) return <p className="text-sm text-text-muted">Aucune matrice disponible.</p>;
+  const generation = matrix.niveau?.ordre ?? matrix.level?.ordre;
+  const sortedPositions: Position[] = generation === 1 ? [1, 2, 3, 4].map(numeroPosition =>
+    matrix.positions?.find(position => position.numeroPosition === numeroPosition) ?? {
+      id: `placeholder-${numeroPosition}`, matrixId: matrix.id, numeroPosition, estValide: false,
+    }
+  ) : [];
 
   return (
     <div className="space-y-4">
@@ -47,7 +34,7 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text">Remplissage de la matrice :</span>
           <span className="font-mono font-bold text-primary-accent">
-            {matrix?.filleulsValides ?? 0} / 4 positions
+            {matrix.filleulsValides} / {matrix.requiredPositions ?? '—'} positions validées
           </span>
         </div>
         {matrix?.estComplete ? (
@@ -62,11 +49,13 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
           </span>
         )}
       </div>
+      <p className="text-sm text-text-muted">{matrix.occupiedPositions ?? '—'} positions occupées</p>
+      {generation !== 1 && <p className="text-sm text-text-muted">Génération agrégée — consultez l'arbre pour les placements.</p>}
 
       {/* 4-position cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {sortedPositions.map((pos) => {
-          const isFilled = pos.estValide;
+          const isFilled = !!pos.filleulId;
 
           return (
             <div
@@ -101,8 +90,9 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
                       {pos.filleul.client.prenom} {pos.filleul.client.nom}
                     </p>
                   ) : (
-                    <p className="text-xs font-bold text-text">Position validée</p>
+                    <p className="text-xs font-bold text-text">Position occupée</p>
                   )}
+                  <p className="text-xs text-text-muted">{pos.estValide ? 'Validée' : 'Occupée — non validée'}</p>
                   {pos.dateValidation && (
                     <p className="text-[10px] text-text-muted mt-0.5 font-mono">
                       {formatDate(pos.dateValidation)}

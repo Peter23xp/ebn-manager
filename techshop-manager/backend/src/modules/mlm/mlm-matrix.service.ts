@@ -1,534 +1,153 @@
 import { randomInt } from 'crypto';
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { MlmWalletService } from './mlm-wallet.service';
+import { MlmPlacementService } from './mlm-placement.service';
+import { generationCapacity, generationProgress, MATRIX_GENERATIONS } from './mlm-generation';
 
 @Injectable()
 export class MlmMatrixService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly walletService: MlmWalletService,
+    private readonly placementService: MlmPlacementService = new MlmPlacementService(prisma),
   ) {}
 
-  /**
-   * Called when a client is activated (statut ACTIF).
-   * Creates the Membre record, Portefeuille, and level-1 Matrix.
-   * Fills the parrain's matrix position and triggers promotion if matrix is complete.
-   */
   async onClientActivated(clientId: string, parrainCode?: string): Promise<void> {
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-      select: { id: true, matriculeExterne: true, codeParrain: true, parrainClientId: true },
-    });
-    if (!client) throw new NotFoundException(`Client ${clientId} introuvable`);
-
-    const targetParrainIdentifier = parrainCode || client.parrainClientId;
-
-    // Resolve parrain by Membre.id, Membre.clientId, Membre.matricule, Client.id, Client.codeParrain, Client.matriculeExterne
-    let parrainId: string | null = null;
-    let parrainMembreClientId: string | null = null;
-
-    if (targetParrainIdentifier) {
-      const parrainMembre = await this.prisma.membre.findFirst({
-        where: {
-          OR: [
-            { id: targetParrainIdentifier },
-            { clientId: targetParrainIdentifier },
-            { matricule: targetParrainIdentifier },
-            { client: { id: targetParrainIdentifier } },
-            { client: { codeParrain: targetParrainIdentifier } },
-            { client: { matriculeExterne: targetParrainIdentifier } },
-          ],
-        },
-        select: { id: true, clientId: true },
-      });
-      if (parrainMembre) {
-        parrainId = parrainMembre.id;
-        parrainMembreClientId = parrainMembre.clientId;
-      }
-    }
-
-    // Check if already a member
-    const existing = await this.prisma.membre.findUnique({ where: { clientId } });
-    if (existing) {
-      // If member already exists but has no parrainId and we resolved a parrainId, attach it and fill matrix position
-      if (!existing.parrainId && parrainId && parrainId !== existing.id) {
-        await this.prisma.$transaction(async (tx) => {
-          await tx.membre.update({
-            where: { id: existing.id },
-            data: { parrainId },
-          });
-          if (!client.parrainClientId && parrainMembreClientId) {
-            await tx.client.update({
-              where: { id: clientId },
-              data: { parrainClientId: parrainMembreClientId },
-            });
-          }
-          const parrainMembre = await tx.membre.findUnique({
-            where: { id: parrainId! },
-            select: { mlmLevelId: true },
-          });
-          if (parrainMembre) {
-            await this._fillParrainPosition(tx, parrainId!, existing.id, parrainMembre.mlmLevelId);
-          }
-        }, { timeout: 30000, maxWait: 10000 });
-      }
-      return;
-    }
-
-    // Get level 1
-    const level1 = await this.prisma.mlmLevel.findFirst({ where: { ordre: 1 } });
-    if (!level1) throw new BadRequestException('MlmLevel niveau 1 introuvable — seed la DB d\'abord');
-
-    // Prefixe du matricule AAAAMMJJXXXX
-    const now = new Date();
-    const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-
-    // Deux activations simultanées le même jour peuvent calculer le même
-    // matricule (count + 1 non atomique) → collision P2002. Postgres avorte la
-    // transaction au premier échec : on rejoue donc la transaction ENTIÈRE
-    // (le corps est idempotent grâce aux guards findUnique/existing).
-    const run = () => this.prisma.$transaction(async (tx) => {
-      // If client didn't have parrainClientId set but we resolved it from parrainCode, persist it on Client
-      if (!client.parrainClientId && parrainMembreClientId) {
-        await tx.client.update({
-          where: { id: clientId },
-          data: { parrainClientId: parrainMembreClientId },
-        });
-      }
-
-      const usedSuffixes = new Set(
-        (
-          await tx.membre.findMany({
-            where: { matricule: { startsWith: prefix } },
-            select: { matricule: true },
-          })
-        ).map((m) => m.matricule.slice(prefix.length)),
-      );
-      if (usedSuffixes.size >= 10000) {
-        throw new BadRequestException(`Quota de 10 000 matricules atteint pour le ${prefix}.`);
-      }
-      // Les 4 derniers chiffres sont ALÉATOIRES et jamais réutilisés : deux
-      // activations du même jour n'ont jamais des matricules qui se
-      // ressemblent (202609143871 ≠ 202609140509…). L'unique contrainte DB
-      // reste la garantie finale (retry sur collision ci-dessous).
-      let matricule = '';
-      for (let attempt = 0; ; attempt++) {
-        const candidate = String(randomInt(10000)).padStart(4, '0');
-        if (!usedSuffixes.has(candidate)) {
-          matricule = `${prefix}${candidate}`;
-          break;
-        }
-        if (attempt > 50) {
-          throw new BadRequestException('Tirage de matricule épuisé — réessayez.');
-        }
-      }
-      const membre = await tx.membre.create({
-        data: {
-          clientId,
-          matricule,
-          parrainId,
-          mlmLevelId: level1.id,
-          statut: 'ACTIF',
-        },
-      });
-
-      // Create wallet
-      await tx.portefeuille.create({ data: { membreId: membre.id } });
-
-      // Create level-1 matrix with 4 empty positions in a single query
-      await tx.matrix.create({
-        data: {
-          membreId: membre.id,
-          mlmLevelId: level1.id,
-          positions: {
-            createMany: {
-              data: [1, 2, 3, 4].map((n) => ({ numeroPosition: n })),
-            },
-          },
-        },
-      });
-
-      // Fill parrain's matrix if exists — à son NIVEAU COURANT (un parrain
-      // promu doit être rémunéré sur le taux de son niveau, pas bloqué au
-      // niveau 1 complet).
-      if (parrainId) {
-        const parrainMembre = await tx.membre.findUnique({
-          where: { id: parrainId },
-          select: { mlmLevelId: true },
-        });
-        await this._fillParrainPosition(tx, parrainId, membre.id, parrainMembre?.mlmLevelId ?? level1.id);
-      }
-    }, { timeout: 30000, maxWait: 10000 });
-
-    for (let attempt = 0; ; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        await run();
-        break;
-      } catch (err: any) {
-        const target = String(err?.meta?.target ?? '');
-        if (err?.code === 'P2002') {
-          // Deux activations concurrentes du MÊME client : la perdue doit
-          // recevoir un 4xx propre, pas un 500 brut.
-          if (target.includes('clientId')) {
-            throw new BadRequestException('Ce client est déjà membre du réseau (activation concurrente).');
+        await this.prisma.$transaction(async tx => {
+          await this.placementService.lock(tx);
+          const client = await tx.client.findUnique({ where: { id: clientId } });
+          if (!client) throw new NotFoundException('Client introuvable');
+          if (client.statut !== 'ACTIF') throw new BadRequestException('Le client doit etre actif avant placement');
+          const identifier = parrainCode || client.parrainClientId;
+          const recruiter = identifier ? await tx.membre.findFirst({
+            where: { OR: [
+              { id: identifier }, { clientId: identifier }, { matricule: identifier },
+              { client: { id: identifier } }, { client: { codeParrain: identifier } },
+              { client: { matriculeExterne: identifier } },
+            ] },
+          }) : null;
+          let member = await tx.membre.findUnique({ where: { clientId } });
+          if (recruiter?.clientId === clientId) throw new BadRequestException('Auto-parrainage interdit');
+          if (member?.parrainId && recruiter && member.parrainId !== recruiter.id) throw new BadRequestException('Le recruteur original ne peut pas etre remplace');
+          const level = await tx.mlmLevel.findFirst({ where: { ordre: 1 } });
+          if (!level) throw new BadRequestException('Configurer les huit niveaux MLM avant activation');
+          if (!member) {
+            const now = new Date();
+            const prefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            const occupied = new Set((await tx.membre.findMany({
+              where: { matricule: { startsWith: prefix } }, select: { matricule: true },
+            })).map(existing => existing.matricule));
+            const available = Array.from({ length: 10000 }, (_, suffix) => prefix + String(suffix).padStart(4, '0'))
+              .filter(candidate => !occupied.has(candidate));
+            if (!available.length) throw new ConflictException('Tous les matricules du jour sont attribues');
+            const matricule = available[randomInt(available.length)];
+            member = await tx.membre.create({ data: {
+              clientId, matricule, parrainId: recruiter?.id, mlmLevelId: level.id, statut: 'ACTIF',
+            } });
+            await tx.portefeuille.create({ data: { membreId: member.id } });
+            await tx.matrix.create({ data: {
+              membreId: member.id, mlmLevelId: level.id,
+              positions: { createMany: { data: [1, 2, 3, 4].map(numeroPosition => ({ numeroPosition })) } },
+            } });
+          } else if (!member.parrainId && recruiter) {
+            member = await tx.membre.update({ where: { id: member.id }, data: { parrainId: recruiter.id } });
           }
-          if (target.includes('matricule') && attempt < 4) continue;
-        }
-        throw err;
+          if (!client.parrainClientId && recruiter) {
+            await tx.client.update({ where: { id: clientId }, data: { parrainClientId: recruiter.clientId } });
+          }
+          if (member.parrainId) await this.placementService.place(tx, member.id, member.parrainId);
+        }, { timeout: 30000, maxWait: 10000 });
+        return;
+      } catch (error) {
+        if (attempt < 4 && (error?.code === 'P2034' || (error?.code === 'P2002' && String(error?.meta?.target).includes('matricule')))) continue;
+        throw error;
       }
     }
   }
-
-  /**
-   * Fill the next available position in the parrain's level matrix.
-   * Triggers promotion check when matrix is complete (4/4 filled).
-   */
-  private async _fillParrainPosition(
-    tx: Prisma.TransactionClient,
-    parrainId: string,
-    filleulId: string,
-    mlmLevelId: number,
-  ): Promise<void> {
-    // Find or create parrain's matrix for this level
-    let matrix = await tx.matrix.findUnique({
-      where: { membreId_mlmLevelId: { membreId: parrainId, mlmLevelId } },
-      include: { positions: { orderBy: { numeroPosition: 'asc' } } },
-    });
-
-    if (!matrix) {
-      matrix = await tx.matrix.create({
-        data: {
-          membreId: parrainId,
-          mlmLevelId,
-          positions: {
-            createMany: {
-              data: [1, 2, 3, 4].map((n) => ({ numeroPosition: n })),
-            },
-          },
-        },
-        include: { positions: { orderBy: { numeroPosition: 'asc' } } },
-      });
-    }
-
-    if (matrix.estComplete) return;
-
-    // Idempotence : le même filleul ne doit jamais occuper deux positions.
-    if (matrix.positions.some((p) => p.estValide && p.filleulId === filleulId)) return;
-
-    // Réclamation atomique d'une position vide : updateMany avec le filtre
-    // estValide:false sérialise deux activations concurrentes sous le même
-    // parrain. Si la position visée a été prise entre-temps, on reprend une
-    // autre candidate (sinon on sort — matrice pleine pour cette transaction).
-    let claimedPosition = false;
-    for (let attempt = 0; attempt < matrix.positions.length + 1 && !claimedPosition; attempt++) {
-      const candidates = await tx.position.findMany({
-        where: { matrixId: matrix.id, estValide: false },
-        orderBy: { numeroPosition: 'asc' },
-      });
-      if (candidates.length === 0) return;
-      const claim = await tx.position.updateMany({
-        where: { id: candidates[0].id, estValide: false },
-        data: { filleulId, estValide: true, dateValidation: new Date() },
-      });
-      claimedPosition = claim.count === 1;
-    }
-    if (!claimedPosition) return;
-
-    // ── Rémunération À CHAQUE filleul validé (règle « X USD / filleul ») ──
-    // Le parrain n'attend pas 4/4 : chaque filleul qui occupe une position
-    // génère sa propre commission, avec le split 60/40 du niveau.
-    await this._creditFilleulCommission(tx, parrainId, filleulId, mlmLevelId);
-
-    // L'update de la matrice SERIALISE la logique de complétion : une
-    // transaction concurrente est bloquée ici jusqu'au commit de l'autre.
-    await tx.matrix.update({
-      where: { id: matrix.id },
-      data: { filleulsValides: { increment: 1 } },
-    });
-
-    // Autorité = positions réellement validées (le compteur lu hors verrou
-    // était périmé sous concurrence). updateMany estComplete false→true :
-    // une seule des transactions concurrentes gagne et déclenche la promo.
-    const valides = await tx.position.count({
-      where: { matrixId: matrix.id, estValide: true },
-    });
-    let promoted = false;
-    if (valides >= 4) {
-      const flip = await tx.matrix.updateMany({
-        where: { id: matrix.id, estComplete: false },
-        data: { estComplete: true, dateComplete: new Date() },
-      });
-      promoted = flip.count === 1;
-    }
-
-    if (promoted) {
-      await this._triggerPromotion(tx, parrainId, mlmLevelId, filleulId);
-    }
-  }
-
-  /**
-   * Rémunération à CHAQUE filleul validé : crée une Commission VALIDEE de
-   * `commissionParFilleul` et crédite IMMÉDIATEMENT 100 % du portefeuille :
-   * - 60 % (montantSysteme) → soldeDisponible (retirable de suite)
-   * - 40 % (montantRetour)  → soldeReinvesti, bloqué J+30 (creditReinvestInTx)
-   * La validation admin ne porte plus sur la commission, uniquement sur les
-   * demandes de retrait. Idempotent via referenceId (parrain+filleul+niveau).
-   */
-  private async _creditFilleulCommission(
-    tx: Prisma.TransactionClient,
-    parrainId: string,
-    filleulId: string,
-    mlmLevelId: number,
-  ): Promise<void> {
-    const level = await tx.mlmLevel.findUnique({ where: { id: mlmLevelId } });
-    if (!level) return;
-
-    const commissionRef = `commission-${parrainId}-level${level.ordre}-${filleulId}`;
-    const existing = await tx.commission.findUnique({ where: { referenceId: commissionRef } });
-    if (existing) return;
-
-    const montantParFilleul = Number(level.commissionParFilleul);
-    const montantSysteme = Number(level.commissionSysteme);
-    const montantRetour = Number(level.commissionRetour);
-    // Repli pour un niveau sans split configuré : tout va dans la poche dispo.
-    const dispo = montantSysteme + montantRetour > 0 ? montantSysteme : montantParFilleul;
-    const retourn = montantSysteme + montantRetour > 0 ? montantRetour : 0;
-
-    const commission = await tx.commission.create({
-      data: {
-        membreId: parrainId,
-        filleulId,
-        mlmLevelId,
-        montant: montantParFilleul,
-        montantSysteme,
-        montantRetour,
-        statut: 'VALIDEE',
-        valideeAt: new Date(),
-        referenceId: commissionRef,
-        description: `Commission niveau ${level.nom} — filleul validé (${montantParFilleul} USD/filleul, split 60/40)`,
-      },
-    });
-
-    // Garantir l'existence du portefeuille avant les deux crédits
-    let portefeuille = await tx.portefeuille.findUnique({
-      where: { membreId: parrainId },
-      select: { id: true },
-    });
-    if (!portefeuille) {
-      await tx.portefeuille.create({
-        data: { membreId: parrainId, soldeDisponible: 0, totalGagne: 0 },
-      });
-    }
-
-    // 60 % → soldeDisponible, retirable immédiatement
-    if (dispo > 0) {
-      await this.walletService.creditWalletInTx(
-        tx,
-        parrainId,
-        dispo,
-        'COMMISSION',
-        commission.description,
-        commissionRef,
-      );
-    }
-
-    // 40 % → poche réinvestissement bloquée J+30
-    if (retourn > 0) {
-      await this.walletService.creditReinvestInTx(tx, parrainId, retourn, commission.id, level.nom);
-    }
-  }
-
-  /**
-   * Promotion au niveau suivant quand la matrice est complète (4/4).
-   * Ne crée AUCUNE commission : la rémunération est déjà versée à chaque
-   * filleul validé (voir _creditFilleulCommission), crédit immediate 100 %.
-   */
-  private async _triggerPromotion(
-    tx: Prisma.TransactionClient,
-    membreId: string,
-    completedLevelId: number,
-    triggerFilleulId: string,
-  ): Promise<void> {
-    const [completedLevel, membre] = await Promise.all([
-      tx.mlmLevel.findUnique({ where: { id: completedLevelId } }),
-      tx.membre.findUnique({
-        where: { id: membreId },
-        include: { level: true, parrain: true },
-      }),
-    ]);
-
-    if (!completedLevel || !membre) return;
-
-    // Find next level
-    const nextLevel = await tx.mlmLevel.findFirst({
-      where: { ordre: { gt: completedLevel.ordre }, isActive: true },
-      orderBy: { ordre: 'asc' },
-    });
-
-    if (nextLevel) {
-      // Promote member
-      await tx.membre.update({
-        where: { id: membreId },
-        data: { mlmLevelId: nextLevel.id },
-      });
-
-      // Record promotion history
-      await tx.promotion.create({
-        data: {
-          membreId,
-          niveauAvantId: completedLevel.id,
-          niveauApresId: nextLevel.id,
-          commissionVersee: completedLevel.commissionTotale,
-          declencheParId: triggerFilleulId,
-        },
-      });
-
-      // NOTE : la rémunération est versée À CHAQUE FILLEUL validé (voir
-      // _creditFilleulPosition → _creditFilleulCommission), pas à la complétion.
-      // Les 4 filleuls du niveau ont donc déjà généré 4 × montantParFilleul
-      // (= commissionTotale), split 60/40. Ne PAS re-créditer ici.
-
-      // Create BonusAttribue (physical bonus — also EN_ATTENTE by default)
-      await tx.bonusAttribue.create({
-        data: {
-          membreId,
-          mlmLevelId: nextLevel.id,
-          description: nextLevel.bonusDescription,
-          statut: 'EN_ATTENTE',
-        },
-      });
-
-      // Create matrix for next level
-      const existingMatrix = await tx.matrix.findUnique({
-        where: { membreId_mlmLevelId: { membreId, mlmLevelId: nextLevel.id } },
-      });
-      if (!existingMatrix) {
-        await tx.matrix.create({
-          data: {
-            membreId,
-            mlmLevelId: nextLevel.id,
-            positions: {
-              createMany: {
-                data: [1, 2, 3, 4].map((n) => ({ numeroPosition: n })),
-              },
-            },
-          },
-        });
-      }
-
-      // Salary: only applicable for eligible levels — create EN_ATTENTE record
-      // (salary credit also requires admin validation; stored via SalaireVerse with statut PENDING)
-      if (nextLevel.salaireActif && Number(nextLevel.salaireMensuel) > 0) {
-        const moisAnnee = new Date().toISOString().slice(0, 7);
-        const exists = await tx.salaireVerse.findUnique({
-          where: { membreId_moisAnnee: { membreId, moisAnnee } },
-        });
-        if (!exists) {
-          await tx.salaireVerse.create({
-            data: {
-              membreId,
-              montant: nextLevel.salaireMensuel,
-              moisAnnee,
-              statut: 'EN_ATTENTE',
-            },
-          });
-        }
-      }
-
-      // Handle Crown Ambassador retirement bonus (level 8)
-      if (nextLevel.ordre === 8 && membre.parrainId) {
-        const existing = await tx.bonusRetraite.findUnique({
-          where: { membreId_filleulCrownId: { membreId: membre.parrainId, filleulCrownId: membreId } },
-        });
-        if (!existing) {
-          // Create retirement bonus EN_ATTENTE — no automatic wallet credit
-          await tx.bonusRetraite.create({
-            data: { membreId: membre.parrainId, filleulCrownId: membreId, statut: 'EN_ATTENTE' },
-          });
-        }
-      }
-
-      // Fill parrain's next-level matrix
-      if (membre.parrainId && nextLevel) {
-        await this._fillParrainPosition(tx, membre.parrainId, membreId, nextLevel.id);
-      }
-    }
-  }
-
-  // ── Get member matrix ───────────────────────────────────────────────────────
 
   async getMemberMatrix(memberId: string, levelId: number) {
     const matrix = await this.prisma.matrix.findUnique({
       where: { membreId_mlmLevelId: { membreId: memberId, mlmLevelId: levelId } },
-      include: {
-        positions: { orderBy: { numeroPosition: 'asc' } },
-        level: true,
-      },
+      include: { positions: { orderBy: { numeroPosition: 'asc' }, include: { filleul: { include: { client: { select: { id: true, nom: true, prenom: true, telephone: true } } } } } }, level: true },
     });
-    if (!matrix) throw new NotFoundException(`Matrix non trouvée pour membre ${memberId} niveau ${levelId}`);
-    return matrix;
+    if (!matrix) throw new NotFoundException('Matrice introuvable');
+    return { ...matrix, requiredPositions: generationCapacity(matrix.level.ordre), remainingPositions: generationCapacity(matrix.level.ordre) - matrix.filleulsValides };
   }
-
-  // ── Get network tree ────────────────────────────────────────────────────────
 
   async getNetworkTree(memberId: string, depth = 3) {
-    const membre = await this.prisma.membre.findUnique({
-      where: { id: memberId },
-      include: {
-        client: { select: { id: true, prenom: true, nom: true } },
-        level: { select: { id: true, ordre: true, nom: true, couleur: true } },
-      },
-    });
-    if (!membre) throw new NotFoundException(`Membre ${memberId} introuvable`);
-
-    const buildTree = async (mId: string, currentDepth: number): Promise<any> => {
-      if (currentDepth <= 0) return null;
-      const m = await this.prisma.membre.findUnique({
-        where: { id: mId },
+    if (!Number.isInteger(depth) || depth < 0 || depth > 3) throw new BadRequestException('Profondeur autorisee : 0 a 3');
+    const levels = await this.prisma.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    const nodes = new Map<string, any>();
+    let frontier = [memberId];
+    for (let generation = 0; generation <= depth && frontier.length; generation++) {
+      const members = await this.prisma.membre.findMany({
+        where: { id: { in: frontier } },
         include: {
           client: { select: { id: true, prenom: true, nom: true } },
-          level: { select: { id: true, ordre: true, nom: true, couleur: true } },
-          matrices: {
-            where: { estComplete: false },
-            select: { mlmLevelId: true, filleulsValides: true },
-            orderBy: { level: { ordre: 'desc' } },
-            take: 1,
-          },
-          filleuls: {
-            include: {
-              client: { select: { id: true, prenom: true, nom: true } },
-              level: { select: { id: true, ordre: true, nom: true, couleur: true } },
-            },
-          },
+          parrain: { select: { id: true, matricule: true, client: { select: { nom: true, prenom: true } } } },
+          matrixPosition: { include: { matrix: { select: { membre: { select: { id: true, matricule: true, client: { select: { nom: true, prenom: true } } } } } } } },
+          matrices: { include: { level: true, positions: { orderBy: { numeroPosition: 'asc' } } } },
+          _count: { select: { filleuls: true } },
         },
       });
-      if (!m) return null;
-
-      const currentMatrix = m.matrices[0];
-      const children = await Promise.all(
-        m.filleuls.map((f) => buildTree(f.id, currentDepth - 1)),
-      );
-
-      return {
-        id: m.id,
-        matricule: m.matricule,
-        client: m.client,
-        level: m.level,
-        statut: m.statut,
-        dateInscription: m.dateInscription,
-        dateActivation: m.dateActivation,
-        progression: currentMatrix
-          ? { filleulsValides: currentMatrix.filleulsValides, filleulsRequis: 4 }
-          : null,
-        children: children.filter(Boolean),
-      };
-    };
-
-    return buildTree(memberId, depth);
+      frontier = [];
+      for (const member of members) {
+        const slots = member.matrices.find(matrix => matrix.level.ordre === 1)?.positions ?? [];
+        const progression = generationProgress(levels, member.matrices.map(matrix => ({ ordre: matrix.level.ordre, count: matrix.filleulsValides })), member.highestLevelAchieved);
+        nodes.set(member.id, {
+          id: member.id, matricule: member.matricule, client: member.client, statut: member.statut,
+          dateActivation: member.dateActivation, dateInscription: member.dateInscription,
+          level: progression.currentLevel, recruiter: member.parrain, matrixParent: member.matrixPosition?.matrix.membre ?? null,
+          generation, position: member.matrixPosition?.numeroPosition ?? null, positionId: member.matrixPosition?.id ?? null,
+          progression: { ...progression, filleulsValides: progression.completedPositions, filleulsRequis: progression.requiredPositions },
+          directMatrixChildrenCount: slots.filter(slot => slot.filleulId).length,
+          personalRecruitCount: member._count.filleuls, totalDescendants: member.totalDescendants,
+          emptyPositions: slots.filter(slot => !slot.filleulId).map(slot => slot.numeroPosition),
+          childIds: slots.flatMap(slot => slot.filleulId ? [slot.filleulId] : []), children: [],
+        });
+        frontier.push(...slots.flatMap(slot => slot.filleulId ? [slot.filleulId] : []));
+      }
+    }
+    const root = nodes.get(memberId);
+    if (!root) throw new NotFoundException('Membre introuvable');
+    for (const node of nodes.values()) {
+      node.children = node.childIds.map(id => nodes.get(id)).filter(Boolean);
+      node.hasMore = node.childIds.length > node.children.length;
+      delete node.childIds;
+    }
+    return root;
   }
 
+  async getNetworkGeneration(memberId: string, generation: number, page = 1, limit = 20) {
+    if (!Number.isInteger(generation) || generation < 1 || generation > MATRIX_GENERATIONS) throw new BadRequestException('Generation autorisee : 1 a 8');
+    page = Math.max(1, page); limit = Math.min(100, Math.max(1, limit));
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; parentId: string; position: number }>>`
+      WITH RECURSIVE network(id, depth, path, parent_id, slot) AS (
+        SELECT ${memberId}::text, 0, ARRAY[]::integer[], NULL::text, 0
+        UNION ALL
+        SELECT position."filleulId", network.depth + 1, network.path || position."numeroPosition", network.id, position."numeroPosition"
+        FROM network JOIN matrices matrix ON matrix."membreId" = network.id
+        JOIN mlm_levels level ON level.id = matrix."mlmLevelId" AND level.ordre = 1
+        JOIN positions position ON position."matrixId" = matrix.id
+        WHERE position."filleulId" IS NOT NULL AND network.depth < ${generation}
+      )
+      SELECT id, parent_id AS "parentId", slot AS position FROM network WHERE depth = ${generation}
+      ORDER BY path LIMIT ${limit} OFFSET ${(page - 1) * limit}
+    `;
+    const members = await this.prisma.membre.findMany({
+      where: { id: { in: rows.map(row => row.id) } },
+      select: { id: true, matricule: true, statut: true, parrainId: true, client: { select: { nom: true, prenom: true } } },
+    });
+    const matrix = await this.prisma.matrix.findFirst({ where: { membreId: memberId, level: { ordre: generation } } });
+    return {
+      items: rows.map(row => ({ ...members.find(member => member.id === row.id), parentId: row.parentId, position: row.position, generation })),
+      meta: { page, limit, total: matrix?.occupiedPositions ?? 0 },
+    };
+  }
   // ── Commission management ───────────────────────────────────────────────────
 
   async listCommissions(params: {
@@ -541,7 +160,7 @@ export class MlmMatrixService {
     dateTo?: string;
   }) {
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const limit = Math.min(100, Math.max(1, params.limit ?? 20));
     const skip = (page - 1) * limit;
 
     const where: Prisma.CommissionWhereInput = {};
@@ -568,6 +187,7 @@ export class MlmMatrixService {
             include: { client: { select: { id: true, prenom: true, nom: true } } },
           },
           level: { select: { id: true, ordre: true, nom: true, couleur: true } },
+          reinvestLot: true,
         },
       }),
       this.prisma.commission.count({ where }),
@@ -594,40 +214,27 @@ export class MlmMatrixService {
     };
   }
 
-  async validateCommission(commissionId: string): Promise<any> {
-    const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
-    if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
-    if (commission.statut !== 'EN_ATTENTE')
-      throw new BadRequestException(`Commission déjà traitée (statut: ${commission.statut})`);
-
-    return this.prisma.$transaction(async (tx) => {
-      // Transition atomique EN_ATTENTE → VALIDEE : sans ce verrou, deux clics
-      // simultanés créditent deux fois le portefeuille.
+  async validateCommission(commissionId: string, actorId?: string): Promise<any> {
+    const initial = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+    if (!initial) throw new NotFoundException('Commission introuvable');
+    return this.prisma.$transaction(async tx => {
+      const wallet = await tx.portefeuille.findUnique({ where: { membreId: initial.membreId }, select: { id: true } });
+      if (!wallet) throw new NotFoundException('Portefeuille introuvable');
+      await tx.$queryRaw`SELECT id FROM portefeuilles WHERE id = ${wallet.id} FOR UPDATE`;
+      const commission = await tx.commission.findUnique({ where: { id: commissionId } });
+      if (commission.statut === 'VALIDEE' || commission.statut === 'PAYEE') return commission;
+      if (commission.statut !== 'EN_ATTENTE') throw new BadRequestException('Commission annulee');
+      if (!commission.montant.equals(commission.montantSysteme.plus(commission.montantRetour))) throw new BadRequestException('Montants de commission incoherents');
+      const validatedAt = new Date();
       const transition = await tx.commission.updateMany({
         where: { id: commissionId, statut: 'EN_ATTENTE' },
-        data: { statut: 'VALIDEE', valideeAt: new Date() },
+        data: { statut: 'VALIDEE', valideeAt: validatedAt, validatedById: actorId },
       });
-      if (transition.count === 0) {
-        throw new BadRequestException('Commission déjà traitée (course)');
-      }
-      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
-
-      // Credit wallet with montantSysteme only: montantRetour was already auto-credited
-      // at commission creation (réinvestissement automatique).
-      const montantACrediter = Number(commission.montantSysteme) > 0
-        ? Number(commission.montantSysteme)
-        : Number(commission.montant); // fallback pour commissions antérieures sans split
-
-      await this.walletService.creditWalletInTx(
-        tx,
-        commission.membreId,
-        montantACrediter,
-        'COMMISSION',
-        commission.description,
-        commission.referenceId,
-      );
-
-      return { ...updated, montant: Number(updated.montant) };
+      if (transition.count !== 1) throw new BadRequestException('Commission deja traitee');
+      const level = await tx.mlmLevel.findUnique({ where: { id: commission.mlmLevelId } });
+      await this.walletService.creditWalletInTx(tx, commission.membreId, commission.montantSysteme, 'COMMISSION', commission.description, commission.referenceId);
+      await this.walletService.creditReinvestInTx(tx, commission.membreId, commission.montantRetour, commission.id, level.nom, validatedAt);
+      return tx.commission.findUnique({ where: { id: commissionId }, include: { reinvestLot: true } });
     }, { timeout: 30000, maxWait: 10000 });
   }
 
@@ -657,99 +264,46 @@ export class MlmMatrixService {
     return { ...row, montant: Number(row.montant) };
   }
 
-  /**
-   * Annulation comptable : comme le crédit est immédiat (modèle « 100 % au
-   * portefeuille »), annuler une commission RESTITUE l'argent au système.
-   * - 60 % non retirés → débit de soldeDisponible.
-   * - 40 % : lot J+30 encore bloqué → débit de soldeReinvesti + lot supprimé ;
-   *   lot déjà libéré → débit de soldeDisponible.
-   * Refusé si le membre a déjà retiré l'argent (solde insuffisant).
-   */
   async cancelCommission(commissionId: string, notes?: string): Promise<any> {
-    const commission = await this.prisma.commission.findUnique({ where: { id: commissionId } });
-    if (!commission) throw new NotFoundException(`Commission ${commissionId} introuvable`);
-    if (commission.statut === 'PAYEE')
-      throw new BadRequestException(`Impossible d'annuler une commission déjà payée`);
-    if (commission.statut === 'ANNULEE') return { ...commission, montant: Number(commission.montant) };
-
-    return this.prisma.$transaction(async (tx) => {
-      // Transition atomique (EN_ATTENTE|VALIDEE) → ANNULEE : deux annulations
-      // simultanées ne doivent pas débiter deux fois.
+    const initial = await this.prisma.commission.findUnique({ where: { id: commissionId } });
+    if (!initial) throw new NotFoundException('Commission introuvable');
+    return this.prisma.$transaction(async tx => {
+      const wallet = await tx.portefeuille.findUnique({ where: { membreId: initial.membreId }, select: { id: true } });
+      const locked = wallet ? await tx.$queryRaw<Array<{ soldeDisponible: Prisma.Decimal; soldeReserve: Prisma.Decimal; soldeReinvesti: Prisma.Decimal }>>`
+        SELECT "soldeDisponible", "soldeReserve", "soldeReinvesti" FROM portefeuilles WHERE id = ${wallet.id} FOR UPDATE
+      ` : [];
+      const commission = await tx.commission.findUnique({ where: { id: commissionId } });
+      if (commission.statut === 'ANNULEE') return commission;
+      if (commission.statut === 'PAYEE') throw new BadRequestException('Impossible d annuler une commission payee');
       const transition = await tx.commission.updateMany({
-        where: { id: commissionId, statut: { in: ['EN_ATTENTE', 'VALIDEE'] } },
-        data: { statut: 'ANNULEE', notes },
+        where: { id: commissionId, statut: commission.statut }, data: { statut: 'ANNULEE', notes },
       });
-      if (transition.count === 0) {
-        const already = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
-        return { ...already, montant: Number(already.montant) };
-      }
-
-      const pfRow = await tx.portefeuille.findUnique({
-        where: { membreId: commission.membreId },
-        select: { id: true },
-      });
-      if (pfRow) {
-        // Même ordre de verrous que le cron de libération (portefeuille →
-        // lots) pour éviter l'interblocage ; le lock rend les lectures qui
-        // suivent stables (check-then-decrement non verrouillé impossible).
-        const locked = await tx.$queryRaw<Array<{ soldeDisponible: Prisma.Decimal; soldeReserve: Prisma.Decimal; soldeReinvesti: Prisma.Decimal }>>`
-          SELECT "soldeDisponible", "soldeReserve", "soldeReinvesti" FROM portefeuilles WHERE id = ${pfRow.id} FOR UPDATE
-        `;
-        if (!locked.length) throw new BadRequestException('Portefeuille introuvable (course)');
-        const [pf] = locked;
-
-        // Restituer UNIQUEMENT ce qui a réellement été crédité (via le journal
-        // et les lots), sinon une commission jamais créditée (legacy EN_ATTENTE)
-        // creuserait un solde négatif.
+      if (transition.count !== 1) throw new BadRequestException('Commission deja traitee');
+      if (commission.statut === 'VALIDEE') {
+        if (!locked.length) throw new BadRequestException('Portefeuille introuvable');
         const credits = await tx.transactionPortefeuille.findMany({
-          where: { referenceId: commission.referenceId, type: 'COMMISSION' },
-          select: { montant: true },
+          where: { referenceId: commission.referenceId, type: 'COMMISSION', portefeuilleId: wallet.id }, select: { montant: true },
         });
-        const dispoCredite = credits.reduce((s, c) => s.plus(new Prisma.Decimal(Number(c.montant))), new Prisma.Decimal(0));
-        const lots = await tx.reinvestLote.findMany({ where: { commissionId: commission.id } });
-        const bloques = lots.filter((l) => !l.released).reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
-        const lotsCredites = lots.reduce((s, l) => s.plus(new Prisma.Decimal(Number(l.amount))), new Prisma.Decimal(0));
-        const liberes = lotsCredites.minus(bloques); // part 40 % déjà basculée en dispo
-        const aDebiterDispo = dispoCredite.plus(liberes);
-        const totalRestitue = dispoCredite.plus(lotsCredites);
-
-        // Solvabilité : le débit doit laisser soldeDisponible >= soldeReserve
-        // (l'argent engagé dans une demande de retrait en attente n'est pas
-        // réstituable — sinon l'approbation future serait insolvable).
-        const soldeDispo = Number(pf.soldeDisponible);
-        const soldeReserve = Number(pf.soldeReserve);
-        const soldeReinvesti = Number(pf.soldeReinvesti);
-        const apresDebit = soldeDispo - Number(aDebiterDispo);
-        if (apresDebit < soldeReserve || soldeReinvesti < Number(bloques)) {
-          throw new BadRequestException(
-            soldeReserve > 0
-              ? 'Annulation impossible : une partie du solde est engagée dans une demande de retrait en attente.'
-              : 'Solde insuffisant pour annuler : le membre a déjà retiré une partie de cette commission.',
-          );
+        const immediate = credits.reduce((sum, credit) => sum.plus(credit.montant), new Prisma.Decimal(0));
+        const lots = await tx.reinvestLote.findMany({ where: { commissionId, status: { not: 'CANCELLED' } } });
+        const held = lots.filter(lot => lot.status !== 'RELEASED').reduce((sum, lot) => sum.plus(lot.amount), new Prisma.Decimal(0));
+        const released = lots.filter(lot => lot.status === 'RELEASED').reduce((sum, lot) => sum.plus(lot.amount), new Prisma.Decimal(0));
+        const availableDebit = immediate.plus(released);
+        const total = availableDebit.plus(held);
+        const balance = locked[0];
+        if (new Prisma.Decimal(balance.soldeDisponible).minus(availableDebit).lt(balance.soldeReserve) || new Prisma.Decimal(balance.soldeReinvesti).lt(held)) {
+          throw new BadRequestException('Solde insuffisant ou engage dans un retrait');
         }
-        if (aDebiterDispo.gt(0) || bloques.gt(0)) {
-          await tx.portefeuille.update({
-            where: { id: pfRow.id },
-            data: {
-              soldeDisponible: { decrement: aDebiterDispo },
-              soldeReinvesti: { decrement: bloques },
-              totalGagne: { decrement: totalRestitue },
-            },
-          });
-          await tx.reinvestLote.deleteMany({ where: { commissionId: commission.id, released: false } });
-          await tx.transactionPortefeuille.create({
-            data: {
-              portefeuilleId: pfRow.id,
-              type: 'DEBIT',
-              montant: totalRestitue,
-              description: `Annulation commission — ${commission.description}`,
-              referenceId: commission.id,
-            },
-          });
-        }
+        await tx.portefeuille.update({ where: { id: wallet.id }, data: {
+          soldeDisponible: { decrement: availableDebit }, soldeReinvesti: { decrement: held }, totalGagne: { decrement: total },
+        } });
+        await tx.reinvestLote.updateMany({ where: { commissionId, status: { not: 'CANCELLED' } }, data: { status: 'CANCELLED' } });
+        await tx.transactionPortefeuille.create({ data: {
+          portefeuilleId: wallet.id, type: 'DEBIT', montant: total,
+          description: `Annulation commission — ${commission.description}`, referenceId: `cancel:${commissionId}`,
+        } });
       }
-      const updated = await tx.commission.findUnique({ where: { id: commissionId } }) as any;
-      return { ...updated, montant: Number(updated.montant) };
+      return tx.commission.findUnique({ where: { id: commissionId }, include: { reinvestLot: true } });
     }, { timeout: 30000, maxWait: 10000 });
   }
 

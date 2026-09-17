@@ -39,7 +39,7 @@ export default function MlmDashboardPage() {
           <div>
             <h1 className="text-page-title text-primary">Réseau MLM</h1>
             <p className="text-xs text-text-muted mt-0.5">
-              Progression des membres, matrices et commissions (Plan 8 Niveaux)
+              Progression par génération, recrutements et placements matriciels distincts
             </p>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function MlmDashboardPage() {
                 {commissionsEnAttente.count} commission{commissionsEnAttente.count > 1 ? 's' : ''} en attente de validation ({formatUSD(commissionsEnAttente.montant)})
               </p>
               <p className="text-xs text-text-muted">
-                Les commissions nécessitent une validation administrative avant d'être créditées.
+                Une génération accomplie crée une commission. Sa validation crédite l'immédiat et constitue la retenue ; la restitution reste une action distincte.
               </p>
             </div>
           </div>

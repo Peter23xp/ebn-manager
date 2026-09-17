@@ -204,8 +204,8 @@ export default function PortalWithdrawalPage() {
             </p>
             <p className="mt-1.5 text-xs text-white/60">
               {walletData?.wallet?.soldeReinvesti
-                ? <>Réinvesti : <strong className="text-white/80 tabular-nums">${walletData.wallet.soldeReinvesti.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> — libéré 30 jours après attribution</>
-                : '60 % de vos gains sont retirables immédiatement'}
+                ? <>Retenu : <strong className="text-white/80 tabular-nums">${Number(walletData.wallet.soldeReinvesti).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> — 30 jours ouvrables après validation, puis restitution administrative</>
+                : 'Seul le disponible au retrait confirmé par le serveur peut être demandé'}
             </p>
           </div>
         </div>
@@ -261,11 +261,11 @@ export default function PortalWithdrawalPage() {
                         </>
                       ) : (walletData?.wallet?.soldeReinvesti ?? 0) > 0 ? (
                         <>
-                          Aucun solde retirable — vos gains réinvestis (40 %) se libèrent
-                          30 jours après leur attribution (onglet Portefeuille).
+                          Aucun solde retirable — vos retenues deviennent restituables
+                          après 30 jours ouvrables suivant la validation, puis restitution administrative. Consultez les échéances serveur dans le portefeuille.
                         </>
                       ) : (
-                        "Aucun solde retirable pour l'instant — recrutez des filleuls ou attendez la libération de vos réinvestissements."
+                        "Aucun solde retirable pour l'instant — consultez votre progression et vos retenues dans le portefeuille."
                       )}
                     </p>
                   ) : (

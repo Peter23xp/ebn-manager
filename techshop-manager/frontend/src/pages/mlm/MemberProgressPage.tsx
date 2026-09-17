@@ -18,6 +18,10 @@ import { useMemberProgress } from '@/hooks/useMlm';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { CareerProgressBar } from '@/components/mlm/CareerProgressBar';
 import { MatrixGrid } from '@/components/mlm/MatrixGrid';
+import { GenerationProgress } from '@/components/mlm/GenerationProgress';
+import { FinancialSummary } from '@/components/mlm/FinancialSummary';
+import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { formatMlmMoney } from '@/lib/mlm-display';
 import { formatDate, formatUSD } from '@/lib/utils';
 
 const BONUS_STATUT_LABEL: Record<string, { label: string; badge: string }> = {
@@ -37,7 +41,7 @@ const COMMISSION_STATUT_LABEL: Record<string, { label: string; badge: string }> 
 export default function MemberProgressPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data, isLoading } = useMemberProgress(id ?? '');
+  const { data, isLoading, error, refetch } = useMemberProgress(id ?? '');
   const [selectedMatrixLevelId, setSelectedMatrixLevelId] = useState<number | null>(null);
 
   if (isLoading) {
@@ -59,6 +63,8 @@ export default function MemberProgressPage() {
       </div>
     );
   }
+
+  if (error) return <div role="alert" className="space-y-3"><p>Progression indisponible.</p><button className="btn-secondary" onClick={() => refetch()}>Réessayer</button></div>;
 
   if (!data?.membre) {
     return (
@@ -86,22 +92,12 @@ export default function MemberProgressPage() {
 
   // Active matrix for display
   const activeMatrix =
-    matrices?.find((m: any) => m.niveau.id === (selectedMatrixLevelId ?? membre.level.id)) ??
+    matrices?.find((m: any) => m.niveau.id === (selectedMatrixLevelId ?? progression?.nextLevel?.id ?? progression?.currentLevel?.id)) ??
     matrices?.[0];
 
-  // IDs of filleuls placed in the currently viewed matrix
-  const activeMatrixFilleulIds = new Set<string>(
-    (activeMatrix?.positions ?? [])
-      .filter((p: any) => p.estValide && p.filleulId)
-      .map((p: any) => p.filleulId as string)
-  );
-
-  // If a matrix level tab is selected, filter the filleuls list to that matrix's occupants
-  const displayedFilleuls = selectedMatrixLevelId !== null && activeMatrixFilleulIds.size > 0
-    ? filleuls.filter((f: any) => activeMatrixFilleulIds.has(f.id))
-    : filleuls;
-
-  const prochainNiveau = progression?.prochainNiveau;
+  const displayedFilleuls = filleuls;
+  const currentLevel = progression?.currentLevel;
+  const prochainNiveau = progression?.nextLevel;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -120,7 +116,7 @@ export default function MemberProgressPage() {
               <h1 className="text-page-title text-primary">
                 {membre.client.prenom} {membre.client.nom}
               </h1>
-              <MlmLevelBadge level={membre.level.ordre} size="md" />
+              <MlmLevelBadge level={currentLevel?.ordre ?? null} name={currentLevel?.nom} size="md" />
             </div>
             <p className="text-xs text-text-muted font-mono mt-0.5">
               Matricule : <span className="font-bold text-text">{membre.matricule}</span> • Téléphone : {membre.client.telephone}
@@ -144,42 +140,17 @@ export default function MemberProgressPage() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Rang MLM actuel</p>
-                <h2 className="text-2xl font-extrabold text-text mt-0.5">{membre.level.nom}</h2>
+                <h2 className="text-2xl font-extrabold text-text mt-0.5">{currentLevel?.nom ?? 'Builder en cours'}</h2>
                 <p className="text-xs text-text-muted mt-1">
-                  Commission du niveau : <strong className="text-text">{formatUSD(membre.level.commissionParFilleul)}</strong> / personne (Total : {formatUSD(membre.level.commissionTotale)})
+                  Commission de génération : <strong className="text-text">{formatMlmMoney((prochainNiveau ?? currentLevel)?.totalAmount ?? (prochainNiveau ?? currentLevel)?.commissionTotale)}</strong> — après accomplissement et validation administrative.
                 </p>
               </div>
-              <MlmLevelBadge level={membre.level.ordre} size="lg" />
+              <MlmLevelBadge level={currentLevel?.ordre ?? null} name={currentLevel?.nom} size="lg" />
             </div>
 
             {/* Progression details */}
             <div className="rounded-xl p-4 border border-border bg-bg">
-              <div className="flex justify-between items-center text-sm font-semibold mb-2">
-                <span className="text-text">
-                  Progression vers {prochainNiveau ? prochainNiveau.nom : 'Crown Ambassadeur (max)'}
-                </span>
-                <span className="text-primary-accent font-bold">
-                  {progression?.filleulsValidesNiveauActuel} / {progression?.filleulsRequis} personnes ({progression?.pourcentage}%)
-                </span>
-              </div>
-              <div className="w-full bg-bg-inset rounded-full h-3">
-                <div
-                  className="bg-primary-accent h-3 rounded-full transition-all duration-500 ease-out-quart"
-                  style={{ width: `${progression?.pourcentage}%` }}
-                />
-              </div>
-              <div className="flex flex-wrap justify-between text-xs text-text-muted mt-2">
-                <span>
-                  {progression?.filleulsRestants === 0
-                    ? 'Matrice prête pour promotion !'
-                    : `Il reste ${progression?.filleulsRestants} personne${(progression?.filleulsRestants ?? 0) > 1 ? 's' : ''} pour passer ${prochainNiveau?.nom ?? 'au niveau suivant'}.`}
-                </span>
-                {prochainNiveau && (
-                  <span className="font-medium text-text">
-                    Prochain gain : {formatUSD(prochainNiveau.commissionTotale)}
-                  </span>
-                )}
-              </div>
+              <GenerationProgress progression={progression} />
             </div>
           </div>
 
@@ -188,7 +159,7 @@ export default function MemberProgressPage() {
             <span className="text-text-muted flex items-center gap-1">
               <Gift size={14} className="text-warning" /> Bonus associé :
             </span>
-            <span className="font-semibold text-text">{membre.level.bonusDescription}</span>
+            <span className="font-semibold text-text">{(prochainNiveau ?? currentLevel)?.bonusDescription ?? '—'}</span>
           </div>
         </div>
 
@@ -197,29 +168,34 @@ export default function MemberProgressPage() {
           {/* Parrain Direct */}
           <div className="rounded-xl border border-border bg-bg-card shadow-card p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-2 flex items-center gap-1.5">
-              <UserCheck size={14} className="text-primary-accent" /> Parrain direct
+              <UserCheck size={14} className="text-primary-accent" /> Recruteur personnel
             </p>
-            {membre.parrain ? (
+            {membre.recruiter ? (
               <div className="space-y-1.5">
                 <p className="font-bold text-text text-sm">
-                  {membre.parrain.client?.prenom} {membre.parrain.client?.nom}
+                  {membre.recruiter.client?.prenom} {membre.recruiter.client?.nom}
                 </p>
                 <p className="text-xs font-mono text-text-muted">
-                  Matricule : <span className="font-semibold text-text">{membre.parrain.matricule}</span>
+                  Matricule : <span className="font-semibold text-text">{membre.recruiter.matricule}</span>
                 </p>
-                <div className="pt-1">
-                  <MlmLevelBadge level={membre.parrain.level?.ordre ?? 1} size="sm" />
-                </div>
                 <Link
-                  to={`/mlm/members/${membre.parrain.id}`}
+                  to={`/mlm/members/${membre.recruiter.id}`}
                   className="inline-flex items-center gap-1 text-xs text-primary-accent font-semibold hover:underline pt-1"
                 >
                   Voir la progression du parrain <ChevronRight size={12} />
                 </Link>
               </div>
             ) : (
-              <p className="text-xs text-text-subtle italic">Aucun parrain (membre racine)</p>
+              <p className="text-xs text-text-muted">Aucun recruteur personnel</p>
             )}
+            <p className="text-xs text-text-muted mt-3">Parent matriciel</p>
+            <p className="text-sm font-semibold text-text">{membre.matrixParent ? `${membre.matrixParent.client?.prenom} ${membre.matrixParent.client?.nom}` : 'Racine matricielle'}</p>
+            <p className="text-xs text-text-muted">Position : {membre.position ?? 'Racine'}</p>
+            <dl className="mt-3 space-y-2 text-sm text-text">
+              <div><dt>Enfants matriciels</dt><dd>{data.directMatrixChildrenCount ?? '—'}</dd></div>
+              <div><dt>Recrutements personnels</dt><dd>{data.personalRecruitCount ?? '—'}</dd></div>
+              <div><dt>Total descendants</dt><dd>{data.totalDescendants ?? '—'}</dd></div>
+            </dl>
           </div>
 
           {/* Portefeuille USD */}
@@ -227,20 +203,7 @@ export default function MemberProgressPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-3 flex items-center gap-1.5">
               <Wallet size={14} className="text-primary-accent" /> Portefeuille USD
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[11px] text-text-muted">Total gagné</p>
-                <p className="text-lg font-extrabold font-mono text-success">
-                  {formatUSD(portefeuille?.totalGagne ?? 0)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-text-muted">Solde disponible</p>
-                <p className="text-lg font-extrabold font-mono text-text">
-                  {formatUSD(portefeuille?.soldeDisponible ?? 0)}
-                </p>
-              </div>
-            </div>
+            <FinancialSummary summary={data.financialSummary} available={portefeuille?.soldeDisponible} />
           </div>
         </div>
       </div>
@@ -253,11 +216,11 @@ export default function MemberProgressPage() {
             Parcours de carrière (8 niveaux)
           </h2>
           <span className="text-xs font-bold text-text-muted bg-bg px-3 py-1 rounded-full">
-            Étape {membre.level.ordre} / 8 • {progression?.progressionGlobaleCrownAmbassadeur}% achevé
+            Rang acquis : {currentLevel?.ordre ?? 0} / 8
           </span>
         </div>
         <div className="overflow-x-auto pb-1">
-          <CareerProgressBar currentLevel={membre.level.ordre} />
+          <CareerProgressBar currentLevel={currentLevel?.ordre ?? 0} />
         </div>
       </div>
 
@@ -267,10 +230,10 @@ export default function MemberProgressPage() {
           <div>
             <h2 className="text-section-title text-primary flex items-center gap-2">
               <Layers size={18} className="text-primary-accent" />
-              Matrice 4 positions — {activeMatrix?.niveau?.nom}
+              Génération {activeMatrix?.niveau?.ordre} — {activeMatrix?.niveau?.nom}
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
-              Positions occupées par les filleuls à ce niveau de carrière
+              Quatre places physiques en génération 1 ; compteurs agrégés aux générations suivantes.
             </p>
           </div>
 
@@ -282,10 +245,10 @@ export default function MemberProgressPage() {
                   key={m.id}
                   onClick={() => setSelectedMatrixLevelId(m.niveau.id)}
                   className={`period-btn ${
-                    (selectedMatrixLevelId ?? membre.level.id) === m.niveau.id ? 'active' : ''
+                    activeMatrix?.id === m.id ? 'active' : ''
                   }`}
                 >
-                  {m.niveau.nom} ({m.filleulsValides}/4)
+                  {m.niveau.nom} ({m.filleulsValides}/{m.requiredPositions})
                 </button>
               ))}
             </div>
@@ -300,34 +263,17 @@ export default function MemberProgressPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-section-title text-primary flex items-center gap-2">
             <Users size={18} className="text-platine" />
-            Filleuls & Réseau
-            {selectedMatrixLevelId ? (
-              <span className="text-sm font-normal text-text-muted">
-                — filtrés par matrice {activeMatrix?.niveau?.nom}
-              </span>
-            ) : (
-              <span className="text-text-muted font-normal text-sm">({filleuls.length})</span>
-            )}
+            Recrutements personnels directs
+            <span className="text-text-muted font-normal text-sm">({filleuls.length} affichés)</span>
           </h2>
           <span className="text-xs text-text-muted">
             {displayedFilleuls.filter((f: any) => f.statut === 'ACTIF').length} actifs
-            {selectedMatrixLevelId && (
-              <button
-                type="button"
-                onClick={() => setSelectedMatrixLevelId(null)}
-                className="ml-2 underline text-primary-accent"
-              >
-                Voir tout
-              </button>
-            )}
           </span>
         </div>
 
         {displayedFilleuls.length === 0 ? (
           <p className="text-sm text-text-subtle italic py-6 text-center">
-            {selectedMatrixLevelId
-              ? 'Aucun filleul n\'a encore été placé dans cette matrice.'
-              : 'Aucun membre dans le réseau pour l\'instant.'}
+            Aucun recrutement personnel direct pour l'instant.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -355,24 +301,24 @@ export default function MemberProgressPage() {
                       <span className="badge badge-info bg-blue-50 text-blue-700">Gen {f.generation ?? 1}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <MlmLevelBadge level={f.level?.ordre ?? 1} size="sm" />
+                      {f.progression?.currentLevel !== undefined || f.currentLevel !== undefined ? <MlmLevelBadge level={(f.progression?.currentLevel ?? f.currentLevel)?.ordre ?? null} size="sm" /> : <span className="text-xs text-text-muted">Rang non fourni</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {f.progression ? (
+                      {f.progression?.currentLevel !== undefined ? (
                         <div className="w-32">
                           <div className="flex justify-between text-xs text-text-muted mb-0.5">
-                            <span>{f.progression.filleulsValides}/4</span>
-                            <span>{f.progression.pourcentage}%</span>
+                            <span>{f.progression.completedPositions}/{f.progression.requiredPositions}</span>
+                            <span>{f.progression.progressPercentage}%</span>
                           </div>
                           <div className="w-full bg-bg-inset rounded-full h-1.5">
                             <div
                               className="bg-primary-accent h-1.5 rounded-full transition-all duration-300 ease-out-quart"
-                              style={{ width: `${f.progression.pourcentage}%` }}
+                              style={{ width: `${f.progression.progressPercentage}%` }}
                             />
                           </div>
                         </div>
                       ) : (
-                        <span className="text-xs text-text-subtle">0/4</span>
+                        <span className="text-xs text-text-muted">Non fournie</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -398,6 +344,8 @@ export default function MemberProgressPage() {
           </div>
         )}
       </div>
+
+      <div className="rounded-xl border border-border bg-bg-card p-5"><ReinvestLots lots={data.reinvestLots} /></div>
 
       {/* Commissions & Physical Bonuses in 2 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

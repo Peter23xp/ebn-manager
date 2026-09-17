@@ -18,6 +18,9 @@ import { useQuery } from '@tanstack/react-query';
 import { MlmApi } from '@/lib/mlm.api';
 import { formatDate, formatUSD } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
+import { FinancialSummary } from '@/components/mlm/FinancialSummary';
+import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { formatMlmMoney } from '@/lib/mlm-display';
 
 const TRANSACTION_TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode; positive: boolean }> = {
   COMMISSION: { label: 'Commission MLM', color: 'text-emerald-700 bg-emerald-50 border-emerald-200', icon: <DollarSign size={12} />, positive: true },
@@ -34,7 +37,7 @@ export default function WalletPage() {
   const [activeTab, setActiveTab] = useState<'transactions' | 'wallets'>('transactions');
 
   // Transactions
-  const { data: txData, isLoading: txLoading, refetch: refetchTx } = useWalletTransactions({
+  const { data: txData, isLoading: txLoading, refetch: refetchTx, error: txError } = useWalletTransactions({
     page,
     limit: 20,
     type: filterType || undefined,
@@ -64,16 +67,8 @@ export default function WalletPage() {
 
   const wallets: any[] = (memberWalletQueries.data ?? []) as any[];
 
-  // Summary stats from transactions
-  const totalCredit = transactions
-    .filter((t: any) => t.type !== 'DEBIT')
-    .reduce((s: number, t: any) => s + (t.montant ?? 0), 0);
-  const totalDebit = transactions
-    .filter((t: any) => t.type === 'DEBIT')
-    .reduce((s: number, t: any) => s + (t.montant ?? 0), 0);
-
-  const totalWalletBalance = wallets.reduce((s: number, w: any) => s + (w?.soldeDisponible ?? 0), 0);
-  const totalEarned = wallets.reduce((s: number, w: any) => s + (w?.totalGagne ?? 0), 0);
+  const stats = useQuery({ queryKey: ['mlm-stats'], queryFn: MlmApi.getNetworkStats });
+  const selectedWallet = useQuery({ queryKey: ['mlm-wallet', filterMember], queryFn: () => MlmApi.getWallet(filterMember), enabled: !!filterMember });
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -90,7 +85,7 @@ export default function WalletPage() {
         </div>
 
         <button
-          onClick={() => refetchTx()}
+          onClick={() => { void refetchTx(); void stats.refetch(); if (filterMember) void selectedWallet.refetch(); if (activeTab === 'wallets') void memberWalletQueries.refetch(); }}
           className="btn btn-outline btn-sm flex items-center gap-1.5"
         >
           <RefreshCw size={14} className={txLoading ? 'animate-spin' : ''} />
@@ -103,25 +98,25 @@ export default function WalletPage() {
         {[
           {
             label: 'Solde total réseau',
-            value: formatUSD(totalWalletBalance),
+            value: formatMlmMoney(stats.data?.soldeDisponibleTotalUSD),
             icon: <Wallet size={20} className="text-blue-600" />,
             color: 'bg-blue-50 border-blue-200',
           },
           {
-            label: 'Total gagné (réseau)',
-            value: formatUSD(totalEarned),
+            label: 'Gains crédités (réseau)',
+            value: formatMlmMoney(stats.data?.totalCommissionsVerseesUSD),
             icon: <TrendingUp size={20} className="text-emerald-600" />,
             color: 'bg-emerald-50 border-emerald-200',
           },
           {
-            label: 'Crédits (page)',
-            value: formatUSD(totalCredit),
+            label: 'Transactions (page)',
+            value: String(transactions.length),
             icon: <ArrowUpRight size={20} className="text-indigo-600" />,
             color: 'bg-indigo-50 border-indigo-200',
           },
           {
             label: 'Membres actifs',
-            value: String(members.length),
+            value: String(stats.data?.membresActifs ?? '—'),
             icon: <Users size={20} className="text-amber-600" />,
             color: 'bg-amber-50 border-amber-200',
           },
@@ -135,6 +130,15 @@ export default function WalletPage() {
           </div>
         ))}
       </div>
+      <p className="text-xs text-text-muted">Source : serveur — totaux réseau indépendants de la page affichée.</p>
+      {stats.isError && <p role="alert">Totaux réseau indisponibles. Utilisez Actualiser pour réessayer.</p>}
+      {filterMember && <section className="rounded-xl border border-border bg-bg-card p-5 space-y-4">
+        <h2 className="text-section-title text-primary">Finances du membre sélectionné</h2>
+        {selectedWallet.isLoading ? <div className="skeleton h-32 rounded-lg" /> : selectedWallet.isError ? <p role="alert">Portefeuille indisponible. Utilisez Actualiser pour réessayer.</p> : <>
+          <FinancialSummary summary={selectedWallet.data?.financialSummary} available={selectedWallet.data?.soldeDisponible} />
+          <ReinvestLots lots={selectedWallet.data?.reinvestLots} />
+        </>}
+      </section>}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
@@ -171,6 +175,7 @@ export default function WalletPage() {
             </select>
 
             <select
+              aria-label="Filtrer les transactions par membre"
               value={filterMember}
               onChange={(e) => { setFilterMember(e.target.value); setPage(1); }}
               className="input text-sm min-w-56"
@@ -196,6 +201,7 @@ export default function WalletPage() {
               {meta?.total ?? 0} transactions
             </span>
           </div>
+          {txError && <p role="alert" className="p-4 text-danger">Transactions indisponibles. Utilisez Actualiser pour réessayer.</p>}
 
           {/* Table */}
           <div className="overflow-x-auto">
@@ -283,6 +289,8 @@ export default function WalletPage() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="font-bold text-gray-900">Soldes des portefeuilles par membre</h2>
+            <p className="text-xs text-text-muted">Aperçu des {members.length} membres chargés. Les totaux réseau ci-dessus proviennent du serveur.</p>
+            {!memberWalletQueries.isLoading && wallets.length < members.length && <p role="status" className="text-sm text-text-muted">Certains portefeuilles sont indisponibles ; utilisez Actualiser pour réessayer.</p>}
           </div>
 
           {membersLoading || memberWalletQueries.isLoading ? (
@@ -293,7 +301,7 @@ export default function WalletPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {wallets
+              {[...wallets]
                 .sort((a: any, b: any) => (b.soldeDisponible ?? 0) - (a.soldeDisponible ?? 0))
                 .map((w: any) => {
                   const member = members.find((m: any) => m.id === w.membreId);
@@ -314,9 +322,13 @@ export default function WalletPage() {
                           <ExternalLink size={12} className="opacity-40" />
                         </Link>
                         <p className="text-xs text-gray-400 font-mono">
-                          {member?.matricule} • {w.membre?.level?.nom ?? '—'}
+                          {member?.matricule}
                         </p>
                       </div>
+                      <details className="w-full text-sm text-text">
+                        <summary className="cursor-pointer font-semibold">Finances et retenues</summary>
+                        <div className="space-y-4 pt-3"><FinancialSummary summary={w.financialSummary} available={w.soldeDisponible} /><ReinvestLots lots={w.reinvestLots} /></div>
+                      </details>
 
                       {/* Balances */}
                       <div className="flex items-center gap-6 flex-shrink-0">

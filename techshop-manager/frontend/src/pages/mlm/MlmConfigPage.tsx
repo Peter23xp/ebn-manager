@@ -6,30 +6,33 @@ import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { Modal } from '@/components/ui/Modal';
 import { formatUSD } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { formatMlmMoney } from '@/lib/mlm-display';
+import { MlmCalendarConfig } from '@/components/mlm/MlmCalendarConfig';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function MlmConfigPage() {
   const navigate = useNavigate();
-  const { data: levels, isLoading, updateConfig } = useMlmConfig();
+  const { data: levels, isLoading, error, refetch, updateConfig } = useMlmConfig();
+  const canEdit = useAuthStore(state => state.user?.role === 'SUPER_ADMIN');
   const [editingLevel, setEditingLevel] = useState<any | null>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingLevel) return;
+    if (!editingLevel || !canEdit || updateConfig.isPending) return;
 
     try {
       await updateConfig.mutateAsync({
         levelId: editingLevel.id,
-        commissionParFilleul: Number(editingLevel.commissionParFilleul),
-        commissionTotale: Number(editingLevel.commissionTotale),
+        immediateAmount: String(editingLevel.immediateAmount),
         bonusDescription: editingLevel.bonusDescription,
-        salaireMensuel: Number(editingLevel.salaireMensuel),
+        ...(editingLevel.salaireMensuel != null ? { salaireMensuel: String(editingLevel.salaireMensuel) } : {}),
         salaireActif: editingLevel.salaireActif,
         isActive: editingLevel.isActive,
       });
       toast.success(`Niveau ${editingLevel.nom} mis à jour avec succès !`);
       setEditingLevel(null);
     } catch (err: any) {
-      toast.error('Erreur lors de la mise à jour');
+      toast.error(err?.response?.data?.message ?? 'Erreur lors de la mise à jour');
     }
   };
 
@@ -54,9 +57,11 @@ export default function MlmConfigPage() {
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
         <ShieldAlert size={18} className="text-warning flex-shrink-0 mt-0.5" />
         <p className="text-sm text-text">
-          Les modifications affectent les commissions de tous les membres. Vérifiez les montants avant d'enregistrer.
+          Les modifications s'appliquent aux prochaines commissions de génération. Les montants historiques et échéances existantes sont conservés.
         </p>
       </div>
+
+      {error && <div role="alert">Configuration indisponible. <button className="btn-secondary" onClick={() => refetch()}>Réessayer</button></div>}
 
       {/* Levels list table */}
       <div className="rounded-xl border border-border bg-bg-card shadow-card overflow-hidden">
@@ -65,10 +70,10 @@ export default function MlmConfigPage() {
             <thead>
               <tr>
                 <th className="px-6 py-3.5">Niveau</th>
-                <th className="px-6 py-3.5">Total / filleul</th>
-                <th className="px-6 py-3.5 text-text-muted">Système (60%)</th>
-                <th className="px-6 py-3.5 text-emerald-700">↻ Retour (40%)</th>
-                <th className="px-6 py-3.5">Com. totale</th>
+                <th className="px-6 py-3.5">Positions requises</th>
+                <th className="px-6 py-3.5 text-text-muted">Immédiat (60%)</th>
+                <th className="px-6 py-3.5 text-emerald-700">Retenu (40%)</th>
+                <th className="px-6 py-3.5">Total génération</th>
                 <th className="px-6 py-3.5">Bonus physique</th>
                 <th className="px-6 py-3.5">Salaire mensuel</th>
                 <th className="px-6 py-3.5 text-right">Action</th>
@@ -94,16 +99,16 @@ export default function MlmConfigPage() {
                       />
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-text">
-                      {formatUSD(l.commissionParFilleul)}
+                      {l.requiredPositions ?? '—'}
                     </td>
                     <td className="px-6 py-4 font-mono text-sm text-text-muted">
-                      {l.commissionSysteme ? formatUSD(l.commissionSysteme) : '—'}
+                      {formatMlmMoney(l.immediateAmount)}
                     </td>
                     <td className="px-6 py-4 font-mono text-sm text-emerald-700 font-semibold">
-                      {l.commissionRetour ? `+${formatUSD(l.commissionRetour)}` : '—'}
+                      {formatMlmMoney(l.heldAmount)}
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-success">
-                      {formatUSD(l.commissionTotale)}
+                      {formatMlmMoney(l.totalAmount)}
                     </td>
                     <td className="px-6 py-4 text-xs text-text-muted max-w-xs truncate">
                       {l.bonusDescription}
@@ -117,6 +122,7 @@ export default function MlmConfigPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
+                        disabled={!canEdit}
                         onClick={() => setEditingLevel({ ...l })}
                         className="btn-secondary text-[13px]"
                       >
@@ -131,6 +137,9 @@ export default function MlmConfigPage() {
         </div>
       </div>
 
+      <p className="text-xs text-text-muted">Source : serveur — seul le montant immédiat est modifiable ; total et retenue sont calculés côté serveur.</p>
+      <MlmCalendarConfig />
+
       {/* Edit modal */}
       <Modal
         open={!!editingLevel}
@@ -142,32 +151,24 @@ export default function MlmConfigPage() {
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
-                <label className="form-label" htmlFor="cfg-com-filleul">Commission / filleul (USD)</label>
+                <label className="form-label" htmlFor="cfg-com-filleul">Montant immédiat (USD)</label>
                 <input
                   id="cfg-com-filleul"
                   type="number"
                   step="0.01"
-                  value={editingLevel.commissionParFilleul}
+                  min="0"
+                  value={editingLevel.immediateAmount ?? ''}
                   onChange={(e) =>
-                    setEditingLevel({ ...editingLevel, commissionParFilleul: e.target.value })
+                    setEditingLevel({ ...editingLevel, immediateAmount: e.target.value })
                   }
                   className="font-mono"
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="cfg-com-totale">Commission totale (USD)</label>
-                <input
-                  id="cfg-com-totale"
-                  type="number"
-                  step="0.01"
-                  value={editingLevel.commissionTotale}
-                  onChange={(e) =>
-                    setEditingLevel({ ...editingLevel, commissionTotale: e.target.value })
-                  }
-                  className="font-mono"
-                  required
-                />
+                <p className="text-sm text-text-muted">Total actuel : {formatMlmMoney(editingLevel.totalAmount)}</p>
+                <p className="text-sm text-text-muted">Retenue actuelle : {formatMlmMoney(editingLevel.heldAmount)}</p>
+                <p className="text-xs text-text-muted">Nouveaux montants disponibles après enregistrement serveur.</p>
               </div>
             </div>
 
@@ -231,6 +232,7 @@ export default function MlmConfigPage() {
                 Enregistrer
               </button>
             </div>
+            {updateConfig.isError && <p role="alert" className="text-sm text-danger">{(updateConfig.error as any)?.response?.data?.message ?? 'Mise à jour impossible. Réessayez.'}</p>}
           </form>
         )}
       </Modal>

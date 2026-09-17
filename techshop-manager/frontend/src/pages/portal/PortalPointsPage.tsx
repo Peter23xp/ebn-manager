@@ -10,13 +10,15 @@ import { usePortalMlm } from '@/hooks/usePortalMlm';
 import { cn } from '@/lib/utils';
 import type { PortalWalletTransaction } from '@/lib/portal.api';
 import { portalApi } from '@/lib/portal.api';
+import { FinancialSummary } from '@/components/mlm/FinancialSummary';
+import { ReinvestLots } from '@/components/mlm/ReinvestLots';
 
 const TX_LABEL: Record<string, string> = {
   COMMISSION:       'Commission MLM',
   BONUS:            'Bonus',
   SALAIRE:          'Salaire mensuel',
   BONUS_RETRAITE:   'Bonus retraite',
-  REINVESTISSEMENT: 'Réinvestissement auto',
+  REINVESTISSEMENT: 'Transfert de retenue',
   DEBIT:            'Retrait / débit',
 };
 
@@ -71,7 +73,7 @@ const FILTERS: { value: WalletTxFilter; label: string }[] = [
 export default function PortalPointsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { wallet } = usePortalMlm();
+  const { wallet, financialSummary, lots, error: walletError, isLoading: walletLoading, retryWallet } = usePortalMlm();
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('243');
   const [provider, setProvider] = useState<'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD'>('VODACOM_MPESA_COD');
@@ -83,11 +85,12 @@ export default function PortalPointsPage() {
   } = usePortalWalletHistory();
 
   const fmtUSD = (v: number) =>
-    v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <PortalLayout title="Historique" showBackButton onBack={() => navigate('/portal/home')}>
       <div className="px-4 py-4">
+        {walletError && <div role="alert" className="mb-4 text-sm text-danger">Portefeuille indisponible. <button className="btn-secondary" onClick={() => retryWallet()}>Réessayer</button></div>}
 
         {/* Solde actuel */}
         <div
@@ -108,7 +111,7 @@ export default function PortalPointsPage() {
                 Solde actuel
               </p>
               <p className="mt-1.5 font-mono text-[26px] font-bold leading-none tabular-nums">
-                ${fmtUSD(wallet?.soldeDisponible ?? 0)}
+                {walletLoading || walletError ? '—' : `$${fmtUSD(wallet?.soldeDisponible ?? 0)}`}
               </p>
             </div>
             <div className="text-right">
@@ -116,10 +119,15 @@ export default function PortalPointsPage() {
                 Total gagné
               </p>
               <p className="mt-1 text-sm font-semibold tabular-nums text-white/90">
-                ${fmtUSD(wallet?.totalGagne ?? 0)}
+                {walletLoading || walletError ? '—' : `$${fmtUSD(wallet?.totalGagne ?? 0)}`}
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="mb-5 rounded-xl border border-border bg-bg-card p-4 space-y-4">
+          <FinancialSummary summary={financialSummary} available={wallet?.soldeDisponible} />
+          <ReinvestLots lots={lots} />
         </div>
 
         {/* Retrait */}

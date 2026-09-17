@@ -1,4 +1,6 @@
 import { api } from '@/lib/api';
+import type { FinancialSummary, MatrixTreeNode, ReinvestLot } from '@/types/mlm';
+export type { ReinvestLot } from '@/types/mlm';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -125,12 +127,6 @@ export interface WithdrawalRequestsResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-export interface ReinvestLot {
-  id: string;
-  amount: number;
-  releasedAt: string; // ISO
-}
-
 export interface PortalWalletResponse {
   wallet: {
     soldeDisponible: number;
@@ -140,6 +136,7 @@ export interface PortalWalletResponse {
     totalGagne: number;
   };
   reinvestLots: ReinvestLot[];
+  financialSummary?: FinancialSummary;
   stats: { gainsTotaux: number };
 }
 
@@ -163,6 +160,7 @@ export interface PortalFilleul {
 }
 
 export interface PortalReferralsResponse {
+  matrixTree?: MatrixTreeNode | null;
   codeParrain: string;
     stats: {
     nbFilleulsActifs: number;

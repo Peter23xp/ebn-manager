@@ -51,7 +51,7 @@ function PendingClaimsCard() {
       </div>
       <p className="text-[12px] text-orange-700">
         Saisissez le code de votre facture d'activation (les 4 derniers chiffres ou le numéro complet)
-        pour rattacher vos filleuls et débloquer vos commissions.
+          pour enregistrer vos liens de recrutement personnel.
       </p>
       <div className="flex gap-2">
         <input
@@ -222,7 +222,7 @@ function HowReferralWorks() {
   const steps = [
     { icon: Share2, title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
     { icon: UserPlus, title: 'Votre ami s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
-    { icon: Gift, title: 'Vous recevez votre récompense', desc: 'Dès que son compte est activé, il occupe une position dans votre matrice et vous recevez une commission (60 % retirable + 40 % réinvestie).' },
+    { icon: Gift, title: 'Vous recevez votre récompense', desc: 'Une génération complète crée une commission en attente. Après validation, le montant immédiat est crédité et la retenue suit un délai de 30 jours ouvrables avant restitution administrative.' },
   ];
 
   return (
@@ -389,6 +389,7 @@ export default function PortalFilleulsPage() {
           {view === 'arbre' ? (
             <ReferralTree
               nodes={tree.filleuls}
+              matrixTree={tree.matrixTree}
               total={tree.total}
               isLoading={tree.isLoading}
               codeParrain={codeParrain}
