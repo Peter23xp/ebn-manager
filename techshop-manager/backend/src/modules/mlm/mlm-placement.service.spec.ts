@@ -6,9 +6,11 @@ function fixture() {
   const transaction: any = {
     $executeRaw: jest.fn<any>().mockResolvedValue(1),
     $queryRaw: jest.fn<any>().mockResolvedValue([]),
-    membre: { findUnique: jest.fn<any>().mockResolvedValue({ id: 'X', parrainId: 'P0', statut: 'ACTIF' }) },
+    membre: { findUnique: jest.fn<any>().mockResolvedValue({ id: 'X', parrainId: 'P0', statut: 'ACTIF', matrixPosition: null, matrices: [] }) },
     position: {
       findUnique: jest.fn<any>().mockResolvedValue(null),
+      findUniqueOrThrow: jest.fn<any>().mockResolvedValue({ id: 'slot', filleulId: 'X', matrix: { membreId: 'P1' } }),
+      findMany: jest.fn<any>().mockResolvedValue([]),
       findFirst: jest.fn<any>().mockResolvedValue({ id: 'slot', numeroPosition: 4, matrix: { membreId: 'P1' } }),
       updateMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
     },

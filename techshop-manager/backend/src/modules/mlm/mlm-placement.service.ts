@@ -69,13 +69,14 @@ export class MlmPlacementService {
     } });
     await this.updateDescendantTotals(tx, memberId, null, position.matrix.membreId);
     await this.recalculateAncestors(tx, [position.matrix.membreId], memberId, position.id);
-    return position;
+    await this.settleAscents(tx, [position.matrix.membreId, memberId], `placement:${memberId}`, memberId, actorId);
+    return tx.position.findUniqueOrThrow({ where: { filleulId: memberId }, include: { matrix: true } });
   }
 
-  private async claim(tx: Prisma.TransactionClient, positionId: string, memberId: string, valid: boolean) {
+  private async claim(tx: Prisma.TransactionClient, positionId: string, memberId: string, valid: boolean, validatedAt: Date | null = new Date()) {
     const claimed = await tx.position.updateMany({
       where: { id: positionId, filleulId: null },
-      data: { filleulId: memberId, estValide: valid, dateValidation: valid ? new Date() : null },
+      data: { filleulId: memberId, estValide: valid, dateValidation: valid ? validatedAt : null },
     });
     if (claimed.count !== 1) throw new ConflictException('Position occupee, recharger la matrice');
   }
@@ -130,6 +131,7 @@ export class MlmPlacementService {
       } });
       await this.updateDescendantTotals(tx, member.id, current?.matrix.membreId ?? null, input.newParentId);
       await this.recalculateAncestors(tx, [current?.matrix.membreId, input.newParentId].filter(Boolean), member.id, destination.id);
+      await this.settleAscents(tx, [input.newParentId, current?.matrix.membreId, member.id].filter(Boolean), input.operationId, member.id, actorId);
       return [history];
     }, { timeout: 30000, maxWait: 10000 });
   }
@@ -166,7 +168,90 @@ export class MlmPlacementService {
       await this.updateDescendantTotals(tx, first.filleulId, first.matrix.membreId, second.matrix.membreId);
       await this.updateDescendantTotals(tx, second.filleulId, second.matrix.membreId, first.matrix.membreId);
       await this.recalculateAncestors(tx, [first.matrix.membreId, second.matrix.membreId], input.memberId, second.id);
+      await this.settleAscents(tx, [first.matrix.membreId, second.matrix.membreId, input.memberId, input.otherMemberId], input.operationId, input.memberId, actorId);
       return tx.placementHistory.findMany({ where: { operationId: input.operationId } });
+    }, { timeout: 30000, maxWait: 10000 });
+  }
+
+  private async settleAscents(tx: Prisma.TransactionClient, affectedIds: string[], operationId: string, triggeringMemberId: string, actorId?: string) {
+    const pending = new Set<string>();
+    const enqueueNeighborhood = async (memberIds: string[]) => {
+      let frontier = [...new Set(memberIds)];
+      for (let depth = 0; depth <= 2 && frontier.length; depth++) {
+        for (const memberId of frontier) pending.add(memberId);
+        if (depth === 2) break;
+        const children = await tx.position.findMany({
+          where: { matrix: { membreId: { in: frontier }, level: { ordre: 1 } }, filleulId: { not: null } },
+          select: { filleulId: true }, orderBy: [{ matrixId: 'asc' }, { numeroPosition: 'asc' }],
+        });
+        frontier = children.map(child => child.filleulId);
+      }
+    };
+    await enqueueNeighborhood(affectedIds);
+    while (pending.size) {
+      const memberId = pending.values().next().value as string;
+      pending.delete(memberId);
+      const member = await tx.membre.findUnique({
+        where: { id: memberId },
+        include: {
+          matrixPosition: { include: { matrix: { include: { membre: true, level: true } } } },
+          matrices: { where: { level: { ordre: 1 } }, include: { positions: { include: { filleul: { select: { statut: true } } } } } },
+        },
+      });
+      const current = member?.matrixPosition;
+      const children = member?.matrices[0]?.positions ?? [];
+      if (!current?.estValide || current.matrix.level.ordre !== 1 || member.statut !== 'ACTIF'
+        || children.filter(child => child.estValide && child.filleul?.statut === 'ACTIF').length !== generationCapacity(1)) continue;
+      const parent = current.matrix.membre;
+      if (parent.statut !== 'ACTIF') continue;
+      const occupied = await tx.position.count({ where: { matrixId: current.matrixId, filleulId: { not: null } } });
+      if (occupied >= generationCapacity(1)) continue;
+      const parentPosition = await tx.position.findUnique({
+        where: { filleulId: parent.id },
+        include: { matrix: { include: { membre: true, level: true, positions: { orderBy: { numeroPosition: 'asc' } } } } },
+      });
+      if (!parentPosition?.estValide || parentPosition.matrix.level.ordre !== 1 || parentPosition.matrix.membre.statut !== 'ACTIF') continue;
+      const destination = parentPosition.matrix.positions.find(slot => !slot.filleulId);
+      if (!destination) continue;
+      const newParentId = parentPosition.matrix.membreId;
+      await this.rejectCycle(tx, member.id, newParentId);
+      const released = await tx.position.updateMany({
+        where: { id: current.id, filleulId: member.id }, data: { filleulId: null, estValide: false, dateValidation: null },
+      });
+      if (released.count !== 1) throw new ConflictException('Le placement a change pendant la remontee');
+      await this.claim(tx, destination.id, member.id, current.estValide, current.dateValidation);
+      await tx.placementHistory.create({ data: {
+        memberId: member.id, recruiterId: member.parrainId, oldParentId: parent.id, newParentId,
+        oldPosition: current.numeroPosition, newPosition: destination.numeroPosition, actorId,
+        operationType: 'AUTO_ASCEND', operationId: `${operationId}:ascend:${member.id}:${current.id}:${destination.id}`,
+        reason: `Remontee automatique : 4/4 avant le parent matriciel (${occupied}/4). Evenement : ${operationId}. Membre declencheur : ${triggeringMemberId}`,
+      } });
+      await this.updateDescendantTotals(tx, member.id, parent.id, newParentId);
+      await this.recalculateAncestors(tx, [parent.id, newParentId], triggeringMemberId, destination.id);
+      await enqueueNeighborhood([member.id, parent.id, newParentId]);
+    }
+  }
+
+  async reconcileAscents(memberId: string, input: { operationId: string; reason: string }, actorId: string) {
+    return this.prisma.$transaction(async tx => {
+      await this.lock(tx);
+      const replay = await this.replay(tx, input.operationId, memberId, actorId, input.reason, 'RECONCILE');
+      if (!replay) {
+        const member = await tx.membre.findUnique({ where: { id: memberId }, include: { matrixPosition: { include: { matrix: true } } } });
+        if (!member) throw new NotFoundException('Membre introuvable');
+        const position = member.matrixPosition;
+        await tx.placementHistory.create({ data: {
+          memberId, recruiterId: member.parrainId, actorId, operationId: input.operationId,
+          operationType: 'RECONCILE', reason: input.reason,
+          oldParentId: position?.matrix.membreId, newParentId: position?.matrix.membreId,
+          oldPosition: position?.numeroPosition, newPosition: position?.numeroPosition,
+        } });
+        await this.settleAscents(tx, [memberId, position?.matrix.membreId].filter(Boolean), input.operationId, memberId, actorId);
+      }
+      return tx.placementHistory.findMany({
+        where: { OR: [{ operationId: input.operationId }, { operationId: { startsWith: `${input.operationId}:ascend:` } }] },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
     }, { timeout: 30000, maxWait: 10000 });
   }
 

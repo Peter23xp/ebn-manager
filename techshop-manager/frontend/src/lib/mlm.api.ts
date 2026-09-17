@@ -1,4 +1,5 @@
 import { api } from './api';
+import { withPaymentAvailability } from './mobile-money';
 import type { CalendarYear, MatrixTreeNode, MoveMemberInput, PlacementHistory, SwapMembersInput } from '@/types/mlm';
 
 export const MlmApi = {
@@ -59,6 +60,10 @@ export const MlmApi = {
     const { data } = await api.post('/mlm/matrix/swap', input);
     return data;
   },
+  reconcileAscents: async (memberId: string, input: { operationId: string; reason: string }): Promise<PlacementHistory[]> => {
+    const { data } = await api.post<PlacementHistory[]>(`/mlm/matrix/${memberId}/reconcile-ascents`, input);
+    return data;
+  },
   getPlacementHistory: async (memberId: string, page = 1, limit = 20): Promise<{ items: PlacementHistory[]; meta: { total: number; page: number; limit: number; totalPages: number } }> => {
     const { data } = await api.get(`/mlm/matrix/${memberId}/history`, { params: { page, limit } });
     return data;
@@ -106,7 +111,7 @@ export const MlmApi = {
     return data;
   },
   approvePayout: async (payoutId: string) => {
-    const { data } = await api.put(`/mlm/payouts/${payoutId}/approve`);
+    const { data } = await withPaymentAvailability('MOBILE_MONEY', () => api.put(`/mlm/payouts/${payoutId}/approve`));
     return data;
   },
   cancelPayout: async (payoutId: string) => {
@@ -124,11 +129,11 @@ export const MlmApi = {
     const { data } = await api.get('/mlm/withdrawal-requests', { params });
     return data;
   },
-  approveWithdrawalRequest: async (requestId: string, approvedById: string, notes?: string) => {
-    const { data } = await api.put(`/mlm/withdrawal-requests/${requestId}/approve`, {
+  approveWithdrawalRequest: async (requestId: string, approvedById: string, notes?: string, type: 'CASH' | 'MOBILE_MONEY' = 'MOBILE_MONEY') => {
+    const { data } = await withPaymentAvailability(type, () => api.put(`/mlm/withdrawal-requests/${requestId}/approve`, {
       approvedById,
       notes,
-    });
+    }));
     return data;
   },
   rejectWithdrawalRequest: async (requestId: string, rejectReason: string) => {

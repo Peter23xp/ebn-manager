@@ -13,17 +13,10 @@ describe('KpayService', () => {
       }[key] ?? fallback),
   };
 
-  it('rejects a Mobile Money number outside the DRC before any provider call', async () => {
+  it('rejects a Mobile Money number outside the DRC during normalization', () => {
     const service = new KpayService(config as never);
 
-    await expect(
-      service.initDeposit({
-        amount: 25,
-        provider: 'AIRTEL_COD',
-        phoneNumber: '237653456789',
-        externalId: 'SALE-1',
-      }),
-    ).rejects.toThrow('Le numéro Mobile Money doit être un numéro RDC au format 243');
+    expect(() => service.normalizeDrcPhone('237653456789')).toThrow('Le numéro Mobile Money doit être un numéro RDC au format 243');
   });
 
   it('rejects a webhook body with a signature that does not match the shared secret', () => {

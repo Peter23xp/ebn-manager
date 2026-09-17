@@ -31,7 +31,8 @@ import {
 import { MlmPayoutStatus } from '@prisma/client';
 import { MlmPlacementService } from './mlm-placement.service';
 import { MlmCalendarService } from './mlm-calendar.service';
-import { MovePlacementDto, SwapPlacementDto, MlmCalendarYearDto } from './dto/matrix-placement.dto';
+import { MovePlacementDto, SwapPlacementDto, MlmCalendarYearDto, ReconcileAscentsDto } from './dto/matrix-placement.dto';
+import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 
 @Controller('mlm')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -146,6 +147,12 @@ export class MlmController {
     return this.placementService.history(memberId, page, limit);
   }
 
+  @Post('matrix/:memberId/reconcile-ascents')
+  @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  reconcileAscents(@Param('memberId') memberId: string, @Body() input: ReconcileAscentsDto, @CurrentUser('id') actorId: string) {
+    return this.placementService.reconcileAscents(memberId, input, actorId);
+  }
+
   @Get('matrix/:memberId/generation/:generation')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
   getGeneration(@Param('memberId') memberId: string, @Param('generation', ParseIntPipe) generation: number,
@@ -241,6 +248,7 @@ export class MlmController {
   }
 
   @Post('wallet/:memberId/payouts')
+  @CheckMobileMoney()
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
   initPayout(@Param('memberId') memberId: string, @Body() body: { amount: number; provider: KpayProvider; phoneNumber: string }) {
     return this.walletService.initPayout(memberId, body);
@@ -257,6 +265,7 @@ export class MlmController {
   }
 
   @Put('payouts/:payoutId/approve')
+  @CheckMobileMoney()
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
   @HttpCode(HttpStatus.OK)
   approvePayout(@Param('payoutId') payoutId: string) {

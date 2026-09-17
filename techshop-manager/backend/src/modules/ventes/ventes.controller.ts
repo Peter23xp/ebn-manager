@@ -14,6 +14,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 
 @Controller('ventes')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,11 +23,13 @@ export class VentesController {
   constructor(private readonly ventesService: VentesService) {}
 
   @Post()
+  @CheckMobileMoney('modePaiement')
   createVente(@Body() dto: CreateVenteDto, @CurrentUser() user: any) {
     return this.ventesService.createVente(dto, user.id);
   }
 
   @Post('kpay/init')
+  @CheckMobileMoney()
   initKpayVente(@Body() dto: InitKpayVenteDto, @CurrentUser() user: any) {
     return this.ventesService.initKpayVente(dto, user.id);
   }
@@ -107,6 +110,7 @@ export class VentesController {
   }
 
   @Post(':id/retour')
+  @CheckMobileMoney('modeRemboursement')
   createRetour(
     @Param('id') venteId: string,
     @Body() dto: RetourDto,
@@ -116,6 +120,7 @@ export class VentesController {
   }
 
   @Post(':id/retour/kpay-refund')
+  @CheckMobileMoney()
   initKpayRefund(
     @Param('id') venteId: string,
     @Body() dto: RetourDto,

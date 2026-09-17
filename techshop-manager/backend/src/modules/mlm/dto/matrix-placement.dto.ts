@@ -27,3 +27,8 @@ export class MlmCalendarYearDto {
   @IsString() @IsNotEmpty() @MaxLength(2000) source: string;
   @IsString() @IsNotEmpty() timezone: string;
 }
+
+export class ReconcileAscentsDto {
+  @IsUUID() operationId: string;
+  @Transform(trimString) @IsString() @Length(5, 500) reason: string;
+}

@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Clock, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { kpayApi } from '@/lib/kpay.api';
+import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked } from '@/lib/mobile-money';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
@@ -90,6 +91,7 @@ export default function OnboardingRecitResumePage() {
 
   // Soumission KPay
   const handleKpaySubmit = (payment: { provider: string; phoneNumber: string }) => {
+    if (!MOBILE_MONEY_AVAILABLE) return;
     handleSubmit(async (data) => {
       setKpaySubmitting(true);
       try {
@@ -186,7 +188,7 @@ export default function OnboardingRecitResumePage() {
           Achat du Récit
         </h2>
 
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} noValidate className="space-y-5">
+        <form onSubmit={handleSubmit((data) => { if (!isMobileMoneyBlocked(data.modePaiement)) mutation.mutate(data); })} noValidate className="space-y-5">
 
           {/* Montant */}
           <div className="form-group">

@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { MOBILE_MONEY_AVAILABLE } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, RefreshCw } from 'lucide-react';
@@ -134,10 +136,13 @@ export default function PortalPointsPage() {
         <div className="mb-5 rounded-2xl border border-border bg-bg-card p-4 shadow-card">
           <p className="text-sm font-bold text-primary">Retirer mes gains</p>
           <p className="mb-4 mt-0.5 text-xs text-text-muted">
-            Le montant est en USD. KPay envoie les fonds sur votre Mobile Money.
+            Le montant est en USD.
           </p>
+          <MobileMoneyUnavailableNotice />
+          {!MOBILE_MONEY_AVAILABLE && <Link to="/portal/commissions" state={{ withdrawalType: 'CASH' }} className="btn-secondary mb-3">Demander un retrait en espèces</Link>}
           <form className="space-y-3" onSubmit={async (event) => {
             event.preventDefault();
+            if (!MOBILE_MONEY_AVAILABLE) return;
             setIsSubmitting(true); setPayoutMessage('');
             try {
               const result = await portalApi.initPayout({ amount: Number(amount), provider, phoneNumber });
@@ -155,7 +160,7 @@ export default function PortalPointsPage() {
               </select>
             </div>
             <input aria-label="Numéro Mobile Money" required pattern="^243[0-9]{9}$" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="243XXXXXXXXX" className="rounded-xl" />
-            <button disabled={isSubmitting} className="flex h-11 w-full items-center justify-center rounded-xl bg-[#b45309] text-sm font-bold text-white transition-colors duration-150 hover:bg-[#92400e] disabled:opacity-50">
+            <button disabled={!MOBILE_MONEY_AVAILABLE || isSubmitting} className="flex h-11 w-full items-center justify-center rounded-xl bg-[#b45309] text-sm font-bold text-white transition-colors duration-150 hover:bg-[#92400e] disabled:opacity-50">
               {isSubmitting ? 'Envoi…' : 'Demander le retrait'}
             </button>
             {payoutMessage && <p className="text-xs text-text-muted animate-fade-in">{payoutMessage}</p>}

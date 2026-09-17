@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { isMobileMoneyBlocked } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, CheckCircle2, XCircle, Clock, DollarSign, Smartphone, Banknote, AlertCircle } from 'lucide-react';
@@ -98,10 +100,11 @@ function WithdrawalRequestCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PortalWithdrawalPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [montant, setMontant] = useState('');
-  const [withdrawalType, setWithdrawalType] = useState<'MOBILE_MONEY' | 'CASH'>('MOBILE_MONEY');
+  const [withdrawalType, setWithdrawalType] = useState<'MOBILE_MONEY' | 'CASH'>(location.state?.withdrawalType === 'CASH' ? 'CASH' : 'MOBILE_MONEY');
   const [provider, setProvider] = useState<'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD'>('VODACOM_MPESA_COD');
   const [phoneNumber, setPhoneNumber] = useState('243');
   const [notes, setNotes] = useState('');
@@ -151,6 +154,7 @@ export default function PortalWithdrawalPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isMobileMoneyBlocked(withdrawalType)) return;
 
     const value = Number(montant);
     if (!value || value <= 0) {
@@ -336,6 +340,7 @@ export default function PortalWithdrawalPage() {
 
                     {withdrawalType === 'MOBILE_MONEY' && (
                       <>
+                        <MobileMoneyUnavailableNotice />
                         <div>
                           <label htmlFor="wd-provider" className="mb-2 block text-xs font-semibold text-text">
                             Opérateur
@@ -395,7 +400,7 @@ export default function PortalWithdrawalPage() {
 
                     <button
                       type="submit"
-                      disabled={createWithdrawalMutation.isPending || !montant}
+                      disabled={isMobileMoneyBlocked(withdrawalType) || createWithdrawalMutation.isPending || !montant}
                       className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#b45309] text-sm font-bold text-white transition-colors duration-150 hover:bg-[#92400e] disabled:opacity-50"
                     >
                       {createWithdrawalMutation.isPending && <Loader2 size={16} className="animate-spin" />}

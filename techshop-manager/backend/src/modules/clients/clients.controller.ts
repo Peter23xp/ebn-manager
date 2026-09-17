@@ -23,6 +23,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -123,18 +124,21 @@ export class ClientsController {
 
   /** Création d'un nouveau client + RÉCIT (Cash) */
   @Post('onboarding/recit')
+  @CheckMobileMoney('modePaiement')
   onboardingRecit(@Body() body: any, @CurrentUser() user: any) {
     return this.clientsService.onboardingRecit({ ...body, agentId: user.id });
   }
 
   /** Reprise du RÉCIT d'un client existant — Cash (depuis la file d'attente) */
   @Post(':id/onboarding/recit')
+  @CheckMobileMoney('modePaiement')
   resumeOnboardingRecit(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
     return this.clientsService.resumeOnboardingRecit(clientId, { ...body, agentId: user.id });
   }
 
   /** Reprise du RÉCIT d'un client existant — Mobile Money KPay */
   @Post(':id/onboarding/recit/kpay/init')
+  @CheckMobileMoney()
   resumeOnboardingRecitKpay(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
     return this.clientsService.resumeInitKpayRecit(clientId, { ...body, agentId: user.id });
   }
@@ -191,6 +195,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/fiche')
+  @CheckMobileMoney('modePaiement')
   onboardingFiche(
     @Param('id') clientId: string,
     @Body() dto: OnboardingFicheDto,
@@ -200,11 +205,13 @@ export class ClientsController {
   }
 
   @Post('onboarding/recit/kpay/init')
+  @CheckMobileMoney()
   onboardingRecitKpay(@Body() body: any, @CurrentUser() user: any) {
     return this.clientsService.initKpayRecit({ ...body, agentId: user.id });
   }
 
   @Post(':id/onboarding/fiche/kpay/init')
+  @CheckMobileMoney()
   onboardingFicheKpay(
     @Param('id') clientId: string,
     @Body() dto: InitKpayOnboardingDto,
@@ -214,6 +221,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/activate')
+  @CheckMobileMoney('modePaiement')
   onboardingActivate(
     @Param('id') clientId: string,
     @Body() dto: OnboardingActivateDto,
@@ -223,5 +231,6 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/activate/kpay/init')
+  @CheckMobileMoney()
   onboardingActivateKpay(@Param('id') clientId: string, @Body() dto: InitKpayActivationDto, @CurrentUser() user: any) { return this.clientsService.initKpayActivation(clientId, dto, user.id); }
 }

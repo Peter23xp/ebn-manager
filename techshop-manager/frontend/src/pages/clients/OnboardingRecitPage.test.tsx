@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -43,7 +43,22 @@ async function selectParrain(user: ReturnType<typeof userEvent.setup>, name: str
 }
 
 describe('Successive récit registrations', () => {
-  it.each(['CASH', 'KPAY'])('clears the displayed recruiter after %s and sends the newly selected recruiter for the second client', async mode => {
+  it('blocks mobile and programmatic form submission, then allows explicit cash', async () => {
+    const user = renderPage();
+    await fillClient(user, 'Premier', '900000001');
+    await user.click(screen.getByLabelText('Paiement mobile'));
+    fireEvent.submit(screen.getByLabelText('Prénom *').closest('form')!);
+    await waitFor(() => expect(screen.getByLabelText('Prénom *')).toHaveValue('Premier'));
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Payer par Mobile Money' })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Le paiement Mobile Money est en cours de développement. Veuillez utiliser le paiement en espèces.');
+    await user.click(screen.getByLabelText('Cash'));
+    await user.click(screen.getByRole('button', { name: '+ Enregistrer ce client' }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    expect(post.mock.calls[0][1].modePaiement).toBe('CASH');
+  });
+
+  it.each(['CASH'])('clears the displayed recruiter after %s and sends the newly selected recruiter for the second client', async mode => {
     const user = renderPage();
     await fillClient(user, 'Premier', '900000001');
     await selectParrain(user, 'Alice');

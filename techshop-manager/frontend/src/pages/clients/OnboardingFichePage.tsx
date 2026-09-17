@@ -13,6 +13,7 @@ import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
 import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
 import { kpayApi } from '@/lib/kpay.api';
+import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
 
 // ── Schema Zod ────────────────────────────────────────────────────────────────
 
@@ -88,12 +89,12 @@ export default function OnboardingFichePage() {
   const canSubmit   = recitDone && !ficheDone;
 
   const mutation = useMutation({
-    mutationFn: (data: FormValues) =>
+    mutationFn: (data: FormValues) => withPaymentAvailability(data.modePaiement, () =>
       api.post(`/clients/${id}/onboarding/fiche`, {
         montantFiche:      data.montantFiche,
         modePaiement:      data.modePaiement,
         numeroTransaction: data.numeroTransaction || undefined,
-      }),
+      })),
     onSuccess: () => {
       toast.success('Fiche client enregistrée.');
       navigate(`/clients/${id}/activate`);
@@ -114,6 +115,7 @@ export default function OnboardingFichePage() {
   const disabled     = isSubmitting || mutation.isPending || kpaySubmitting;
 
   const handleKpaySubmit = async (payment: { provider: string; phoneNumber: string }) => {
+    if (!MOBILE_MONEY_AVAILABLE) return;
     if (!id) return;
     setKpaySubmitting(true);
     try {
@@ -236,7 +238,7 @@ export default function OnboardingFichePage() {
       <div className="rounded-xl border border-border bg-white shadow-sm p-6">
         <h2 className="text-[15px] font-bold text-primary mb-5">Paiement de la fiche client</h2>
 
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} noValidate className="space-y-5">
+        <form onSubmit={handleSubmit((data) => { if (!isMobileMoneyBlocked(data.modePaiement)) mutation.mutate(data); })} noValidate className="space-y-5">
 
           {/* Montant */}
           <div className="form-group">
@@ -315,7 +317,7 @@ export default function OnboardingFichePage() {
             </button>
             <button
               type="submit"
-              disabled={disabled || !canSubmit}
+              disabled={disabled || !canSubmit || isMobileMoneyBlocked(modePaiement)}
               className="btn-primary text-[13px] flex items-center gap-2"
             >
               {disabled && <Loader2 size={14} className="animate-spin" aria-hidden />}

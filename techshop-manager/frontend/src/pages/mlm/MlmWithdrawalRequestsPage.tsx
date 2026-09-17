@@ -13,6 +13,8 @@ import {
   Filter,
 } from 'lucide-react';
 import { MlmApi } from '@/lib/mlm.api';
+import { isMobileMoneyBlocked } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { formatDate, formatUSD } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
 import { Modal } from '@/components/ui/Modal';
@@ -111,7 +113,7 @@ export default function MlmWithdrawalRequestsPage() {
 
   const approveMut = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      MlmApi.approveWithdrawalRequest(id, user?.id ?? '', notes),
+      MlmApi.approveWithdrawalRequest(id, user?.id ?? '', notes, requests.find((request) => request.id === id)?.type),
     onSuccess: () => {
       toast.success('Demande approuvée avec succès');
       setApprovingId(null);
@@ -353,11 +355,13 @@ export default function MlmWithdrawalRequestsPage() {
                           )}
                         </td>
                         <td className="px-5 py-3 text-right">
+                          {r.statut === 'EN_ATTENTE' && isMobileMoneyBlocked(r.type) && <MobileMoneyUnavailableNotice />}
                           <div className="flex items-center justify-end gap-2">
                             {r.statut === 'EN_ATTENTE' && canModerate && (
                               <>
                                 <button
-                                  onClick={() => setApprovingId(r.id)}
+                                  onClick={() => { if (!isMobileMoneyBlocked(r.type)) setApprovingId(r.id); }}
+                                  disabled={isMobileMoneyBlocked(r.type)}
                                   className="btn-primary text-[13px] flex items-center gap-1"
                                 >
                                   <CheckCircle size={12} /> Approuver
@@ -425,6 +429,7 @@ export default function MlmWithdrawalRequestsPage() {
 
           return (
             <div className="space-y-4">
+              {isMobileMoneyBlocked(request.type) && <MobileMoneyUnavailableNotice />}
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="text-sm font-semibold text-text mb-2">Résumé de la demande</p>
                 <div className="space-y-1 text-xs text-text-muted">
@@ -490,13 +495,14 @@ export default function MlmWithdrawalRequestsPage() {
                   Annuler
                 </button>
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    if (isMobileMoneyBlocked(request.type)) return;
                     approveMut.mutate({
                       id: approvingId,
                       notes: approveNotes || undefined,
-                    })
-                  }
-                  disabled={approveMut.isPending}
+                    });
+                  }}
+                  disabled={isMobileMoneyBlocked(request.type) || approveMut.isPending}
                   className="btn-primary text-sm"
                 >
                   {approveMut.isPending ? 'Approbation...' : 'Confirmer l\'approbation'}

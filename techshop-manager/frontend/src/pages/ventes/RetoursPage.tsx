@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
+import { isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
 import type { StatutVente, ModePaiement } from '@/types';
 
@@ -191,7 +193,7 @@ export default function RetoursPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (payload: object) => api.post(returnMode === 'KPAY' ? `/ventes/${venteId}/retour/kpay-refund` : `/ventes/${venteId}/retour`, payload),
+    mutationFn: (payload: object) => withPaymentAvailability(returnMode, () => api.post(returnMode === 'KPAY' ? `/ventes/${venteId}/retour/kpay-refund` : `/ventes/${venteId}/retour`, payload)),
     onSuccess: (res) => {
       const r = res.data?.retour;
       if (r) {
@@ -329,6 +331,7 @@ export default function RetoursPage() {
   const needsRef = returnMode === 'MOBILE_MONEY';
   const fullSelected = vente.lignes.every((l) => selectedLines.get(l.produit.id) === l.quantite);
   const formValid =
+    !isMobileMoneyBlocked(returnMode) &&
     selectedLines.size > 0 &&
     motif !== '' &&
     (motif !== 'AUTRE' || motifDescription.trim().length > 0) &&
@@ -337,7 +340,7 @@ export default function RetoursPage() {
     confirmed;
 
   const handleSubmit = () => {
-    if (!formValid) return;
+    if (isMobileMoneyBlocked(returnMode) || !formValid) return;
     const lignes = Array.from(selectedLines.entries()).map(([produitId, qty]) => ({ produitId, quantite: qty }));
     mutation.mutate({
       lignes,
@@ -533,6 +536,8 @@ export default function RetoursPage() {
             </div>
           )}
 
+          {isMobileMoneyBlocked(returnMode) && <MobileMoneyUnavailableNotice />}
+
           {/* Récapitulatif */}
           {returnMode !== '' && selectedLines.size > 0 && (
             <div className="bg-white rounded-xl shadow-card p-5 space-y-3">
@@ -574,7 +579,7 @@ export default function RetoursPage() {
               <button
                 type="button"
                 disabled={!formValid || mutation.isPending}
-                onClick={() => setConfirmOpen(true)}
+                onClick={() => { if (!isMobileMoneyBlocked(returnMode)) setConfirmOpen(true); }}
                 className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-danger text-white font-bold text-sm transition-colors hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {mutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}

@@ -60,6 +60,7 @@ export default function MlmTreePage() {
   });
 
   const snapshot = `${selectedMemberId}-${depth}-${dataUpdatedAt}`;
+  useEffect(() => { if (treeError) setDetailNode(null); }, [treeError]);
 
   return (
     <div className="space-y-6 animate-fade-up">

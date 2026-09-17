@@ -2,6 +2,7 @@ import { BadRequestException, HttpException, Injectable, ServiceUnavailableExcep
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { assertMobileMoneyAvailable } from '../../common/payments/mobile-money.policy';
 import {
   DRC_KPAY_PROVIDERS,
   KpayDepositInput,
@@ -24,6 +25,7 @@ export class KpayService {
   }
 
   async initDeposit(input: KpayDepositInput): Promise<KpayPayment> {
+    assertMobileMoneyAvailable();
     const payload = { currency: 'USD', ...input } as Record<string, unknown>;
     if (input.provider || input.phoneNumber) {
       if (!input.provider || !input.phoneNumber) {
@@ -42,6 +44,7 @@ export class KpayService {
   }
 
   async initPayout(input: KpayPayoutInput): Promise<KpayPayment> {
+    assertMobileMoneyAvailable();
     return this.request<KpayPayment>({
       method: 'post',
       url: '/payments/withdraw',
@@ -58,6 +61,7 @@ export class KpayService {
   }
 
   refundDeposit(paymentId: string, input: { externalId: string; reason: string }) {
+    assertMobileMoneyAvailable();
     return this.request<KpayPayment>({
       method: 'post',
       url: `/payments/${encodeURIComponent(paymentId)}/refund`,

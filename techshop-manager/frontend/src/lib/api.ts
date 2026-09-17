@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
+import { MOBILE_MONEY_UNAVAILABLE_MESSAGE } from './mobile-money';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -106,6 +107,9 @@ api.interceptors.response.use(
 );
 
 export function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error && error.code === 'MOBILE_MONEY_UNAVAILABLE') {
+    return MOBILE_MONEY_UNAVAILABLE_MESSAGE;
+  }
   if (axios.isAxiosError(error)) {
     const data = error.response?.data;
     if (data?.message) return Array.isArray(data.message) ? data.message[0] : data.message;

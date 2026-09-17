@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp, Download, ExternalLink, Network, UserRound, UserRoundPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,12 +12,13 @@ interface MatrixNetworkTreeProps {
   snapshot?: string;
   loadBranch?: (memberId: string) => Promise<MatrixTreeNode>;
   onSelect?: (node: MatrixTreeNode) => void;
+  onSelectionLost?: () => void;
   onExplore?: (node: MatrixTreeNode) => void;
   view?: 'tree' | 'list';
   scope?: string;
 }
 
-export function MatrixNetworkTree({ root, snapshot = root.id, loadBranch, onSelect, onExplore, view = 'tree', scope = 'admin' }: MatrixNetworkTreeProps) {
+export function MatrixNetworkTree({ root, snapshot = root.id, loadBranch, onSelect, onSelectionLost, onExplore, view = 'tree', scope = 'admin' }: MatrixNetworkTreeProps) {
   const queryClient = useQueryClient();
   const [, setBranchVersion] = useState(0);
   const onBranchChange = useCallback(() => setBranchVersion(value => value + 1), []);
@@ -26,8 +27,23 @@ export function MatrixNetworkTree({ root, snapshot = root.id, loadBranch, onSele
     const state = queryClient.getQueryState<MatrixTreeNode>(['mlm-tree-branch', node.id, snapshot, scope]);
     return state?.status === 'error' && accessDenied(state.error) ? null : state?.data ?? node;
   };
-  const selected = selectedId ? findMember(root, selectedId, 0, resolve) : null;
-  const select = (node: MatrixTreeNode) => { setSelectedId(node.id); onSelect?.(node); };
+  const match = selectedId ? findMember(root, selectedId, 0, resolve) : null;
+  const selectedNode = match?.node;
+  const selectedGeneration = match?.generation;
+  const selected = useMemo(() => selectedNode ? { ...selectedNode, generation: selectedGeneration! } : null, [selectedNode, selectedGeneration]);
+  const notifiedSelection = useRef<MatrixTreeNode | null>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!selected) {
+      notifiedSelection.current = null;
+      setSelectedId(null);
+      onSelectionLost?.();
+    } else if (notifiedSelection.current !== selected) {
+      notifiedSelection.current = selected;
+      onSelect?.(selected);
+    }
+  }, [selected, selectedId, onSelect, onSelectionLost]);
+  const select = (node: MatrixTreeNode) => setSelectedId(node.id);
   return <div className="min-w-0 space-y-4">
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-text-muted" aria-label="Légende de l’arbre">
       <span>Lignes : parent matriciel → enfants</span>
@@ -57,10 +73,10 @@ function accessDenied(error: unknown) {
   return [403, 404].includes((error as { response?: { status?: number } })?.response?.status ?? 0);
 }
 
-function findMember(node: MatrixTreeNode, memberId: string, generation = 0, resolve: (node: MatrixTreeNode) => MatrixTreeNode | null = node => node): MatrixTreeNode | null {
+function findMember(node: MatrixTreeNode, memberId: string, generation = 0, resolve: (node: MatrixTreeNode) => MatrixTreeNode | null = node => node): { node: MatrixTreeNode; generation: number } | null {
   const current = resolve(node);
   if (!current) return null;
-  if (current.id === memberId) return { ...current, generation };
+  if (current.id === memberId) return { node: current, generation };
   for (const child of current.children) {
     const found = findMember(child, memberId, generation + 1, resolve);
     if (found) return found;

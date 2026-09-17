@@ -8,6 +8,8 @@ import {
 import toast from 'react-hot-toast';
 import { pdf } from '@react-pdf/renderer';
 import { api, getErrorMessage } from '@/lib/api';
+import { isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { cn, formatCDF, formatUSD, formatDate, initials } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { ProduitSearchInput } from '@/components/clients/ProduitSearchInput';
@@ -316,10 +318,10 @@ export default function OnboardingActivationPage() {
   const handleSuccessNavigate = useCallback(() => navigate(`/clients/${id}`), [navigate, id]);
 
   const mutation = useMutation({
-    mutationFn: () => api.post(`/clients/${id}/onboarding/activate`, {
+    mutationFn: () => withPaymentAvailability(modePaiement, () => api.post(`/clients/${id}/onboarding/activate`, {
       produitId: selectedProduit!.id,
       modePaiement,
-    }),
+    })),
     onSuccess: (res) => {
       setConfirmOpen(false);
       const c = res.data;
@@ -640,6 +642,8 @@ export default function OnboardingActivationPage() {
           </div>
         )}
 
+        {isMobileMoneyBlocked(modePaiement) && <MobileMoneyUnavailableNotice />}
+
         {/* CTA activation */}
         {allComplete && (
           <div className="rounded-xl border border-border bg-white shadow-sm p-5">
@@ -656,8 +660,8 @@ export default function OnboardingActivationPage() {
             )}
             <button
               type="button"
-              onClick={() => setConfirmOpen(true)}
-              disabled={!canActivate || mutation.isPending}
+              onClick={() => { if (!isMobileMoneyBlocked(modePaiement)) setConfirmOpen(true); }}
+              disabled={isMobileMoneyBlocked(modePaiement) || !canActivate || mutation.isPending}
               className="btn-primary w-full text-[14px] py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Zap size={16} aria-hidden />
@@ -675,7 +679,7 @@ export default function OnboardingActivationPage() {
           nextCode={nextCode}
           produit={selectedProduit}
           modePaiement={modePaiement}
-          onConfirm={() => mutation.mutate()}
+          onConfirm={() => { if (!isMobileMoneyBlocked(modePaiement)) mutation.mutate(); }}
           onCancel={() => setConfirmOpen(false)}
           isLoading={mutation.isPending}
         />

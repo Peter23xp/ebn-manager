@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { MatrixTreeNode } from '@/types/mlm';
 import { MatrixNetworkTree } from './MatrixNetworkTree';
@@ -16,6 +16,13 @@ export function MatrixNetworkExplorer({ root, snapshot = root.id, scope, loadTre
 }) {
   const [path, setPath] = useState<NetworkTarget[]>(initialMember && initialMember.id !== root.id ? [initialMember] : []);
   const [view, setView] = useState<NetworkView>('tree');
+  const hasSelection = useRef(false);
+  const select = (node: MatrixTreeNode) => { hasSelection.current = true; onSelect?.(node); };
+  const clearSelection = useCallback(() => {
+    if (!hasSelection.current) return;
+    hasSelection.current = false;
+    onNavigate?.();
+  }, [onNavigate]);
   const target = path[path.length - 1];
   const query = useQuery({
     queryKey: ['mlm-tree-focus', scope, root.id, target?.id, snapshot, depth],
@@ -23,9 +30,11 @@ export function MatrixNetworkExplorer({ root, snapshot = root.id, scope, loadTre
     enabled: !!target,
     retry: false,
     staleTime: 0,
+    placeholderData: (previousData, previousQuery) => previousQuery?.queryKey[1] === scope && previousQuery.queryKey[2] === root.id && previousQuery.queryKey[3] === target?.id ? previousData : undefined,
   });
+  useEffect(() => { if (target && query.isError) clearSelection(); }, [target, query.isError, clearSelection]);
   const displayed = target ? query.data : root;
-  const changePath = (next: NetworkTarget[]) => { setPath(next); onNavigate?.(); };
+  const changePath = (next: NetworkTarget[]) => { hasSelection.current = false; setPath(next); onNavigate?.(); };
   const explore = (node: MatrixTreeNode) => {
     if (node.id === displayed?.id) return;
     const previous = path.findIndex(item => item.id === node.id);
@@ -40,7 +49,7 @@ export function MatrixNetworkExplorer({ root, snapshot = root.id, scope, loadTre
     </div> : target && query.isPending ? <div role="status" className="p-4 text-sm text-text-muted">Chargement du réseau de {target.name}…</div> : displayed && <MatrixNetworkTree
       key={displayed.id} root={displayed} view={view} scope={scope} onExplore={explore}
       snapshot={`${snapshot}-${displayed.id}-${target ? query.dataUpdatedAt : 'root'}`}
-      loadBranch={memberId => loadTree(memberId, 1)} onSelect={onSelect}
+      loadBranch={memberId => loadTree(memberId, 1)} onSelect={onSelect ? select : undefined} onSelectionLost={clearSelection}
     />}
   </div>;
 }

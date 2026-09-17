@@ -23,6 +23,7 @@ import { MailerService } from '../mailer/mailer.service';
 import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 import { MlmClaimService, invoiceCodeSeq, matchesInvoiceCode } from '../mlm/mlm-claim.service';
 import { MlmPlacementService } from '../mlm/mlm-placement.service';
+import { MOBILE_MONEY_ENABLED } from '../../common/payments/mobile-money.policy';
 
 @Injectable()
 export class ClientsService implements OnModuleInit {
@@ -165,6 +166,7 @@ export class ClientsService implements OnModuleInit {
   }
 
   private async initiateConfiguredAutoPayout(sourceTransactionId: string) {
+    if (!MOBILE_MONEY_ENABLED) return;
     const config = await this.prisma.configGenerale.findFirst();
     if (!config) return;
     const source = await this.prisma.kpayTransaction.findUnique({ where: { id: sourceTransactionId } });

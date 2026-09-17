@@ -8,6 +8,11 @@ import type { MatrixTreeNode, MoveMemberInput, SwapMembersInput } from '@/types/
 import { GenerationProgress } from './GenerationProgress';
 import { Pagination } from '@/components/ui/Pagination';
 
+const placementLabels: Record<string, string> = {
+  AUTO_ASCEND: 'Remontée automatique',
+  RECONCILE: 'Vérification de remontée',
+};
+
 export function MatrixMemberDetails({ node: selectedNode }: { node: MatrixTreeNode }) {
   const details = useQuery({ queryKey: ['mlm-tree-detail', selectedNode.id], queryFn: () => MlmApi.getNetworkTree(selectedNode.id, 0) });
   const node = { ...(details.data ?? selectedNode), generation: selectedNode.generation };
@@ -29,6 +34,7 @@ export function MatrixMemberDetails({ node: selectedNode }: { node: MatrixTreeNo
     </dl>
     <GenerationProgress progression={node.progression} />
     {details.isError && <p role="alert">Détails non actualisés. <button className="btn-secondary" onClick={() => details.refetch()}>Réessayer</button></p>}
+    {canEdit && <ReconcileAscents key={node.id} memberId={node.id} />}
     {canEdit && <PlacementForm node={node} />}
     {canReadHistory && <div className="space-y-3">
       <h3 className="font-semibold text-text">Historique des placements</h3>
@@ -36,7 +42,7 @@ export function MatrixMemberDetails({ node: selectedNode }: { node: MatrixTreeNo
         {history.data?.items.length === 0 && <p className="text-sm text-text-muted">Aucun placement enregistré.</p>}
         <ul className="divide-y divide-border text-sm text-text">{history.data?.items.map(item => <li key={item.id} className="py-3 space-y-1 break-words">
           <p className="font-semibold">{item.reason}</p>
-          <p>{item.operationType} · {formatMlmDate(item.createdAt)}</p>
+          <p>{placementLabels[item.operationType] ?? item.operationType} · {formatMlmDate(item.createdAt)}</p>
           <p>Parent : {item.oldParentId ?? 'Racine'} → {item.newParentId ?? 'Racine'} · Place : {item.oldPosition ?? '—'} → {item.newPosition ?? '—'}</p>
           <p className="text-xs text-text-muted">Recruteur : {item.recruiterId ?? 'Aucun'} · Acteur : {item.actorId ?? 'Système'} · Opération : {item.operationId}</p>
         </li>)}</ul>
@@ -44,6 +50,33 @@ export function MatrixMemberDetails({ node: selectedNode }: { node: MatrixTreeNo
       </>}
     </div>}
   </section>;
+}
+
+function ReconcileAscents({ memberId }: { memberId: string }) {
+  const queryClient = useQueryClient();
+  const pendingOperation = useRef<string | null>(null);
+  const mutation = useMutation({
+    mutationFn: () => {
+      pendingOperation.current ??= crypto.randomUUID();
+      return MlmApi.reconcileAscents(memberId, {
+        operationId: pendingOperation.current,
+        reason: 'Vérification administrative de la remontée automatique',
+      });
+    },
+    onSuccess: () => {
+      pendingOperation.current = null;
+      return invalidateMlm(queryClient);
+    },
+  });
+  const moves = mutation.data?.filter(item => item.operationType === 'AUTO_ASCEND').length ?? 0;
+  return <div className="space-y-3 border-t border-border pt-4">
+    <h3 className="font-semibold text-text">Remontée automatique</h3>
+    <p className="text-sm text-text-muted">Le serveur vérifie et applique les remontées possibles. Le sous-arbre et le recruteur sont conservés.</p>
+    <p className="text-sm text-text-muted">La remontée s’arrête devant un parent complet, une destination pleine ou inactive, ou à la racine.</p>
+    <button type="button" className="btn-secondary" disabled={mutation.isPending} onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>{mutation.isPending ? 'Vérification…' : 'Vérifier la remontée'}</button>
+    {mutation.isError && <p role="alert" className="text-sm text-text">{(mutation.error as any)?.response?.data?.message ?? 'Vérification non confirmée. Réessayez.'}</p>}
+    {mutation.isSuccess && <p role="status" className="text-sm text-text">Vérification terminée : {moves === 0 ? 'aucune remontée effectuée' : `${moves} remontée${moves > 1 ? 's' : ''} automatique${moves > 1 ? 's' : ''} effectuée${moves > 1 ? 's' : ''}`}.</p>}
+  </div>;
 }
 
 function PlacementForm({ node }: { node: MatrixTreeNode }) {

@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { withPaymentAvailability } from './mobile-money';
 import type { FinancialSummary, MatrixTreeNode, ReinvestLot } from '@/types/mlm';
 export type { ReinvestLot } from '@/types/mlm';
 
@@ -208,10 +209,10 @@ export const portalApi = {
     api.get('/portal/wallet').then((r) => r.data),
 
   initPayout: (input: PortalPayoutInput) =>
-    api.post('/portal/wallet/payouts', input).then((r) => r.data),
+    withPaymentAvailability('MOBILE_MONEY', () => api.post('/portal/wallet/payouts', input).then((r) => r.data)),
 
   createWithdrawalRequest: (input: CreateWithdrawalRequestInput) =>
-    api.post('/portal/withdrawal-requests', input).then((r) => r.data),
+    withPaymentAvailability(input.type, () => api.post('/portal/withdrawal-requests', input).then((r) => r.data)),
 
   getWithdrawalRequests: (params: {
     statut?: string;

@@ -10,6 +10,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { KpayProvider } from '../kpay/kpay.types';
 import { CreateWithdrawalRequestDto } from './dto/withdrawal.dto';
+import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 
 @Controller('portal')
 @UseGuards(JwtAuthGuard)
@@ -32,6 +33,7 @@ export class PortalController {
   }
 
   @Post('wallet/payouts')
+  @CheckMobileMoney()
   initPayout(@CurrentUser() user: any, @Body() body: { amount: number; provider: KpayProvider; phoneNumber: string }) {
     return this.portalService.initPayout(user.id, body);
   }
@@ -103,6 +105,7 @@ export class PortalController {
   }
 
   @Post('withdrawal-requests')
+  @CheckMobileMoney('type')
   createWithdrawalRequest(
     @CurrentUser() user: any,
     @Body() dto: CreateWithdrawalRequestDto,

@@ -14,6 +14,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput';
 import { CodeParrainInput } from '@/components/clients/CodeParrainInput';
 import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
 import { kpayApi } from '@/lib/kpay.api';
+import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
 
 // ── Schema Zod ────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ export default function OnboardingRecitPage() {
   const needsRef     = modePaiement !== 'CASH' && modePaiement !== 'KPAY';
 
   const handleKpaySubmit = (payment: { provider: string; phoneNumber: string }) => {
+    if (!MOBILE_MONEY_AVAILABLE) return;
     handleSubmit(async (data) => {
       setKpaySubmitting(true);
       try {
@@ -116,7 +118,7 @@ export default function OnboardingRecitPage() {
   };
 
   const mutation = useMutation({
-    mutationFn: (data: FormValues) =>
+    mutationFn: (data: FormValues) => withPaymentAvailability(data.modePaiement, () =>
       api.post<{ client: { id: string; prenom: string; nom: string; telephone: string }; etapeId: string }>(
         '/clients/onboarding/recit',
         {
@@ -125,7 +127,7 @@ export default function OnboardingRecitPage() {
           codeParrain: data.codeParrain || undefined,
           numeroRecu: data.numeroRecu || undefined,
         },
-      ),
+      )),
     onSuccess: (res) => {
       const c = res.data.client;
       setSessionClients(prev => [{ id: c.id, prenom: c.prenom, nom: c.nom, telephone: c.telephone }, ...prev]);
@@ -199,7 +201,7 @@ export default function OnboardingRecitPage() {
           Informations personnelles &amp; Achat du récit
         </h2>
 
-        <form onSubmit={handleSubmit((d) => mutation.mutate(d))} noValidate className="space-y-5">
+        <form onSubmit={handleSubmit((data) => { if (!isMobileMoneyBlocked(data.modePaiement)) mutation.mutate(data); })} noValidate className="space-y-5">
 
           {/* Prénom + Nom */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

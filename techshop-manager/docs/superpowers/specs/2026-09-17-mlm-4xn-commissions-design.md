@@ -86,6 +86,8 @@ Les helpers de calendrier, montants et requetes restent internes au module MLM, 
 
 ## 6. Deplacements, echanges et historique
 
+La règle initiale ci-dessous est complétée par la remontée automatique approuvée dans `2026-09-17-mlm-automatic-ascent-design.md` : branche à 4/4, parent incomplet, place libre chez le grand-parent ; aucune permutation ancêtre/enfant. Les garde-fous et les opérations administratives restent applicables.
+
 - Spillover automatique, mais deplacements/echanges administratifs explicites. Pas de rearrangement automatique fonde sur une regle de « branche avancee » non definie.
 - Autorisation proposee : SUPER_ADMIN et DIRECTEUR_REGIONAL. L'acteur vient du JWT, pas d'un identifiant libre du navigateur.
 - Motif, cle d'idempotence et placement attendu obligatoires. Un deplacement conserve le sous-arbre ; un echange est refuse entre ancetre et descendant.

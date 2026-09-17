@@ -197,7 +197,7 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     expect(tx.transactionPortefeuille.create).not.toHaveBeenCalled();
   });
 
-  it("approuve MOBILE_MONEY: statut PAYE direct (plus d'étape intermédiaire)", async () => {
+  it('bloque une nouvelle approbation MOBILE_MONEY sans débit ni modification de statut', async () => {
     const tx = {
       portefeuille: {
         findUnique: resolved({ id: 'pf-1', soldeDisponible: 200, soldeReserve: 150 }),
@@ -215,10 +215,12 @@ describe('MlmWalletService — withdrawal requests (solde)', () => {
     };
     const service = buildService(prisma);
 
-    const result = await service.approveWithdrawalRequest('wr-1', 'user-1');
-    expect(result.statut).toBe('PAYE');
-    // Une seule transition de statut (EN_ATTENTE → PAYE)
-    expect(tx.withdrawalRequest.updateMany).toHaveBeenCalledTimes(1);
+    await expect(service.approveWithdrawalRequest('wr-1', 'user-1')).rejects.toMatchObject({
+      message: 'Le paiement Mobile Money est en cours de développement. Veuillez utiliser le paiement en espèces.',
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.portefeuille.updateMany).not.toHaveBeenCalled();
+    expect(tx.withdrawalRequest.updateMany).not.toHaveBeenCalled();
   });
 
   it('refuse une demande déjà traitée', async () => {

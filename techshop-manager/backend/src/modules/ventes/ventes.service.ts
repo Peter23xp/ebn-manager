@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
 import { KpayProvider } from '../kpay/kpay.types';
+import { MOBILE_MONEY_ENABLED } from '../../common/payments/mobile-money.policy';
 
 @Injectable()
 export class VentesService implements OnModuleInit {
@@ -100,6 +101,7 @@ export class VentesService implements OnModuleInit {
   }
 
   private async initiateConfiguredAutoPayout(sourceTransactionId: string) {
+    if (!MOBILE_MONEY_ENABLED) return;
     const config = await this.prisma.configGenerale.findFirst();
     if (!config) return;
     const source = await this.prisma.kpayTransaction.findUnique({ where: { id: sourceTransactionId } });
@@ -1050,4 +1052,3 @@ export class VentesService implements OnModuleInit {
     };
   }
 }
-

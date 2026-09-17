@@ -33,6 +33,7 @@ import type { ClientSearchResult } from '@/lib/clients.api';
 import type { ModePaiement } from '@/types';
 import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
 import { kpayApi } from '@/lib/kpay.api';
+import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked, MOBILE_MONEY_UNAVAILABLE_MESSAGE } from '@/lib/mobile-money';
 
 // ── Badge stock ───────────────────────────────────────────────────
 
@@ -313,6 +314,7 @@ export default function POSPage() {
     !(['MPESA', 'AIRTEL_MONEY'] as string[]).includes(modePaiement ?? '');
 
   async function handleKpayPayment(input: { provider: import('@/lib/kpay.api').KpayProvider; phoneNumber: string }) {
+    if (!MOBILE_MONEY_AVAILABLE) return;
     if (!siteId || !client || !items.length) return;
     setKpaySubmitting(true);
     try {
@@ -367,7 +369,7 @@ export default function POSPage() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || isSubmitting) return;
+    if (isMobileMoneyBlocked(modePaiement) || !canSubmit || isSubmitting) return;
     setIsSubmitting(true);
 
     const payload = {
@@ -414,7 +416,8 @@ export default function POSPage() {
             : [];
           setStockErrorModal({ open: true, produits: produitsList });
         } else {
-          toast.error("Erreur lors de l'enregistrement de la vente");
+          const code = (err as { response?: { data?: { code?: string } } }).response?.data?.code;
+          toast.error(code === 'MOBILE_MONEY_UNAVAILABLE' ? MOBILE_MONEY_UNAVAILABLE_MESSAGE : "Erreur lors de l'enregistrement de la vente");
         }
       }
     } finally {

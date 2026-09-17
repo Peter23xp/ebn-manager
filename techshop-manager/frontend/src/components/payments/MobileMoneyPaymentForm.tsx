@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Loader2, Smartphone } from 'lucide-react';
 import type { KpayProvider } from '@/lib/kpay.api';
 import { KpayProcessingScreen } from './KpayProcessingScreen';
+import { MOBILE_MONEY_AVAILABLE } from '@/lib/mobile-money';
+import { MobileMoneyUnavailableNotice } from './MobileMoneyUnavailableNotice';
 
 const providers: Array<{ value: KpayProvider; label: string }> = [
   { value: 'VODACOM_MPESA_COD', label: 'M-Pesa' },
@@ -14,6 +16,7 @@ export function MobileMoneyPaymentForm({ amount, currency = 'USD', submitting = 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const submit = () => {
+    if (!MOBILE_MONEY_AVAILABLE || submitting || processing) return;
     let normalized = phoneNumber.replace(/\D/g, '');
     if (normalized.startsWith('00')) normalized = normalized.slice(2);
     if (normalized.startsWith('0')) normalized = `243${normalized.slice(1)}`;
@@ -31,6 +34,7 @@ export function MobileMoneyPaymentForm({ amount, currency = 'USD', submitting = 
       <section className="w-full min-w-0 rounded-xl border border-border bg-white p-4" aria-labelledby="mobile-money-title">
       <div className="mb-3 flex items-center gap-2"><Smartphone size={18} className="text-primary-accent" /><h3 id="mobile-money-title" className="font-semibold text-primary">Paiement Mobile Money</h3></div>
       <p className="mb-3 text-xs text-text-muted">Montant à confirmer : <strong>{amount.toLocaleString('fr-FR')} {currency}</strong></p>
+      <MobileMoneyUnavailableNotice />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="form-group"><span className="form-label">Opérateur</span><select value={provider} onChange={(e) => setProvider(e.target.value as KpayProvider)}>{providers.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
         <label className="form-group"><span className="form-label">Numéro Mobile Money</span><input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+243 8XX XXX XXX" inputMode="tel" aria-invalid={!!error} /></label>
@@ -38,7 +42,7 @@ export function MobileMoneyPaymentForm({ amount, currency = 'USD', submitting = 
       {error && <p className="form-error" role="alert">{error}</p>}
       {/* Désactivé pendant TOUTE la durée du paiement (init + confirmation USSD) :
           sinon un second clic crée un deuxième push KPay → double débit possible. */}
-      <button type="button" className="btn-primary mt-4 w-full" onClick={submit} disabled={submitting || processing}>
+      <button type="button" className="btn-primary mt-4 w-full" onClick={submit} disabled={!MOBILE_MONEY_AVAILABLE || submitting || processing}>
         {submitting && <Loader2 size={16} className="animate-spin" />} {submitting ? 'Initialisation…' : processing ? 'En attente de confirmation…' : 'Payer par Mobile Money'}
       </button>
       </section>

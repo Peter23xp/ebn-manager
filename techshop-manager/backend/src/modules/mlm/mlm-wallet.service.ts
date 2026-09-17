@@ -5,6 +5,7 @@ import { KpayProvider } from '../kpay/kpay.types';
 import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
 import { MlmCalendarService } from './mlm-calendar.service';
+import { assertMobileMoneyAvailable, isMobileMoneyMethod } from '../../common/payments/mobile-money.policy';
 import { excludeHeldReleaseTransfers, walletJournalKind } from './mlm-wallet-journal';
 
 @Injectable()
@@ -617,6 +618,8 @@ export class MlmWalletService implements OnModuleInit {
     if (!request) {
       throw new NotFoundException(`Demande de retrait ${withdrawalRequestId} introuvable`);
     }
+
+    if (isMobileMoneyMethod(request.type)) assertMobileMoneyAvailable();
 
     if (request.statut !== 'EN_ATTENTE') {
       throw new BadRequestException(

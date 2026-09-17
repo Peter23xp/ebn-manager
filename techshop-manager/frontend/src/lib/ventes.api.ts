@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { withPaymentAvailability } from './mobile-money';
 import type { Vente, ModePaiement, StatutVente } from '@/types';
 
 export interface ProduitPOS {
@@ -62,7 +63,7 @@ export const ventesApi = {
     api.get<{ produits: ProduitPOS[] }>('/produits/search', { params }).then((r) => r.data),
 
   create: (body: CreateVenteDto) =>
-    api.post<{ vente: VenteResult }>('/ventes', body).then((r) => r.data),
+    withPaymentAvailability(body.modePaiement, () => api.post<{ vente: VenteResult }>('/ventes', body).then((r) => r.data)),
 
   list: (filters: SalesFilters) =>
     api.get<SalesListResponse>('/ventes', { params: filters }).then((r) => r.data),
