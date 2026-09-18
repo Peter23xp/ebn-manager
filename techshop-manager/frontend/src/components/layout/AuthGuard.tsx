@@ -6,11 +6,11 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasLoggedOut } = useAuthStore();
   const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={hasLoggedOut ? '/' : '/login'} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

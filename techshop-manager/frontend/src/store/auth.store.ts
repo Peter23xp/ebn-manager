@@ -5,6 +5,8 @@ interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
   isAuthenticated: boolean;
+  hasLoggedOut: boolean;
+  sessionVersion: number;
   isLoading: boolean;
   loginAttempts: number;
   lockedUntil: Date | null;
@@ -74,6 +76,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   user: stored?.user ?? null,
   accessToken: stored?.accessToken ?? null,
   isAuthenticated: !!stored?.accessToken,
+  hasLoggedOut: false,
+  sessionVersion: 0,
   isLoading: false,
   loginAttempts: 0,
   lockedUntil: null,
@@ -81,8 +85,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   lastSyncAt: null,
 
   setAuth: (user, accessToken) => {
+    const current = get();
+    const sameSession = current.isAuthenticated && current.user?.id === user.id && current.accessToken === accessToken;
     saveToStorage(user, accessToken);
-    set({ user, accessToken, isAuthenticated: true, loginAttempts: 0, lockedUntil: null });
+    set({
+      user, accessToken, isAuthenticated: true, hasLoggedOut: false,
+      sessionVersion: sameSession ? current.sessionVersion : current.sessionVersion + 1,
+      loginAttempts: 0, lockedUntil: null,
+    });
   },
 
   setAccessToken: (accessToken) => {
@@ -93,7 +103,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   logout: () => {
     clearStorage();
-    set({ user: null, accessToken: null, isAuthenticated: false });
+    set(current => ({
+      user: null, accessToken: null, isAuthenticated: false, hasLoggedOut: true,
+      sessionVersion: current.sessionVersion + 1,
+    }));
   },
 
   hasRole: (minRole) => {

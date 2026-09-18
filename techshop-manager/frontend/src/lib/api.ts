@@ -1,19 +1,15 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 import { MOBILE_MONEY_UNAVAILABLE_MESSAGE } from './mobile-money';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
-
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token!);
-  });
-  failedQueue = [];
+type SessionRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  _sessionVersion?: number;
 };
+
+let pendingRefresh: { sessionVersion: number; promise: Promise<string> } | null = null;
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -28,21 +24,27 @@ api.interceptors.request.use((config) => {
       Object.assign(new Error('NETWORK_OFFLINE'), { code: 'NETWORK_OFFLINE' }),
     ) as never;
   }
-  const token = useAuthStore.getState().accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const session = useAuthStore.getState();
+  const request = config as SessionRequestConfig;
+  if (request._sessionVersion !== undefined && request._sessionVersion !== session.sessionVersion) {
+    throw new axios.CanceledError('Session terminée');
+  }
+  request._sessionVersion = session.sessionVersion;
+  if (session.accessToken) config.headers.Authorization = `Bearer ${session.accessToken}`;
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as (typeof error.config) & { _retry?: boolean };
+    const originalRequest = error.config as SessionRequestConfig | undefined;
+
+    if (axios.isCancel(error)) return Promise.reject(error);
 
     const isNetworkError =
       !error.response ||
       error.code === 'ERR_NETWORK' ||
       error.code === 'ECONNABORTED' ||
-      error.code === 'ERR_CANCELED' ||
       (error as { code?: string }).code === 'NETWORK_OFFLINE';
 
     if (isNetworkError) {
@@ -54,52 +56,50 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       !originalRequest?._retry &&
       originalRequest?.url !== '/auth/login' &&
+      originalRequest?.url !== '/portal/auth/login' &&
       originalRequest?.url !== '/auth/refresh'
     ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({
-            resolve: (token) => {
-              if (originalRequest) {
-                originalRequest.headers = originalRequest.headers ?? {};
-                originalRequest.headers.Authorization = `Bearer ${token}`;
-                resolve(api(originalRequest));
-              }
-            },
-            reject,
+      const session = useAuthStore.getState();
+      if (
+        !session.isAuthenticated || !originalRequest ||
+        originalRequest._sessionVersion !== session.sessionVersion
+      ) {
+        return Promise.reject(error);
+      }
+      const isCurrentSession = () => {
+        const current = useAuthStore.getState();
+        return current.isAuthenticated && current.sessionVersion === session.sessionVersion;
+      };
+
+      originalRequest._retry = true;
+      if (originalRequest.headers.Authorization !== `Bearer ${session.accessToken}`) {
+        return api(originalRequest);
+      }
+
+      if (!pendingRefresh || pendingRefresh.sessionVersion !== session.sessionVersion) {
+        const refresh: Promise<string> = axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+          .then(({ data }) => {
+            if (!isCurrentSession()) throw new axios.CanceledError('Session terminée');
+            useAuthStore.getState().setAccessToken(data.accessToken);
+            return data.accessToken;
+          })
+          .catch(refreshError => {
+            if (isCurrentSession()) {
+              useAuthStore.getState().logout();
+              if (window.location.pathname !== '/') window.location.replace('/');
+            }
+            throw refreshError;
+          })
+          .finally(() => {
+            if (pendingRefresh?.promise === refresh) pendingRefresh = null;
           });
-        });
+        pendingRefresh = { sessionVersion: session.sessionVersion, promise: refresh };
       }
 
-      if (originalRequest) originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
-        useAuthStore.getState().setAccessToken(data.accessToken);
-        processQueue(null, data.accessToken);
-        if (originalRequest) {
-          originalRequest.headers = originalRequest.headers ?? {};
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        // Session déjà terminée localement (déconnexion volontaire pendant une
-        // requête en vol) : ne PAS renvoyer vers /login — l'utilisateur a choisi
-        // sa destination (accueil). Laisser l'appel échouer silencieusement.
-        const wasAuthenticated = useAuthStore.getState().isAuthenticated;
-        useAuthStore.getState().logout();
-        const publicPaths = ['/', '/login', '/portal/login', '/reset-password'];
-        if (wasAuthenticated && !publicPaths.includes(window.location.pathname)) {
-          window.location.href = window.location.pathname.startsWith('/portal')
-            ? '/portal/login'
-            : '/login';
-        }
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+      const token = await pendingRefresh.promise;
+      if (!isCurrentSession()) throw new axios.CanceledError('Session terminée');
+      originalRequest.headers.Authorization = `Bearer ${token}`;
+      return api(originalRequest);
     }
 
     return Promise.reject(error);
