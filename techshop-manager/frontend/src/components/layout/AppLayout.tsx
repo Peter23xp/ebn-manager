@@ -61,6 +61,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
   { label: 'Dashboard MLM',        icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
   { label: '8 Niveaux MLM',        icon: <Award size={16} />,         to: '/mlm/levels',         minRole: 'AGENT' },
+  { label: 'Configuration MLM',    icon: <SlidersHorizontal size={16} />, to: '/mlm/config',     minRole: 'DIRECTEUR_REGIONAL' },
   { label: 'Commissions',          icon: <DollarSign size={16} />,    to: '/mlm/commissions',    minRole: 'GERANT' },
   { label: 'Retraits',             icon: <Landmark size={16} />,      to: '/mlm/withdrawal-requests', minRole: 'GERANT' },
   { label: 'Réclamations parrain', icon: <UserPlus size={16} />,      to: '/mlm/claims',         minRole: 'GERANT' },
