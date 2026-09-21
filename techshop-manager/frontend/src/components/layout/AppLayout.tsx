@@ -34,6 +34,7 @@ import { useUIStore } from '@/store/ui.store';
 import { useOnlineSync } from '@/hooks/useOnlineSync';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { cn } from '@/lib/utils';
+import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 import type { Role } from '@/types';
 
 interface NavItemDef {
@@ -54,9 +55,9 @@ const NAV_ITEMS: NavItemDef[] = [
   { label: 'Dashboard',            icon: <LayoutDashboard size={16} />, to: '/dashboard',          minRole: 'AGENT' },
   { label: 'Clients',              icon: <Users size={16} />,           to: '/clients',            minRole: 'AGENT' },
   { label: 'File onboarding',      icon: <Clock size={16} />,           to: '/clients/queue',      minRole: 'AGENT' },
-  { label: 'Paiements onboarding', icon: <CreditCard size={16} />,      to: '/clients/paiements',  minRole: 'GERANT' },
-  { label: 'Caisse POS',           icon: <ShoppingCart size={16} />,    to: '/sales/pos',              minRole: 'AGENT' },
-  { label: 'Ventes',               icon: <Receipt size={16} />,         to: '/sales',                  minRole: 'GERANT' },
+  { label: 'Paiements onboarding', icon: <CreditCard size={16} />,      to: '/clients/paiements',  minRole: 'CAISSIER' },
+  { label: 'Caisse POS',           icon: <ShoppingCart size={16} />,    to: '/sales/pos',              minRole: 'CAISSIER' },
+  { label: 'Ventes',               icon: <Receipt size={16} />,         to: '/sales',                  minRole: 'CAISSIER' },
   { label: 'Journal retours',      icon: <RotateCcw size={16} />,       to: '/sales/journal-retours',  minRole: 'GERANT' },
   { label: 'Stocks',               icon: <Package size={16} />,         to: '/stocks',             minRole: 'AGENT' },
   { label: 'Dashboard MLM',        icon: <Network size={16} />,       to: '/mlm',                minRole: 'GERANT' },
@@ -95,7 +96,7 @@ function NavSection({ label }: { label: string }) {
 
 // ── Sidebar ───────────────────────────────────────────────────────
 function Sidebar({ onClose }: { onClose?: () => void }) {
-  const { hasRole } = useAuthStore();
+  const { hasRole, user } = useAuthStore();
   const location = useLocation();
   const onSettingsPage = location.pathname.startsWith('/settings');
   const [settingsOpen, setSettingsOpen] = useState(onSettingsPage);
@@ -105,7 +106,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     if (onSettingsPage) setSettingsOpen(true);
   }, [onSettingsPage]);
 
-  const visibleItems = NAV_ITEMS.filter((item) => hasRole(item.minRole));
+  const visibleItems = NAV_ITEMS.filter((item) => hasMinimumRole(user?.role, item.minRole));
   const visibleSettingsChildren = SETTINGS_GROUP.children.filter((c) => hasRole(c.minRole));
   const showSettings = hasRole(SETTINGS_GROUP.minRole) && visibleSettingsChildren.length > 0;
 
@@ -309,7 +310,9 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
     navigate('/', { replace: true });
   };
 
-  const siteName = user?.siteName ?? (selectedSiteId ? `Site ${selectedSiteId}` : null);
+  const siteName = user?.site?.nom ?? user?.siteName ?? (user && isSiteScopedStaff(user.role)
+    ? user.siteId
+    : selectedSiteId ? `Site ${selectedSiteId}` : null);
   const initials = user?.name?.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() ?? '';
 
   return (

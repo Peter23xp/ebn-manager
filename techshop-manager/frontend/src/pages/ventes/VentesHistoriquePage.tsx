@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useSalesQueryScope } from '@/hooks/useSalesQueryScope';
 import { ventesApi } from '@/lib/ventes.api';
 import { SaleStatusBadge } from '@/components/sales/SaleStatusBadge';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
@@ -121,6 +122,7 @@ function KpiCard({
 
 export default function VentesHistoriquePage() {
   const navigate = useNavigate();
+  const salesScope = useSalesQueryScope();
 
   const [periode, setPeriode] = useState<Periode>('month');
   const [modePaiement, setModePaiement] = useState('');
@@ -131,9 +133,10 @@ export default function VentesHistoriquePage() {
   const debouncedSearch = useDebounce(search, 400);
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['ventes', { periode, modePaiement, search: debouncedSearch, page, sortOrder }],
+    queryKey: ['ventes', { periode, modePaiement, search: debouncedSearch, page, sortOrder }, salesScope.key],
     queryFn: () =>
       ventesApi.list({
+        siteId: salesScope.siteId,
         ...getPeriodeDates(periode),
         modePaiement: modePaiement || undefined,
         search: debouncedSearch || undefined,
@@ -143,7 +146,8 @@ export default function VentesHistoriquePage() {
         sortOrder,
       }),
     staleTime: 60_000,
-    placeholderData: (prev) => prev,
+    enabled: salesScope.enabled,
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[2] === salesScope.key ? previous : undefined,
   });
 
   const ventes = data?.ventes ?? [];

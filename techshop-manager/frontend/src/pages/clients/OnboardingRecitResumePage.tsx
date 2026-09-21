@@ -10,6 +10,7 @@ import { api, getErrorMessage } from '@/lib/api';
 import { kpayApi } from '@/lib/kpay.api';
 import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked } from '@/lib/mobile-money';
 import { useAuthStore } from '@/store/auth.store';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { cn } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
@@ -30,17 +31,19 @@ type FormValues = z.infer<typeof schema>;
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingRecitResumePage() {
+  const scope = usePrivateQueryScope('CAISSIER');
   const { id: clientId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [kpaySubmitting, setKpaySubmitting] = useState(false);
 
   // Charger les infos du client
-  const { data: clientData, isLoading } = useQuery<any>({
-    queryKey: ['client', clientId],
+  const { data, isLoading } = useQuery<any>({
+    queryKey: ['client', clientId, scope.key],
     queryFn: () => api.get(`/clients/${clientId}`).then((r) => r.data),
-    enabled: !!clientId,
+    enabled: !!clientId && scope.enabled,
   });
+  const clientData = scope.enabled ? data : undefined;
 
   // Charger la config (montant récit)
   const { data: config } = useQuery<{ montantRecit: number }>({
@@ -174,7 +177,7 @@ export default function OnboardingRecitResumePage() {
               {clientData.prenom} {clientData.nom}
             </p>
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
-              <Clock size={10} /> Récit manquant
+              <Clock size={10} /> Récit à encaisser
             </span>
           </div>
           <p className="text-[12px] text-amber-700 mt-0.5">{clientData.telephone}</p>

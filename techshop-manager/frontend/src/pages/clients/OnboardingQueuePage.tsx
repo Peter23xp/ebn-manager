@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { formatDate, cn } from '@/lib/utils';
 import { useSites } from '@/hooks/useSites';
 import { useAuthStore } from '@/store/auth.store';
+import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,7 +38,7 @@ interface QueueResponse {
 const ETAPE_CONFIG: Record<string, { label: string; labelAction: string; bg: string; text: string; icon: React.ReactNode }> = {
   FICHE:      { label: 'Fiche à payer',   labelAction: 'Enregistrer la fiche',   bg: 'bg-blue-50 border-blue-200',    text: 'text-blue-700',   icon: <FileText size={13} /> },
   ACTIVATION: { label: 'Prêt à activer', labelAction: 'Activer le compte',       bg: 'bg-green-50 border-green-200',  text: 'text-green-700',  icon: <Zap size={13} /> },
-  RECIT:      { label: 'Récit manquant',  labelAction: 'Compléter le récit',     bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700',  icon: <Clock size={13} /> },
+  RECIT:      { label: 'Récit à encaisser', labelAction: 'Compléter le récit',   bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700',  icon: <Clock size={13} /> },
 };
 
 // ── Dot récapitulatif d'étape ─────────────────────────────────────────────────
@@ -52,7 +54,7 @@ function StepDot({ done, label }: { done: boolean; label: string }) {
 
 // ── Ligne client ──────────────────────────────────────────────────────────────
 
-function ClientRow({ client, onAction }: { client: QueueClient; onAction: (route: string) => void }) {
+function ClientRow({ client, canCollect, onAction }: { client: QueueClient; canCollect: boolean; onAction: (route: string) => void }) {
   const cfg = ETAPE_CONFIG[client.etapeActuelle] ?? ETAPE_CONFIG['RECIT'];
   const joursDepuis = Math.floor((Date.now() - new Date(client.createdAt).getTime()) / 86_400_000);
 
@@ -80,14 +82,14 @@ function ClientRow({ client, onAction }: { client: QueueClient; onAction: (route
       <td className="px-4 py-3">
         <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold', cfg.bg, cfg.text)}>
           {cfg.icon}
-          {cfg.label}
+          {canCollect ? cfg.label : 'En attente de passage en caisse'}
         </div>
       </td>
 
       <td className="px-4 py-3 hidden md:table-cell">
         <div className="flex flex-col gap-1">
-          <StepDot done={!!client.etapes.recit} label="Récit" />
-          <StepDot done={!!client.etapes.fiche} label="Fiche" />
+          <StepDot done={client.etapes.recit?.statut === 'COMPLETE'} label="Récit" />
+          <StepDot done={client.etapes.fiche?.statut === 'COMPLETE'} label="Fiche" />
         </div>
       </td>
 
@@ -101,15 +103,15 @@ function ClientRow({ client, onAction }: { client: QueueClient; onAction: (route
       <td className="px-4 py-3 text-right">
         <button
           type="button"
-          onClick={() => onAction(client.prochainRoute)}
+          onClick={() => onAction(canCollect ? client.prochainRoute : `/clients/${client.id}`)}
           className={cn(
             'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors',
-            client.etapeActuelle === 'ACTIVATION'
+            canCollect && client.etapeActuelle === 'ACTIVATION'
               ? 'bg-green-600 hover:bg-green-700 text-white'
               : 'btn-primary',
           )}
         >
-          {cfg.labelAction}
+          {canCollect ? cfg.labelAction : 'Ouvrir le dossier'}
           <ChevronRight size={13} />
         </button>
       </td>
@@ -120,19 +122,24 @@ function ClientRow({ client, onAction }: { client: QueueClient; onAction: (route
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingQueuePage() {
+  const scope = usePrivateQueryScope();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { sites } = useSites();
 
-  const isAgent = user?.role === 'AGENT';
-  const [siteId, setSiteId] = useState(user?.siteId ?? '');
+  const isScoped = !!user && isSiteScopedStaff(user.role);
+  const canCollect = hasMinimumRole(user?.role, 'CAISSIER');
+  const [selectedSiteId, setSiteId] = useState(user?.siteId ?? '');
+  const siteId = isScoped ? user.siteId ?? '' : selectedSiteId;
   const [filterEtape, setFilterEtape] = useState<string>('');
 
-  const { data, isLoading, refetch, isFetching } = useQuery<QueueResponse>({
-    queryKey: ['onboarding-queue', siteId],
+  const { data: response, isLoading, refetch, isFetching } = useQuery<QueueResponse>({
+    queryKey: ['onboarding-queue', siteId, scope.key],
     queryFn: () => api.get('/clients/onboarding-queue', { params: siteId ? { siteId } : {} }).then(r => r.data),
     refetchInterval: 30_000,
+    enabled: scope.enabled,
   });
+  const data = scope.enabled ? response : undefined;
 
   const queue = (data?.queue ?? []).filter(c => !filterEtape || c.etapeActuelle === filterEtape);
 
@@ -177,7 +184,7 @@ export default function OnboardingQueuePage() {
 
       {/* Filtres */}
       <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2.5">
-        {!isAgent && (
+        {!isScoped && (
           <select
             value={siteId}
             onChange={e => setSiteId(e.target.value)}
@@ -247,7 +254,7 @@ export default function OnboardingQueuePage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {queue.map(c => (
-                  <ClientRow key={c.id} client={c} onAction={(route) => navigate(route)} />
+                  <ClientRow key={c.id} client={c} canCollect={canCollect} onAction={(route) => navigate(route)} />
                 ))}
               </tbody>
             </table>

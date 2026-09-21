@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientsService } from './clients.service';
 import { ClientParrainService } from './client-parrain.service';
 import { AssignParrainDto } from './dto/assign-parrain.dto';
+import { CreateClientDraftDto } from './dto/client-draft.dto';
 import { UpdateClientDto, OnboardingFormationDto, OnboardingFicheDto, OnboardingActivateDto, InitKpayOnboardingDto, InitKpayActivationDto } from './dto/client.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,11 +25,18 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
+import { effectiveStaffSite, StaffActor } from '../../common/access/staff-access';
+import { StaffScopeService } from '../../common/access/staff-scope.service';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.AGENT)
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService, private readonly clientParrain: ClientParrainService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly clientParrain: ClientParrainService,
+    private readonly staffScope: StaffScopeService,
+  ) {}
 
   @Post(':id/parrain')
   @Roles(Role.GERANT)
@@ -50,11 +58,11 @@ export class ClientsController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @CurrentUser() user?: any,
+    @CurrentUser() user?: StaffActor,
   ) {
     return this.clientsService.findAll(
       {
-        siteId,
+        siteId: effectiveStaffSite(user, siteId),
         statut,
         search,
         page: page ? parseInt(page, 10) : 1,
@@ -69,8 +77,10 @@ export class ClientsController {
   search(
     @Query('q') q?: string,
     @Query('statut') statut?: string,
+    @Query('siteId') siteId?: string,
+    @CurrentUser() user?: StaffActor,
   ) {
-    return this.clientsService.search(q ?? '', statut);
+    return this.clientsService.search(q ?? '', statut, effectiveStaffSite(user, siteId));
   }
 
   @Get('search-parrain')
@@ -89,9 +99,9 @@ export class ClientsController {
   @Roles(Role.AGENT)
   getOnboardingQueue(
     @Query('siteId') siteId?: string,
-    @CurrentUser() user?: any,
+    @CurrentUser() user?: StaffActor,
   ) {
-    const effectiveSiteId = user?.role === Role.AGENT ? user.siteId : siteId;
+    const effectiveSiteId = effectiveStaffSite(user, siteId);
     return this.clientsService.getOnboardingQueue(effectiveSiteId);
   }
 
@@ -104,9 +114,9 @@ export class ClientsController {
     @Query('agentId') agentId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @CurrentUser() user?: any,
+    @CurrentUser() user?: StaffActor,
   ) {
-    const effectiveSiteId = user?.role === Role.AGENT ? user.siteId : siteId;
+    const effectiveSiteId = effectiveStaffSite(user, siteId);
     return this.clientsService.getPaiementsOnboarding({
       siteId: effectiveSiteId,
       dateDebut,
@@ -114,32 +124,48 @@ export class ClientsController {
       agentId,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
-    });
+    }, user);
   }
 
   @Get('check-phone/:phone')
-  checkPhone(@Param('phone') phone: string) {
+  async checkPhone(@Param('phone') phone: string, @CurrentUser() user: StaffActor) {
+    await this.staffScope.requireExistingPhone(user, phone);
     return this.clientsService.checkPhone(phone);
+  }
+
+  @Post('onboarding/draft')
+  @Roles(Role.AGENT)
+  createDraft(@Body() dto: CreateClientDraftDto, @CurrentUser() actor: StaffActor) {
+    return this.clientsService.createDraft(dto, actor);
   }
 
   /** Création d'un nouveau client + RÉCIT (Cash) */
   @Post('onboarding/recit')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
-  onboardingRecit(@Body() body: any, @CurrentUser() user: any) {
-    return this.clientsService.onboardingRecit({ ...body, agentId: user.id });
+  async onboardingRecit(@Body() body: any, @CurrentUser() user: StaffActor) {
+    const siteId = effectiveStaffSite(user, body.siteId);
+    await this.staffScope.requireExistingPhone(user, body.telephone, Role.CAISSIER);
+    return this.clientsService.onboardingRecit({ ...body, siteId, agentId: user.id }, user);
   }
 
   /** Reprise du RÉCIT d'un client existant — Cash (depuis la file d'attente) */
   @Post(':id/onboarding/recit')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
-  resumeOnboardingRecit(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
-    return this.clientsService.resumeOnboardingRecit(clientId, { ...body, agentId: user.id });
+  async resumeOnboardingRecit(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: StaffActor) {
+    effectiveStaffSite(user, body.siteId);
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
+    return this.clientsService.resumeOnboardingRecit(clientId, { ...body, agentId: user.id }, user);
   }
 
   /** Reprise du RÉCIT d'un client existant — Mobile Money KPay */
   @Post(':id/onboarding/recit/kpay/init')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney()
-  resumeOnboardingRecitKpay(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: any) {
+  async resumeOnboardingRecitKpay(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: StaffActor) {
+    effectiveStaffSite(user, body.siteId);
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
     return this.clientsService.resumeInitKpayRecit(clientId, { ...body, agentId: user.id });
   }
 
@@ -153,8 +179,10 @@ export class ClientsController {
       }),
     )
     file: Express.Multer.File,
+    @CurrentUser() user: StaffActor,
   ) {
-    return this.clientsService.importPreview(file);
+    effectiveStaffSite(user);
+    return this.clientsService.importPreview(file, user);
   }
 
   @Post('import/execute')
@@ -167,70 +195,90 @@ export class ClientsController {
       }),
     )
     file: Express.Multer.File,
+    @CurrentUser() user: StaffActor,
   ) {
-    return this.clientsService.importExecute(file);
+    effectiveStaffSite(user);
+    return this.clientsService.importExecute(file, user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.clientsService.findOne(id);
+  @Roles(Role.FORMATEUR)
+  async findOne(@Param('id') id: string, @CurrentUser() user: StaffActor) {
+    await this.staffScope.requireClient(user, id, Role.FORMATEUR);
+    return this.clientsService.findOne(id, user);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateClientDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: StaffActor,
   ) {
+    await this.staffScope.requireClient(user, id, Role.AGENT);
     return this.clientsService.update(id, dto, user);
   }
 
   @Post(':id/onboarding/formation')
-  onboardingFormation(
+  @Roles(Role.FORMATEUR)
+  async onboardingFormation(
     @Param('id') clientId: string,
     @Body() dto: OnboardingFormationDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: StaffActor,
   ) {
+    await this.staffScope.requireClient(user, clientId, Role.FORMATEUR);
     return this.clientsService.onboardingFormation(clientId, dto, user.id);
   }
 
   @Post(':id/onboarding/fiche')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
-  onboardingFiche(
+  async onboardingFiche(
     @Param('id') clientId: string,
     @Body() dto: OnboardingFicheDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: StaffActor,
   ) {
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
     return this.clientsService.onboardingFiche(clientId, dto, user.id);
   }
 
   @Post('onboarding/recit/kpay/init')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney()
-  onboardingRecitKpay(@Body() body: any, @CurrentUser() user: any) {
-    return this.clientsService.initKpayRecit({ ...body, agentId: user.id });
+  async onboardingRecitKpay(@Body() body: any, @CurrentUser() user: StaffActor) {
+    const siteId = effectiveStaffSite(user, body.siteId);
+    await this.staffScope.requireExistingPhone(user, body.telephone, Role.CAISSIER);
+    return this.clientsService.initKpayRecit({ ...body, siteId, agentId: user.id });
   }
 
   @Post(':id/onboarding/fiche/kpay/init')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney()
-  onboardingFicheKpay(
+  async onboardingFicheKpay(
     @Param('id') clientId: string,
     @Body() dto: InitKpayOnboardingDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: StaffActor,
   ) {
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
     return this.clientsService.initKpayFiche(clientId, dto, user.id);
   }
 
   @Post(':id/onboarding/activate')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
-  onboardingActivate(
+  async onboardingActivate(
     @Param('id') clientId: string,
     @Body() dto: OnboardingActivateDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: StaffActor,
   ) {
-    return this.clientsService.onboardingActivate(clientId, dto, user.id);
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
+    return this.clientsService.onboardingActivate(clientId, dto, user.id, { responseActor: user });
   }
 
   @Post(':id/onboarding/activate/kpay/init')
+  @Roles(Role.CAISSIER)
   @CheckMobileMoney()
-  onboardingActivateKpay(@Param('id') clientId: string, @Body() dto: InitKpayActivationDto, @CurrentUser() user: any) { return this.clientsService.initKpayActivation(clientId, dto, user.id); }
+  async onboardingActivateKpay(@Param('id') clientId: string, @Body() dto: InitKpayActivationDto, @CurrentUser() user: StaffActor) {
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
+    return this.clientsService.initKpayActivation(clientId, dto, user.id);
+  }
 }

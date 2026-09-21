@@ -16,6 +16,7 @@ import { ProduitSearchInput } from '@/components/clients/ProduitSearchInput';
 import { FicheAdhesionPDF, FicheAdhesionData } from '@/components/clients/FicheAdhesionPDF';
 import { useAuthStore } from '@/store/auth.store';
 import { Produit } from '@/types';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ function SuccessScreen({
   activationProduit: Produit;
   onNavigate: () => void;
 }) {
+  const scope = usePrivateQueryScope('CAISSIER');
   const user = useAuthStore((s) => s.user);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -168,6 +170,7 @@ function SuccessScreen({
   };
 
   async function handleGeneratePDF() {
+    if (!scope.isCurrent()) return;
     setGenerating(true);
     try {
       const dateStr = new Date(result.dateActivation).toLocaleDateString('fr-FR', {
@@ -193,6 +196,7 @@ function SuccessScreen({
         pointsCumules: 40,
       };
       const blob = await pdf(<FicheAdhesionPDF data={ficheData} />).toBlob();
+      if (!scope.isCurrent()) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -204,9 +208,9 @@ function SuccessScreen({
       setGenerated(true);
       toast.success('Fiche générée avec succès !');
     } catch {
-      toast.error('Erreur lors de la génération du PDF.');
+      if (scope.isCurrent()) toast.error('Erreur lors de la génération du PDF.');
     } finally {
-      setGenerating(false);
+      if (scope.isCurrent()) setGenerating(false);
     }
   }
 
@@ -290,6 +294,7 @@ function SuccessScreen({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingActivationPage() {
+  const scope = usePrivateQueryScope('CAISSIER');
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc       = useQueryClient();
@@ -301,11 +306,12 @@ export default function OnboardingActivationPage() {
   const [selectedProduit, setSelectedProduit] = useState<Produit | null>(null);
   const [modePaiement, setModePaiement] = useState<string>('CASH');
 
-  const { data: client, isLoading } = useQuery<ClientActivation>({
-    queryKey: ['client-activation', id],
+  const { data, isLoading } = useQuery<ClientActivation>({
+    queryKey: ['client-activation', id, scope.key],
     queryFn: () => api.get(`/clients/${id}`).then(r => r.data),
-    enabled: !!id,
+    enabled: !!id && scope.enabled,
   });
+  const client = scope.enabled ? data : undefined;
 
   const { data: nextCodeData } = useQuery<{ nextCode: string }>({
     queryKey: ['next-code', client?.site?.id],
@@ -422,10 +428,11 @@ export default function OnboardingActivationPage() {
   const missingSteps = stepsOk.filter(s => !s.done);
   const allComplete  = missingSteps.length === 0;
 
-  const totalPaye = Number(recit?.montant ?? 0) + Number(fiche?.montant ?? 0);
+  const totalPaye = (recit?.statut === 'COMPLETE' ? Number(recit.montant ?? 0) : 0)
+    + (fiche?.statut === 'COMPLETE' ? Number(fiche.montant ?? 0) : 0);
 
   const firstMissingRoute: Record<string, string> = {
-    RECIT: '/clients/new/recit',
+    RECIT: `/clients/${id}/recit`,
     FICHE: `/clients/${id}/fiche`,
   };
 
@@ -452,7 +459,10 @@ export default function OnboardingActivationPage() {
         </div>
 
         {/* Stepper */}
-        <OnboardingStepper currentStep={3} clientId={id} />
+        <OnboardingStepper currentStep={3} clientId={id} completedSteps={[
+          ...(recit?.statut === 'COMPLETE' ? [1] : []),
+          ...(fiche?.statut === 'COMPLETE' ? [2] : []),
+        ]} />
 
         {/* Guard — étapes incomplètes */}
         {!allComplete && (
@@ -551,9 +561,9 @@ export default function OnboardingActivationPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-[13px] font-bold font-mono text-text">
-                    {etape?.montant ? formatCDF(Number(etape.montant)) : '—'}
+                    {etape?.statut === 'COMPLETE' && etape.montant ? formatCDF(Number(etape.montant)) : '—'}
                   </p>
-                  {etape?.completeeAt && (
+                  {etape?.statut === 'COMPLETE' && etape.completeeAt && (
                     <p className="text-[10px] text-text-muted">
                       {formatDate(etape.completeeAt)}
                       {etape.modePaiement && ` · ${MODE_LABEL[etape.modePaiement] ?? etape.modePaiement}`}

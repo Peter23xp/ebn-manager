@@ -8,6 +8,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle2, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import { api, getErrorMessage } from '@/lib/api';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
@@ -50,15 +51,17 @@ const MODES = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingFichePage() {
+  const scope = usePrivateQueryScope('CAISSIER');
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [kpaySubmitting, setKpaySubmitting] = useState(false);
 
-  const { data: client, isLoading } = useQuery<ClientForFiche>({
-    queryKey: ['client-basic', id],
+  const { data, isLoading } = useQuery<ClientForFiche>({
+    queryKey: ['client-basic', id, scope.key],
     queryFn: () => api.get(`/clients/${id}`).then(r => r.data),
-    enabled: !!id,
+    enabled: !!id && scope.enabled,
   });
+  const client = scope.enabled ? data : undefined;
 
   const { data: config } = useQuery<{ montantFiche: number }>({
     queryKey: ['config'],
@@ -162,7 +165,7 @@ export default function OnboardingFichePage() {
       </div>
 
       {/* Stepper */}
-      <OnboardingStepper currentStep={2} clientId={id} />
+      <OnboardingStepper currentStep={2} clientId={id} completedSteps={[...(recitDone ? [1] : []), ...(ficheDone ? [2] : [])]} />
 
       {/* Carte client */}
       {client && (
@@ -206,7 +209,7 @@ export default function OnboardingFichePage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate('/clients/new/recit')}
+              onClick={() => navigate(`/clients/${id}/recit`)}
               className="text-[12px] font-semibold text-warning hover:underline mt-1"
             >
               ← Reprendre depuis le Récit

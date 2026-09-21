@@ -35,6 +35,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe('Retour à l’accueil après déconnexion', () => {
   it.each<[Role, string, string]>([
     ['AGENT', '/dashboard', 'Déconnexion'],
+    ['CAISSIER' as Role, '/dashboard', 'Déconnexion'],
     ['CLIENT', '/portal/home', 'Se déconnecter'],
   ])('renvoie %s à l’accueil après le bouton de déconnexion', async (role, path, button) => {
     useAuthStore.getState().setAuth({ id: 'member', name: 'Compte test', role }, 'session-token');
@@ -47,7 +48,7 @@ describe('Retour à l’accueil après déconnexion', () => {
     expect(localStorage.getItem('ebn_auth_v1')).toBeNull();
   });
 
-  it.each<[Role, string]>([['AGENT', '/dashboard'], ['CLIENT', '/portal/home']])('ne laisse pas le garde renvoyer %s vers login lorsque la session se termine', async (role, path) => {
+  it.each<[Role, string]>([['AGENT', '/dashboard'], ['CAISSIER' as Role, '/dashboard'], ['CLIENT', '/portal/home']])('ne laisse pas le garde renvoyer %s vers login lorsque la session se termine', async (role, path) => {
     useAuthStore.getState().setAuth({ id: 'member', name: 'Compte test', role }, 'session-token');
     renderSession(path);
     act(() => useAuthStore.getState().logout());

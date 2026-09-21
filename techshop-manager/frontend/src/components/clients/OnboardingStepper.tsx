@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 interface OnboardingStepperProps {
   currentStep: 1 | 2 | 3;
   clientId?: string;
+  completedSteps?: readonly number[];
+  canNavigate?: boolean;
 }
 
 const STEPS: {
@@ -12,19 +14,19 @@ const STEPS: {
   step: 1 | 2 | 3;
   route: (id?: string) => string;
 }[] = [
-  { label: 'Récit',      step: 1, route: ()   => '/clients/new/recit' },
+  { label: 'Récit',      step: 1, route: (id) => id ? `/clients/${id}/recit` : '/clients/new/recit' },
   { label: 'Fiche',      step: 2, route: (id) => `/clients/${id}/fiche` },
   { label: 'Activation', step: 3, route: (id) => `/clients/${id}/activate` },
 ];
 
-export function OnboardingStepper({ currentStep, clientId }: OnboardingStepperProps) {
+export function OnboardingStepper({ currentStep, clientId, completedSteps, canNavigate = true }: OnboardingStepperProps) {
   return (
     <nav aria-label="Étapes d'onboarding">
       <ol className="flex items-center">
         {STEPS.map(({ label, step, route }, idx) => {
-          const done   = step < currentStep;
+          const done   = completedSteps ? completedSteps.includes(step) : step < currentStep;
           const active = step === currentStep;
-          const href   = done && (step === 1 || clientId) ? route(clientId) : null;
+          const href   = canNavigate && done && (step === 1 || clientId) ? route(clientId) : null;
 
           const circle = (
             <div className={cn(

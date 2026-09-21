@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
 import { cn, formatUSD, formatDate } from '@/lib/utils';
 import type { ClientDetail } from '@/lib/clients.api';
+import { useAuthStore } from '@/store/auth.store';
+import { hasMinimumRole } from '@/lib/roles';
 
 interface ClientAchatsTabProps {
   client: ClientDetail;
@@ -31,6 +33,8 @@ const STATUT_LABEL: Record<string, { label: string; classes: string }> = {
 };
 
 export function ClientAchatsTab({ client }: ClientAchatsTabProps) {
+  const role = useAuthStore(state => state.user?.role);
+  const canViewSale = hasMinimumRole(role, 'CAISSIER');
   const [periode, setPeriode] = useState<Periode>('mois');
 
   const now = new Date();
@@ -106,12 +110,12 @@ export function ClientAchatsTab({ client }: ClientAchatsTabProps) {
                         {formatDate(v.createdAt)}
                       </td>
                       <td className="px-4 py-3">
-                        <Link
+                        {canViewSale ? <Link
                           to={`/sales/${v.id}`}
                           className="text-[12px] font-mono font-semibold text-primary-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent rounded"
                         >
                           {v.numeroVente}
-                        </Link>
+                        </Link> : <span className="text-[12px] font-mono font-semibold text-text">{v.numeroVente}</span>}
                       </td>
                       <td className="px-4 py-3 text-[12px] text-text hidden md:table-cell">
                         {premierProduit}

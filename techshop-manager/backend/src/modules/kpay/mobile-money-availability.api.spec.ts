@@ -17,6 +17,8 @@ import { MlmPlacementService } from '../mlm/mlm-placement.service';
 import { MlmCalendarService } from '../mlm/mlm-calendar.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { StaffScopeService } from '../../common/access/staff-scope.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 const request = require('supertest');
 const message = 'Le paiement Mobile Money est en cours de développement. Veuillez utiliser le paiement en espèces.';
@@ -45,9 +47,13 @@ describe('Mobile Money suspension at HTTP boundaries', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [ClientsController, VentesController, PortalController, MlmController],
-      providers: [ClientsService, ClientParrainService, VentesService, PortalService, MlmService,
+      providers: [StaffScopeService, { provide: PrismaService, useValue: {
+        client: { findUnique: async ({ where }) => where.id ? { id: where.id, siteInscriptionId: 'site' } : null },
+        vente: { findUnique: async () => ({ siteId: 'site', client: null }) },
+        kpayTransaction: { findFirst: async () => ({ venteId: 'sale' }) },
+      } }, ...[ClientsService, ClientParrainService, VentesService, PortalService, MlmService,
         MlmMatrixService, MlmWalletService, MlmClaimService, MlmPlacementService, MlmCalendarService]
-        .map(provide => ({ provide, useValue: stub })),
+        .map(provide => ({ provide, useValue: stub }))],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate: context => {
       context.switchToHttp().getRequest().user = { id: 'actor', role: 'SUPER_ADMIN' };
       return true;

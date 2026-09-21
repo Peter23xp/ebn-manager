@@ -142,21 +142,21 @@ export default function App() {
             <Route path="clients/new/recit" element={<OnboardingRecitPage />} />
             <Route path="clients/import" element={<RoleGuard minRole="GERANT"><ImportMatriculesPage /></RoleGuard>} />
             <Route path="clients/queue" element={<OnboardingQueuePage />} />
-            <Route path="clients/paiements" element={<RoleGuard minRole="GERANT"><PaiementsOnboardingPage /></RoleGuard>} />
+            <Route path="clients/paiements" element={<RoleGuard minRole="CAISSIER"><PaiementsOnboardingPage /></RoleGuard>} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
-            <Route path="clients/:id/recit" element={<OnboardingRecitResumePage />} />
+            <Route path="clients/:id/recit" element={<RoleGuard minRole="CAISSIER"><OnboardingRecitResumePage /></RoleGuard>} />
             <Route path="clients/:id/formation" element={<RoleGuard minRole="FORMATEUR"><OnboardingFormationPage /></RoleGuard>} />
-            <Route path="clients/:id/fiche" element={<OnboardingFichePage />} />
-            <Route path="clients/:id/activate" element={<OnboardingActivationPage />} />
+            <Route path="clients/:id/fiche" element={<RoleGuard minRole="CAISSIER"><OnboardingFichePage /></RoleGuard>} />
+            <Route path="clients/:id/activate" element={<RoleGuard minRole="CAISSIER"><OnboardingActivationPage /></RoleGuard>} />
 
             {/* Ventes */}
-            <Route path="sales/pos" element={<POSPage />} />
-            <Route path="sales" element={<RoleGuard minRole="GERANT"><VentesHistoriquePage /></RoleGuard>} />
+            <Route path="sales/pos" element={<RoleGuard minRole="CAISSIER"><POSPage /></RoleGuard>} />
+            <Route path="sales" element={<RoleGuard minRole="CAISSIER"><VentesHistoriquePage /></RoleGuard>} />
             <Route path="sales/returns" element={<RoleGuard minRole="GERANT"><RetoursPage /></RoleGuard>} />
             <Route path="sales/journal-retours" element={<RoleGuard minRole="GERANT"><JournalRetoursPage /></RoleGuard>} />
             <Route path="sales/retours/:retourId/avoir" element={<AvoirDocumentPage />} />
             <Route path="sales/retours/:retourId/ecritures" element={<RoleGuard minRole="GERANT"><EcrituresOhadaPage /></RoleGuard>} />
-            <Route path="sales/:id" element={<RoleGuard minRole="GERANT"><VenteDetailPage /></RoleGuard>} />
+            <Route path="sales/:id" element={<RoleGuard minRole="CAISSIER"><VenteDetailPage /></RoleGuard>} />
             <Route path="sales/:id/receipt" element={<RecuPage />} />
 
             {/* Stocks */}

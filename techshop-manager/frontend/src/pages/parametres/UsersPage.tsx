@@ -14,12 +14,13 @@ import { UserRoleBadge } from '@/components/settings/UserRoleBadge';
 import { cn, formatRelative, initials } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/api';
 import type { Role, Utilisateur } from '@/types';
+import { requiresAssignedSite } from '@/lib/roles';
 
 // ── Constants ──────────────────────────────────────────────────────
-const ALL_ROLES: Role[] = ['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT', 'FORMATEUR'];
+const ALL_ROLES: Role[] = ['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'CAISSIER', 'AGENT', 'FORMATEUR'];
 const ROLE_LABELS: Record<Role, string> = {
   SUPER_ADMIN: 'Super Admin', DIRECTEUR_REGIONAL: 'Dir. Régional',
-  GERANT: 'Gérant', AGENT: 'Agent', FORMATEUR: 'Formateur', CLIENT: 'Client',
+  GERANT: 'Gérant', CAISSIER: 'Caissier', AGENT: 'Agent', FORMATEUR: 'Formateur', CLIENT: 'Client',
 };
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -107,9 +108,11 @@ function ConfirmDialog({
 const createSchema = z.object({
   nom: z.string().min(2, 'Nom trop court (min 2 caractères)'),
   telephone: z.string().regex(/^\+243\d{9}$/, 'Format requis : +243XXXXXXXXX'),
-  role: z.enum(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT', 'FORMATEUR']),
+  role: z.enum(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'CAISSIER', 'AGENT', 'FORMATEUR']),
   siteId: z.string().optional(),
   passwordTemp: z.string().min(8, 'Minimum 8 caractères'),
+}).refine((data) => !requiresAssignedSite(data.role) || !!data.siteId?.trim(), {
+  message: 'Le site est obligatoire', path: ['siteId'],
 });
 type CreateForm = z.infer<typeof createSchema>;
 
@@ -126,7 +129,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
   });
 
   const role = watch('role');
-  const needsSite = ['GERANT', 'AGENT', 'FORMATEUR'].includes(role);
+  const needsSite = requiresAssignedSite(role);
 
   const mutation = useMutation({
     mutationFn: (data: CreateUserPayload) => usersApi.create(data),
@@ -206,6 +209,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
                     </select>
                     <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-subtle" />
                   </div>
+                  {errors.siteId && <p className="form-error">{errors.siteId.message}</p>}
                 </div>
               )}
             </div>
@@ -258,8 +262,10 @@ function CreateUserDialog({ open, onClose, onCreated }: {
 const editSchema = z.object({
   nom: z.string().min(2, 'Nom trop court (min 2 caractères)'),
   email: z.string().email('Email invalide').or(z.literal('')).optional(),
-  role: z.enum(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT', 'FORMATEUR']),
+  role: z.enum(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'CAISSIER', 'AGENT', 'FORMATEUR']),
   siteId: z.string().optional(),
+}).refine((data) => !requiresAssignedSite(data.role) || !!data.siteId?.trim(), {
+  message: 'Le site est obligatoire', path: ['siteId'],
 });
 type EditForm = z.infer<typeof editSchema>;
 
@@ -280,7 +286,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
   });
 
   const role = watch('role');
-  const needsSite = ['GERANT', 'AGENT', 'FORMATEUR'].includes(role);
+  const needsSite = requiresAssignedSite(role);
 
   const mutation = useMutation({
     mutationFn: (data: EditForm) => {
@@ -369,6 +375,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
                   </select>
                   <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-subtle" />
                 </div>
+                {errors.siteId && <p className="form-error">{errors.siteId.message}</p>}
               </div>
             )}
           </div>

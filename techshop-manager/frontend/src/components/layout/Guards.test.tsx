@@ -19,6 +19,7 @@ function renderAt(initial: string) {
   return render(
     <MemoryRouter initialEntries={[initial]}>
       <Routes>
+        <Route path="/" element={<div>landing</div>} />
         <Route path="/dashboard" element={<div>back-office</div>} />
         <Route path="/portal/home" element={(
           <RoleGuard minRole="CLIENT" maxRole="CLIENT"><div>portail</div></RoleGuard>
@@ -60,6 +61,30 @@ describe('RoleGuard avec maxRole (cloisonnement portail/back-office)', () => {
     renderAt('/admin-area');
     expect(screen.getByText('staff-zone')).toBeInTheDocument();
   });
+
+  test.each(['CAISSIER', 'SUPER_ADMIN'])('%s accède au back-office sans dépasser le plafond implicite', (role) => {
+    setAuth(role, 'staff');
+    renderAt('/admin-area');
+    expect(screen.getByText('staff-zone')).toBeInTheDocument();
+  });
+
+  test.each(['CAISSIER', 'SUPER_ADMIN'])('%s reste exclu du portail client', (role) => {
+    setAuth(role, 'staff');
+    renderAt('/portal/home');
+    expect(screen.getByText('back-office')).toBeInTheDocument();
+    expect(screen.queryByText('portail')).not.toBeInTheDocument();
+  });
+
+  test('un caissier ne reçoit pas les droits gérant', () => {
+    setAuth('CAISSIER', 'staff');
+    render(<MemoryRouter initialEntries={['/manager']}><Routes>
+      <Route path="/" element={<div>landing</div>} />
+      <Route path="/dashboard" element={<div>back-office</div>} />
+      <Route path="/manager" element={<RoleGuard minRole="GERANT"><div>manager-zone</div></RoleGuard>} />
+    </Routes></MemoryRouter>);
+    expect(screen.getByText('back-office')).toBeInTheDocument();
+    expect(screen.queryByText('manager-zone')).not.toBeInTheDocument();
+  });
 });
 
 describe('RoleGuard FORMATEUR (pas de boucle de redirection)', () => {
@@ -85,5 +110,16 @@ describe('RoleGuard FORMATEUR (pas de boucle de redirection)', () => {
       </MemoryRouter>,
     );
     expect(screen.getByText('landing')).toBeInTheDocument();
+  });
+});
+
+describe('Seuil de caisse', () => {
+  test.each(['AGENT', 'CAISSIER', 'GERANT'])('%s respecte le seuil caissier', role => {
+    setAuth(role, 'staff');
+    render(<MemoryRouter initialEntries={['/cashier']}><Routes>
+      <Route path="/dashboard" element={<div>consultation</div>} />
+      <Route path="/cashier" element={<RoleGuard minRole="CAISSIER"><div>encaissement</div></RoleGuard>} />
+    </Routes></MemoryRouter>);
+    expect(screen.getByText(role === 'AGENT' ? 'consultation' : 'encaissement')).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Role } from '@prisma/client';
+import { requiresAssignedSite } from '../../../common/access/staff-access';
 
 export class CreateUserDto {
   @IsString()
@@ -19,8 +20,8 @@ export class CreateUserDto {
   @IsEnum(Role)
   role: Role;
 
-  @ValidateIf((o) => o.role === Role.GERANT || o.role === Role.AGENT || o.role === Role.FORMATEUR)
-  @IsString({ message: 'Le site est obligatoire pour les rôles GERANT, AGENT et FORMATEUR' })
+  @ValidateIf((user) => requiresAssignedSite(user.role))
+  @IsString({ message: 'Le site est obligatoire pour les rôles GERANT, CAISSIER, AGENT et FORMATEUR' })
   @IsOptional()
   siteId?: string;
 

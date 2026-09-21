@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Role, StatutClient } from '@prisma/client';
 import { format, subDays, subMonths, startOfMonth, startOfYear, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { effectiveStaffSite, staffSalesWhere, StaffActor } from '../../common/access/staff-access';
 
 const SITE_COLORS: Record<string, string> = {};
 const FALLBACK_COLORS = ['#2E86C1', '#1A6B3A', '#E65100', '#8E24AA', '#00838F'];
@@ -35,7 +36,7 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   private async resolveSiteIds(role: Role, userSiteId: string | undefined, querySiteId?: string): Promise<string[] | null> {
-    if (role === Role.AGENT || role === Role.GERANT || role === Role.FORMATEUR) {
+    if (role === Role.AGENT || role === Role.CAISSIER || role === Role.GERANT || role === Role.FORMATEUR) {
       if (!userSiteId) {
         throw new ForbiddenException({
           code: 'ERR_SITE_REQUIRED',
@@ -54,6 +55,7 @@ export class DashboardService {
     period: string = 'today',
     user: { id: string; role: Role; siteId?: string },
   ) {
+    const salesScope = staffSalesWhere(user, siteId);
     const siteIds = await this.resolveSiteIds(user.role, user.siteId, siteId);
     const { dateDebut, dateFin } = getPeriodRange(period);
 
@@ -76,11 +78,11 @@ export class DashboardService {
           },
         }),
         this.prisma.vente.aggregate({
-          where: { ...siteFilter, createdAt: { gte: dateDebut, lte: dateFin }, statut: 'VALIDE' },
+          where: { ...salesScope, ...siteFilter, createdAt: { gte: dateDebut, lte: dateFin }, statut: 'VALIDE' },
           _sum: { montantNet: true },
         }),
         this.prisma.vente.aggregate({
-          where: { ...siteFilter, createdAt: { gte: prevDateDebut, lte: prevDateFin }, statut: 'VALIDE' },
+          where: { ...salesScope, ...siteFilter, createdAt: { gte: prevDateDebut, lte: prevDateFin }, statut: 'VALIDE' },
           _sum: { montantNet: true },
         }),
         this.prisma.membre.count({
@@ -124,9 +126,11 @@ export class DashboardService {
     };
   }
 
-  async getSalesChart(siteId: string | undefined, days: number = 7) {
+  async getSalesChart(siteId: string | undefined, days: number = 7, actor: StaffActor) {
+    const salesScope = staffSalesWhere(actor, siteId);
+    const effectiveSiteId = effectiveStaffSite(actor, siteId);
     const sites = await this.prisma.site.findMany({
-      where: siteId ? { id: siteId, actif: true } : { actif: true },
+      where: effectiveSiteId ? { id: effectiveSiteId, actif: true } : { actif: true },
       select: { id: true, nom: true },
       orderBy: { nom: 'asc' },
     });
@@ -148,7 +152,7 @@ export class DashboardService {
     const datasets = await Promise.all(
       sites.map(async (site, idx) => {
         const ventes = await this.prisma.vente.findMany({
-          where: { siteId: site.id, createdAt: { gte: dateDebut }, statut: 'VALIDE' },
+          where: { ...salesScope, siteId: site.id, createdAt: { gte: dateDebut }, statut: 'VALIDE' },
           select: { createdAt: true, montantNet: true },
         });
 
@@ -177,9 +181,9 @@ export class DashboardService {
     return { labels, datasets };
   }
 
-  async getRecentTransactions(siteId: string | undefined, limit: number = 5) {
+  async getRecentTransactions(siteId: string | undefined, limit: number = 5, actor: StaffActor) {
     const ventes = await this.prisma.vente.findMany({
-      where: siteId ? { siteId } : {},
+      where: staffSalesWhere(actor, siteId),
       take: Math.min(limit, 20),
       orderBy: { createdAt: 'desc' },
       include: {

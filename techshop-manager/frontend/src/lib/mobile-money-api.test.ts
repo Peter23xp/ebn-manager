@@ -42,8 +42,8 @@ describe('frontend payment API safeguards', () => {
   });
 
   it('preserves non-mobile bank transfers', async () => {
-    await ventesApi.create({ siteId: 'site', lignes: [], modePaiement: 'VIREMENT' });
-    expect(post).toHaveBeenCalledWith('/ventes', { siteId: 'site', lignes: [], modePaiement: 'VIREMENT' });
+    await ventesApi.create({ siteId: 'site', lignes: [], modePaiement: 'VIREMENT' }, 7);
+    expect(post).toHaveBeenCalledWith('/ventes', { siteId: 'site', lignes: [], modePaiement: 'VIREMENT' }, { _sessionVersion: 7 });
   });
 
   it('preserves polling, history, rejection, cancellation and already approved reconciliation', async () => {

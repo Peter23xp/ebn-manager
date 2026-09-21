@@ -52,11 +52,28 @@ describe('Accès à la configuration MLM depuis le menu', () => {
     expect(screen.queryByRole('button', { name: 'Fermer le menu' })).not.toBeInTheDocument();
   });
 
-  it.each<Role>(['GERANT', 'AGENT', 'FORMATEUR', 'CLIENT'])('masque le lien à %s dans les deux menus', async role => {
+  it.each<Role>(['GERANT', 'CAISSIER', 'AGENT', 'FORMATEUR', 'CLIENT'])('masque le lien à %s dans les deux menus', async role => {
     renderLayout(role);
     expect(screen.queryByRole('link', { name: 'Configuration MLM' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
     expect(screen.getByRole('button', { name: 'Fermer le menu' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Configuration MLM' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Menu préparation, caisse et retours', () => {
+  it.each<Role>(['AGENT', 'CAISSIER', 'GERANT', 'DIRECTEUR_REGIONAL', 'SUPER_ADMIN'])('adapte les menus ordinateur et mobile pour %s', async role => {
+    renderLayout(role);
+    await userEvent.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    for (const navigation of screen.getAllByRole('navigation', { name: 'Navigation principale' })) {
+      expect(within(navigation).getByRole('link', { name: 'File onboarding' })).toBeInTheDocument();
+      for (const name of ['Caisse POS', 'Paiements onboarding', 'Ventes']) {
+        if (role === 'AGENT') expect(within(navigation).queryByRole('link', { name })).not.toBeInTheDocument();
+        else expect(within(navigation).getByRole('link', { name })).toBeInTheDocument();
+      }
+      const returns = within(navigation).queryByRole('link', { name: 'Journal retours' });
+      if (role === 'AGENT' || role === 'CAISSIER') expect(returns).not.toBeInTheDocument();
+      else expect(returns).toBeInTheDocument();
+    }
   });
 });

@@ -16,16 +16,20 @@ import {
   Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
+import { useUIStore } from '@/store/ui.store';
 import { useCartStore } from '@/store/cart.store';
 import { useProductSearch } from '@/hooks/useProductSearch';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSites } from '@/hooks/useSites';
+import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 import { ventesApi } from '@/lib/ventes.api';
 import { stocksApi } from '@/lib/stocks.api';
 import { clientsApi } from '@/lib/clients.api';
-import { savePendingVente } from '@/lib/offline';
+import { getOfflineSyncSession, savePendingVente } from '@/lib/offline';
+import { canSubmitVente, isSameOfflineSyncSession, isUncertainVenteError, OFFLINE_SALES_UNCERTAIN_MESSAGE } from '@/lib/offline-sales-sync';
 import { cn, formatUSD } from '@/lib/utils';
 import type { CartClient } from '@/store/cart.store';
 import type { ProduitPOS } from '@/lib/ventes.api';
@@ -238,13 +242,14 @@ function StockErrorModal({ produits, onClose }: {
 
 export default function POSPage() {
   const navigate = useNavigate();
-  const { user, isOfflineMode } = useAuthStore();
+  const { user, isAuthenticated, isOfflineMode, sessionVersion } = useAuthStore();
   const { sites } = useSites();
 
-  const [selectedSiteId, setSelectedSiteId] = useState('');
+  const { selectedSiteId, setSelectedSiteId } = useUIStore();
   const [mobileView, setMobileView] = useState<'products' | 'cart'>('products');
 
-  const effectiveSiteId = user?.siteId ?? selectedSiteId;
+  const isScoped = !!user && isSiteScopedStaff(user.role);
+  const effectiveSiteId = isScoped ? user.siteId ?? '' : user?.siteId ?? selectedSiteId ?? '';
   const effectiveSiteName = useMemo(() => {
     if (user?.siteName) return user.siteName;
     if ((user as any)?.site?.nom) return (user as any).site.nom;
@@ -262,6 +267,15 @@ export default function POSPage() {
     setModePaiement, setMontantRecu,
     setIsSubmitting, resetAfterSale, clearCart,
   } = useCartStore();
+
+  const activeSubmission = useRef<symbol | null>(null);
+
+  useEffect(() => () => {
+    if (activeSubmission.current) {
+      activeSubmission.current = null;
+      setIsSubmitting(false);
+    }
+  }, [sessionVersion, user?.id, user?.role, siteId, setIsSubmitting]);
 
   const {
     produits, isLoading: produitsLoading, query, setQuery,
@@ -307,6 +321,7 @@ export default function POSPage() {
   const cartCount = items.reduce((s, i) => s + i.quantite, 0);
 
   const canSubmit =
+    isAuthenticated && hasMinimumRole(user?.role, 'CAISSIER') && !!siteId &&
     items.length > 0 &&
     client !== null &&
     modePaiement !== null &&
@@ -369,8 +384,7 @@ export default function POSPage() {
   }
 
   async function handleSubmit() {
-    if (isMobileMoneyBlocked(modePaiement) || !canSubmit || isSubmitting) return;
-    setIsSubmitting(true);
+    if (isMobileMoneyBlocked(modePaiement) || !canSubmit || isSubmitting || activeSubmission.current) return;
 
     const payload = {
       clientId: client?.id,
@@ -384,8 +398,22 @@ export default function POSPage() {
       montantRecu: modePaiement === 'CASH' ? montantRecu : undefined,
     };
 
+    const session = getOfflineSyncSession();
+    if (session.sessionVersion !== sessionVersion || session.user?.id !== user?.id || !canSubmitVente(payload, session)) {
+      toast.error('Session non autorisée pour cette vente');
+      return;
+    }
+    const submission = Symbol();
+    activeSubmission.current = submission;
+    const isCurrentSession = () => {
+      const current = getOfflineSyncSession();
+      return activeSubmission.current === submission && isSameOfflineSyncSession(session, current) && canSubmitVente(payload, current);
+    };
+    setIsSubmitting(true);
+
     try {
-      const data = await ventesApi.create(payload);
+      const data = await ventesApi.create(payload, session.sessionVersion);
+      if (!isCurrentSession()) return;
       const result = {
         id: data.vente.id,
         numeroVente: data.vente.numeroVente,
@@ -394,18 +422,22 @@ export default function POSPage() {
       resetAfterSale(result);
       setSuccessModal({ open: true, venteResult: result });
     } catch (err: unknown) {
+      if (!isCurrentSession() || axios.isCancel(err)) return;
+      const error = err as { code?: string; response?: unknown } | null;
       const isNetwork =
-        (err as { code?: string }).code === 'NETWORK_OFFLINE' ||
-        (err as { code?: string }).code === 'ERR_NETWORK' ||
-        !(err as { response?: unknown }).response;
+        !error?.response && (error?.code === 'NETWORK_OFFLINE' || error?.code === 'ERR_NETWORK' ||
+          error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT');
 
       if (isNetwork) {
         try {
-          await savePendingVente(payload);
-          toast.success('Vente sauvegardée hors-ligne — sera synchronisée dès reconnexion');
+          const reviewRequired = isUncertainVenteError(err);
+          await savePendingVente(payload, session, { reviewRequired: reviewRequired ? true : undefined });
+          if (!isCurrentSession()) return;
+          if (reviewRequired) toast(OFFLINE_SALES_UNCERTAIN_MESSAGE, { id: 'offline-sales-blocked', icon: '⚠️' });
+          else toast.success('Vente sauvegardée hors-ligne — sera synchronisée dès reconnexion');
           resetAfterSale(null);
         } catch {
-          toast.error('Impossible de sauvegarder la vente hors-ligne');
+          if (isCurrentSession()) toast.error('Impossible de sauvegarder la vente hors-ligne');
         }
       } else {
         const axiosErr = err as { response?: { status?: number; data?: { details?: unknown } } };
@@ -421,7 +453,10 @@ export default function POSPage() {
         }
       }
     } finally {
-      setIsSubmitting(false);
+      if (activeSubmission.current === submission) {
+        activeSubmission.current = null;
+        setIsSubmitting(false);
+      }
     }
   }
 
@@ -470,7 +505,7 @@ export default function POSPage() {
         {!siteId ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-text-muted py-12">
             <Package size={32} className="opacity-30" />
-            <p className="text-[13px] font-medium">Sélectionnez un site pour afficher les produits</p>
+            <p className="text-[13px] font-medium">{isScoped ? 'Aucun site affecté. Contactez un responsable.' : 'Sélectionnez un site pour afficher les produits'}</p>
           </div>
         ) : produitsLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-3">
@@ -656,9 +691,9 @@ export default function POSPage() {
       <header className="flex-shrink-0 flex items-center justify-between gap-2 bg-primary px-3 py-2 z-10 min-h-0 h-11">
         <div className="flex items-center gap-2 min-w-0">
           <ShoppingCart size={15} className="text-blue-400 flex-shrink-0" />
-          {!user?.siteId ? (
+          {!isScoped && !user?.siteId ? (
             <select
-              value={selectedSiteId}
+              value={selectedSiteId ?? ''}
               onChange={e => setSelectedSiteId(e.target.value)}
               className="text-[12px] font-semibold text-white bg-transparent border border-blue-400/40 rounded px-2 py-0.5 focus:outline-none focus:border-blue-300 min-h-0 max-w-[180px]"
             >

@@ -45,6 +45,7 @@ export class RapportsController {
   @Get('ventes')
   @Roles(Role.AGENT)
   getVentes(
+    @Request() req: any,
     @Query('siteId') siteId?: string,
     @Query('dateDebut') dateDebut?: string,
     @Query('dateFin') dateFin?: string,
@@ -55,7 +56,7 @@ export class RapportsController {
       dateDebut: dateDebut ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
       dateFin: dateFin ?? new Date().toISOString(),
       granularite,
-    });
+    }, req.user);
   }
 
   // ── SCR-031 : Ventes détaillées ────────────────────────────────────────────

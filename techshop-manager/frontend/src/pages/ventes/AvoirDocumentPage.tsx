@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Printer, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatUSD, formatDateTime } from '@/lib/utils';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 interface LigneAvoir {
   produit: { id: string; nom: string; sku: string; categorie: string };
@@ -48,14 +49,16 @@ const MOTIF_LABELS: Record<string, string> = {
 };
 
 export default function AvoirDocumentPage() {
+  const scope = usePrivateQueryScope();
   const { retourId } = useParams<{ retourId: string }>();
   const navigate = useNavigate();
 
-  const { data, isLoading, isError } = useQuery<{ avoir: AvoirDocument }>({
-    queryKey: ['avoir-document', retourId],
+  const { data: response, isLoading, isError } = useQuery<{ avoir: AvoirDocument }>({
+    queryKey: ['avoir-document', retourId, scope.key],
     queryFn: () => api.get(`/ventes/retours/${retourId}/avoir`).then((r) => r.data),
-    enabled: !!retourId,
+    enabled: !!retourId && scope.enabled,
   });
+  const data = scope.enabled ? response : undefined;
 
   if (isLoading) {
     return (
@@ -86,7 +89,7 @@ export default function AvoirDocumentPage() {
           <ArrowLeft size={15} />Retour
         </button>
         <button
-          onClick={() => window.print()}
+          onClick={() => { if (scope.isCurrent()) window.print(); }}
           className="btn-primary flex items-center gap-2 text-[13px]"
         >
           <Printer size={15} />Imprimer l'avoir

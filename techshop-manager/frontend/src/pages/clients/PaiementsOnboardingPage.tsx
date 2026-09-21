@@ -5,6 +5,8 @@ import { api } from '@/lib/api';
 import { formatCDF, formatDate, cn } from '@/lib/utils';
 import { useSites } from '@/hooks/useSites';
 import { useAuthStore } from '@/store/auth.store';
+import { isSiteScopedStaff } from '@/lib/roles';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -56,12 +58,14 @@ const MODE_LABEL: Record<string, string> = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PaiementsOnboardingPage() {
+  const scope = usePrivateQueryScope();
   const { user } = useAuthStore();
   const { sites } = useSites();
-  const isAgent = user?.role === 'AGENT';
+  const isScoped = !!user && isSiteScopedStaff(user.role);
 
   const today = new Date().toISOString().slice(0, 10);
-  const [siteId,    setSiteId]    = useState(user?.siteId ?? '');
+  const [selectedSiteId, setSiteId] = useState(user?.siteId ?? '');
+  const siteId = isScoped ? user.siteId ?? '' : selectedSiteId;
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin,   setDateFin]   = useState('');
   const [filterEtape, setFilterEtape] = useState<string>('');
@@ -72,11 +76,13 @@ export default function PaiementsOnboardingPage() {
   if (dateDebut) params.dateDebut = dateDebut;
   if (dateFin)   params.dateFin   = dateFin;
 
-  const { data, isLoading } = useQuery<PaiementsResponse>({
-    queryKey: ['paiements-onboarding', siteId, dateDebut, dateFin, page],
+  const { data: response, isLoading } = useQuery<PaiementsResponse>({
+    queryKey: ['paiements-onboarding', siteId, dateDebut, dateFin, page, scope.key],
     queryFn: () => api.get('/clients/paiements-onboarding', { params }).then(r => r.data),
     staleTime: 60_000,
+    enabled: scope.enabled,
   });
+  const data = scope.enabled ? response : undefined;
 
   const paiements = (data?.paiements ?? []).filter(p => !filterEtape || p.etape === filterEtape);
 
@@ -136,7 +142,7 @@ export default function PaiementsOnboardingPage() {
 
       {/* Filtres */}
       <div className="rounded-xl border border-border bg-white px-4 py-3 flex flex-wrap gap-3 items-end">
-        {!isAgent && (
+        {!isScoped && (
           <div className="form-group mb-0 min-w-[140px]">
             <label className="form-label text-[11px]">Site</label>
             <select

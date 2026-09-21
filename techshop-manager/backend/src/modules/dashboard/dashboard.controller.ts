@@ -5,6 +5,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { StaffActor } from '../../common/access/staff-access';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -24,16 +25,18 @@ export class DashboardController {
   getSalesChart(
     @Query('siteId') siteId?: string,
     @Query('days') days?: string,
+    @CurrentUser() user?: StaffActor,
   ) {
-    return this.dashboardService.getSalesChart(siteId, days ? parseInt(days, 10) : 7);
+    return this.dashboardService.getSalesChart(siteId, days ? parseInt(days, 10) : 7, user);
   }
 
   @Get('recent-transactions')
   getRecentTransactions(
     @Query('siteId') siteId?: string,
     @Query('limit') limit?: string,
+    @CurrentUser() user?: StaffActor,
   ) {
-    return this.dashboardService.getRecentTransactions(siteId, limit ? parseInt(limit, 10) : 5);
+    return this.dashboardService.getRecentTransactions(siteId, limit ? parseInt(limit, 10) : 5, user);
   }
 
   @Get('stock-alerts')

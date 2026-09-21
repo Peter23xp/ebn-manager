@@ -14,6 +14,7 @@ import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
 import { KpayProvider } from '../kpay/kpay.types';
 import { MOBILE_MONEY_ENABLED } from '../../common/payments/mobile-money.policy';
+import { staffSalesWhere, StaffActor } from '../../common/access/staff-access';
 
 @Injectable()
 export class VentesService implements OnModuleInit {
@@ -472,11 +473,9 @@ export class VentesService implements OnModuleInit {
     modePaiement?: string;
     page?: number;
     limit?: number;
-  }) {
-    const { siteId, dateDebut, dateFin, modePaiement, page = 1, limit = 50 } = query;
-
-    const where: any = {};
-    if (siteId) where.siteId = siteId;
+  }, actor: StaffActor) {
+    const { dateDebut, dateFin, modePaiement, page = 1, limit = 50 } = query;
+    const where: any = staffSalesWhere(actor, query.siteId);
     if (modePaiement) where.modePaiement = modePaiement;
     if (dateDebut || dateFin) {
       where.createdAt = {};

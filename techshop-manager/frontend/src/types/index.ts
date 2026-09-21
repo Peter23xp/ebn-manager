@@ -2,7 +2,7 @@
 // ENUMS
 // ============================================
 
-export type Role = 'SUPER_ADMIN' | 'DIRECTEUR_REGIONAL' | 'GERANT' | 'AGENT' | 'FORMATEUR' | 'CLIENT';
+export type Role = 'SUPER_ADMIN' | 'DIRECTEUR_REGIONAL' | 'GERANT' | 'CAISSIER' | 'AGENT' | 'FORMATEUR' | 'CLIENT';
 
 export type StatutClient = 'EN_COURS' | 'ACTIF' | 'SUSPENDU' | 'ARCHIVE';
 

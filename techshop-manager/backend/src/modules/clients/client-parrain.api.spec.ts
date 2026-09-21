@@ -10,6 +10,7 @@ import { ClientParrainService } from './client-parrain.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtStrategy } from '../auth/strategies/jwt.strategy';
+import { StaffScopeService } from '../../common/access/staff-scope.service';
 
 const request = require('supertest');
 
@@ -35,7 +36,7 @@ describe('Client recruiter attribution HTTP boundaries', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [ClientsController],
-      providers: [JwtStrategy, RolesGuard,
+      providers: [JwtStrategy, RolesGuard, StaffScopeService,
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: { get: () => 'assignment-test-only' } },
         { provide: ClientsService, useValue: {} },

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
 import type { ModePaiement, StatutVente } from '@/types';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 
@@ -150,6 +151,7 @@ function SmsDialog({ id, defaultPhone, onClose }: SmsDialogProps) {
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function RecuPage() {
+  const scope = usePrivateQueryScope();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -166,10 +168,12 @@ export default function RecuPage() {
   const [smsDialogOpen, setSmsDialogOpen] = useState(false);
   const autoPrintTriggered = useRef(false);
 
-  const { data: vente, isLoading } = useQuery<VenteRecu>({
-    queryKey: ['vente-recu', id],
+  const { data, isLoading } = useQuery<VenteRecu>({
+    queryKey: ['vente-recu', id, scope.key],
     queryFn: () => api.get(`/ventes/${id}`).then((r) => r.data),
+    enabled: !!id && scope.enabled,
   });
+  const vente = scope.enabled ? data : undefined;
 
   // Injection du CSS print dans <head> — retiré au démontage
   useEffect(() => {
@@ -198,10 +202,10 @@ export default function RecuPage() {
       !autoPrintTriggered.current
     ) {
       autoPrintTriggered.current = true;
-      const timer = setTimeout(() => window.print(), 500);
+      const timer = setTimeout(() => { if (scope.isCurrent()) window.print(); }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, vente, searchParams]);
+  }, [isLoading, vente, searchParams, scope.key, scope.enabled]);
 
   const handleFormatChange = (f: ReceiptFormat) => {
     setFormat(f);
@@ -258,6 +262,7 @@ export default function RecuPage() {
 
         <button
           onClick={() => setSmsDialogOpen(true)}
+          disabled={!vente}
           className="btn-secondary flex items-center gap-2"
         >
           <MessageSquare size={16} />
@@ -265,7 +270,8 @@ export default function RecuPage() {
         </button>
 
         <button
-          onClick={() => window.print()}
+          onClick={() => { if (vente && scope.isCurrent()) window.print(); }}
+          disabled={!vente}
           className="btn-primary flex items-center gap-2"
         >
           <Printer size={16} />

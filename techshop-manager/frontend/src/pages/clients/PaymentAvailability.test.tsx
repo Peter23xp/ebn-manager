@@ -8,15 +8,16 @@ import OnboardingRecitResumePage from './OnboardingRecitResumePage';
 import OnboardingActivationPage from './OnboardingActivationPage';
 import POSPage from '../ventes/POSPage';
 import { useCartStore } from '@/store/cart.store';
+import { useAuthStore } from '@/store/auth.store';
 
 const { get, post, savePendingVente } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), savePendingVente: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api: { get, post }, getErrorMessage: (error: Error) => error.message }));
-vi.mock('@/lib/offline', () => ({ savePendingVente }));
-vi.mock('@/store/auth.store', () => ({ useAuthStore: () => ({ user: { id: 'agent', role: 'AGENT', siteId: 'site' }, hasRole: () => true }) }));
+vi.mock('@/lib/offline', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/offline')>(), savePendingVente }));
 const client = { id: 'client', prenom: 'Alice', nom: 'Client', telephone: '243900000001', statut: 'EN_COURS', codeParrain: null, siteInscriptionId: 'site', site: { id: 'site', nom: 'Goma' }, parrain: null, onboardingEtapes: [{ etape: 'RECIT', statut: 'COMPLETE', montant: 10 }] };
 const product = { id: 'product', sku: 'P-1', nom: 'Produit test', categorie: 'TEST', prixVente: 10, stockDisponible: 10, seuilAlerte: 1, statut: 'OK' as const };
 
 beforeEach(() => {
+  useAuthStore.getState().setAuth({ id: 'cashier', name: 'Caissier', role: 'CAISSIER', siteId: 'site' }, 'test-token');
   vi.clearAllMocks();
   useCartStore.getState().clearCart();
   get.mockImplementation(async (url: string) => {
@@ -71,7 +72,7 @@ describe('onboarding and POS payment availability', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Espèces' }));
     act(() => useCartStore.getState().setMontantRecu(10));
     await userEvent.click(screen.getByRole('button', { name: /Valider —/ }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith('/ventes', expect.objectContaining({ modePaiement: 'CASH', montantRecu: 10 })));
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/ventes', expect.objectContaining({ modePaiement: 'CASH', montantRecu: 10 }), { _sessionVersion: useAuthStore.getState().sessionVersion }));
   });
 
   it('preserves cash activation and historical mobile payment labels', async () => {

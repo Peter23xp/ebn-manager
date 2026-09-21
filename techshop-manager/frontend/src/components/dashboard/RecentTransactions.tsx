@@ -7,6 +7,7 @@ import type { Transaction } from '@/hooks/useDashboard';
 interface RecentTransactionsProps {
   data: Transaction[] | undefined;
   isLoading: boolean;
+  canNavigate?: boolean;
 }
 
 const statutStyle: Record<string, { cls: string; label: string }> = {
@@ -29,20 +30,20 @@ function ClientAvatar({ name }: { name: string }) {
   );
 }
 
-export function RecentTransactions({ data, isLoading }: RecentTransactionsProps) {
+export function RecentTransactions({ data, isLoading, canNavigate = true }: RecentTransactionsProps) {
   const navigate = useNavigate();
 
   return (
     <div className="rounded-xl shadow-card border border-border bg-white p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-section-title text-primary">Transactions récentes</h2>
-        <button
+        {canNavigate && <button
           type="button"
           className="text-[13px] font-semibold text-primary-accent hover:text-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent rounded"
           onClick={() => navigate('/sales')}
         >
           Voir tout →
-        </button>
+        </button>}
       </div>
 
       {isLoading ? (
@@ -70,20 +71,21 @@ export function RecentTransactions({ data, isLoading }: RecentTransactionsProps)
       ) : (
         <ol className="space-y-0.5">
           {data.slice(0, 5).map((tx) => {
+            const TransactionRow = canNavigate ? 'button' : 'div';
             const { cls, label } = statutStyle[tx.statut] ?? {
               cls: 'bg-gray-100 text-text-muted',
               label: tx.statut === 'EN_ATTENTE_PAIEMENT' ? 'Paiement en attente' : (tx.statut || 'Statut inconnu'),
             };
             return (
               <li key={tx.id}>
-                <button
-                  type="button"
+                <TransactionRow
+                  type={canNavigate ? 'button' : undefined}
                   className={cn(
                     'flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left',
-                    'hover:bg-blue-50/60 transition-colors duration-100',
+                    canNavigate && 'hover:bg-blue-50/60 transition-colors duration-100',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent',
                   )}
-                  onClick={() => navigate(`/sales/${tx.id}`)}
+                  onClick={canNavigate ? () => navigate(`/sales/${tx.id}`) : undefined}
                 >
                   <ClientAvatar name={tx.clientNom} />
                   <div className="flex-1 min-w-0">
@@ -100,7 +102,7 @@ export function RecentTransactions({ data, isLoading }: RecentTransactionsProps)
                       {label}
                     </span>
                   </div>
-                </button>
+                </TransactionRow>
               </li>
             );
           })}

@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import type { AxiosRequestConfig } from 'axios';
 import { withPaymentAvailability } from './mobile-money';
 import type { Vente, ModePaiement, StatutVente } from '@/types';
 
@@ -62,8 +63,10 @@ export const ventesApi = {
   searchProduits: (params: { q?: string; siteId: string; categorie?: string; stockOnly?: boolean }) =>
     api.get<{ produits: ProduitPOS[] }>('/produits/search', { params }).then((r) => r.data),
 
-  create: (body: CreateVenteDto) =>
-    withPaymentAvailability(body.modePaiement, () => api.post<{ vente: VenteResult }>('/ventes', body).then((r) => r.data)),
+  create: (body: CreateVenteDto, sessionVersion?: number) => {
+    const options: AxiosRequestConfig & { _sessionVersion?: number } = { _sessionVersion: sessionVersion };
+    return withPaymentAvailability(body.modePaiement, () => api.post<{ vente: VenteResult }>('/ventes', body, options).then((response) => response.data));
+  },
 
   list: (filters: SalesFilters) =>
     api.get<SalesListResponse>('/ventes', { params: filters }).then((r) => r.data),

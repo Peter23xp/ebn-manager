@@ -4,16 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import OnboardingRecitPage from './OnboardingRecitPage';
+import { useAuthStore } from '@/store/auth.store';
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api: { get, post }, getErrorMessage: () => 'Erreur réseau' }));
-vi.mock('@/store/auth.store', () => ({ useAuthStore: () => ({ user: { role: 'AGENT', siteId: 'site-1' }, hasRole: () => true }) }));
 
 const alice = { id: 'alice', codeParrain: 'EBN-ALICE', nom: 'Alice Parrain', telephone: '+243900000010', statut: 'ACTIF' };
 const bruno = { id: 'bruno', codeParrain: 'EBN-BRUNO', nom: 'Bruno Parrain', telephone: '+243900000020', statut: 'EN_COURS' };
 const searchPlaceholder = 'Matricule, téléphone ou nom du parrain…';
 
 beforeEach(() => {
+  useAuthStore.getState().setAuth({ id: 'cashier', name: 'Caissier', role: 'CAISSIER', siteId: 'site-1' }, 'test-token');
   get.mockReset(); post.mockReset();
   get.mockImplementation(async (url: string) => {
     if (url === '/config') return { data: { montantRecit: 5000 } };

@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
+import { requiresAssignedSite } from '../../common/access/staff-access';
 import { CreateUserDto, UpdateProfileDto, ChangePasswordDto, UpdateUserDto } from './dto/user.dto';
 
 @Injectable()
@@ -64,12 +64,10 @@ export class UsersService {
       });
     }
 
-    // Validation : siteId obligatoire pour GERANT, AGENT et FORMATEUR
-    const rolesRequiringSite = [Role.GERANT, Role.AGENT, Role.FORMATEUR] as const;
-    if (rolesRequiringSite.some(r => r === dto.role) && !dto.siteId) {
+    if (requiresAssignedSite(dto.role) && !dto.siteId) {
       throw new BadRequestException({
         code: 'ERR_VALIDATION',
-        message: 'Le site est obligatoire pour les rôles GERANT, AGENT et FORMATEUR',
+        message: 'Le site est obligatoire pour les rôles GERANT, CAISSIER, AGENT et FORMATEUR',
       });
     }
 
@@ -141,14 +139,12 @@ export class UsersService {
       }
     }
 
-    // Validation : si on change le rôle vers GERANT/AGENT/FORMATEUR, siteId doit être fourni
     const finalRole = dto.role ?? user.role;
     const finalSiteId = dto.siteId !== undefined ? dto.siteId : user.siteId;
-    const rolesRequiringSite = [Role.GERANT, Role.AGENT, Role.FORMATEUR] as const;
-    if (rolesRequiringSite.some(r => r === finalRole) && !finalSiteId) {
+    if (requiresAssignedSite(finalRole) && !finalSiteId) {
       throw new BadRequestException({
         code: 'ERR_VALIDATION',
-        message: 'Le site est obligatoire pour les rôles GERANT, AGENT et FORMATEUR',
+        message: 'Le site est obligatoire pour les rôles GERANT, CAISSIER, AGENT et FORMATEUR',
       });
     }
 

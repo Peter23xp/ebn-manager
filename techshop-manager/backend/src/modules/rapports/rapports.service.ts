@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StatutExport } from '@prisma/client';
 import { format, startOfWeek, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { staffSalesWhere, StaffActor } from '../../common/access/staff-access';
 
 @Injectable()
 export class RapportsService {
@@ -157,18 +158,17 @@ export class RapportsService {
     dateDebut: string;
     dateFin: string;
     granularite?: string;
-  }) {
+  }, actor: StaffActor) {
     const { siteId, dateDebut, dateFin, granularite = 'day' } = query;
 
     const where: any = {
+      ...staffSalesWhere(actor, siteId),
       createdAt: {
         gte: new Date(dateDebut),
         lte: new Date(dateFin),
       },
       statut: { not: 'ANNULEE' },
     };
-    if (siteId) where.siteId = siteId;
-
     const [ventes, totaux] = await Promise.all([
       this.prisma.vente.findMany({
         where,

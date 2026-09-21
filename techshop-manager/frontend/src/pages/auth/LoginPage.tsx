@@ -25,7 +25,8 @@ function getRoleRedirect(role: Role): string {
     case 'SUPER_ADMIN':
     case 'GERANT':              return '/dashboard';
     case 'DIRECTEUR_REGIONAL': return '/dashboard/regional';
-    case 'AGENT':              return '/sales/pos';
+    case 'AGENT':              return '/dashboard';
+    case 'CAISSIER':           return '/sales/pos';
     case 'FORMATEUR':          return '/clients';
     case 'CLIENT':             return '/portal/home';
     default:                   return '/dashboard';

@@ -1,15 +1,7 @@
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import type { Role } from '@/types';
-
-const ROLE_LEVEL: Record<Role, number> = {
-  SUPER_ADMIN: 6,
-  DIRECTEUR_REGIONAL: 5,
-  GERANT: 4,
-  AGENT: 3,
-  FORMATEUR: 2,
-  CLIENT: 1,
-};
+import { hasMinimumRole } from '@/lib/roles';
 
 export function useAuth() {
   const user = useAuthStore((s) => s.user);
@@ -32,7 +24,7 @@ export function useAuth() {
 
   const hasRole = (role: Role) => {
     if (!user) return false;
-    return (ROLE_LEVEL[user.role] ?? 0) >= (ROLE_LEVEL[role] ?? 0);
+    return hasMinimumRole(user.role, role);
   };
 
   return {

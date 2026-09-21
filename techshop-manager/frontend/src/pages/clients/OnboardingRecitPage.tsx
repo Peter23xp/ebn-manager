@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { CodeParrainInput } from '@/components/clients/CodeParrainInput';
+import { ClientDraftForm } from '@/components/clients/ClientDraftForm';
+import { isSiteScopedStaff } from '@/lib/roles';
 import { MobileMoneyPaymentForm } from '@/components/payments/MobileMoneyPaymentForm';
 import { kpayApi } from '@/lib/kpay.api';
 import { MOBILE_MONEY_AVAILABLE, isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
@@ -52,20 +54,25 @@ interface RecitSuccess {
 }
 
 export default function OnboardingRecitPage() {
+  const role = useAuthStore(state => state.user?.role);
+  return role === 'AGENT' ? <ClientDraftForm /> : <PaidRecitForm />;
+}
+
+function PaidRecitForm() {
   const navigate   = useNavigate();
   const { user, hasRole } = useAuthStore();
   const [sessionClients, setSessionClients] = useState<RecitSuccess[]>([]);
   const [kpaySubmitting, setKpaySubmitting] = useState(false);
 
-  const isAgent = user?.role === 'AGENT';
+  const isScoped = !!user && isSiteScopedStaff(user.role);
 
   // Charger les sites (GERANT/SUPER_ADMIN) et la config (montant récit)
   const { data: sitesRaw } = useQuery<{ data: Array<{ id: string; nom: string }> }>({
     queryKey: ['sites'],
     queryFn: () => api.get('/sites').then(r => r.data),
-    enabled: !isAgent,
+    enabled: !isScoped,
   });
-  const sites = sitesRaw?.data ?? [];
+  const sites = isScoped ? [] : sitesRaw?.data ?? [];
 
   const { data: config } = useQuery<{ montantRecit: number }>({
     queryKey: ['config'],
@@ -267,7 +274,7 @@ export default function OnboardingRecitPage() {
           {/* Site */}
           <div className="form-group">
             <label htmlFor="siteId" className="form-label">Site *</label>
-            {isAgent ? (
+            {isScoped ? (
               <input
                 id="siteId"
                 value={user?.site?.nom ?? user?.siteName ?? user?.siteId ?? ''}
@@ -288,7 +295,7 @@ export default function OnboardingRecitPage() {
                 ))}
               </select>
             )}
-            {isAgent && (
+            {isScoped && (
               <input type="hidden" {...register('siteId')} value={user?.siteId ?? ''} />
             )}
             {errors.siteId && <p className="form-error">{errors.siteId.message}</p>}

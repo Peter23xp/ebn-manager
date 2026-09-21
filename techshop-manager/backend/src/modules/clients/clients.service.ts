@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,7 +14,8 @@ import {
   OnboardingFicheDto,
   OnboardingActivateDto,
 } from './dto/client.dto';
-import { EtapeOnboarding, KpayOperationType, KpayTransactionStatus, ModePaiement, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
+import { EtapeOnboarding, KpayOperationType, KpayTransactionStatus, ModePaiement, Prisma, Role, StatutClient, StatutEtape, TypeMouvement } from '@prisma/client';
+import { CreateClientDraftDto } from './dto/client-draft.dto';
 import { randomUUID, randomInt } from 'crypto';
 import { KpayService } from '../kpay/kpay.service';
 import { KpayWebhookService } from '../kpay/kpay-webhook.service';
@@ -24,6 +26,7 @@ import { MlmMatrixService } from '../mlm/mlm-matrix.service';
 import { MlmClaimService, invoiceCodeSeq, matchesInvoiceCode } from '../mlm/mlm-claim.service';
 import { MlmPlacementService } from '../mlm/mlm-placement.service';
 import { MOBILE_MONEY_ENABLED } from '../../common/payments/mobile-money.policy';
+import { effectiveStaffSite, hasMinimumRole, isSiteScopedStaff, StaffActor } from '../../common/access/staff-access';
 
 @Injectable()
 export class ClientsService implements OnModuleInit {
@@ -225,13 +228,11 @@ export class ClientsService implements OnModuleInit {
       page?: number;
       limit?: number;
     },
-    user: { id: string; role: Role; siteId?: string },
+    user: StaffActor,
   ) {
     const { statut, search, page = 1, limit = 50 } = query;
 
-    // AGENT voit uniquement les clients de son site
-    const effectiveSiteId =
-      user.role === Role.AGENT ? user.siteId : query.siteId;
+    const effectiveSiteId = effectiveStaffSite(user, query.siteId);
 
     const where: any = {};
 
@@ -290,9 +291,12 @@ export class ClientsService implements OnModuleInit {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, actor?: StaffActor) {
+    const siteId = actor ? effectiveStaffSite(actor) : undefined;
+    const where = { id, ...(siteId ? { siteInscriptionId: siteId } : {}) };
+    const salesWhere = siteId ? { siteId } : undefined;
     const client = await this.prisma.client.findUnique({
-      where: { id },
+      where,
       include: {
         siteInscription: { select: { id: true, nom: true } },
         parrainClient: {
@@ -329,6 +333,7 @@ export class ClientsService implements OnModuleInit {
         },
 
         ventes: {
+          where: salesWhere,
           select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: 20,
@@ -345,7 +350,7 @@ export class ClientsService implements OnModuleInit {
       try {
         await this.mlmMatrixService.onClientActivated(client.id, client.parrainClientId ?? undefined);
         const reloaded = await this.prisma.client.findUnique({
-          where: { id },
+          where,
           include: {
             siteInscription: { select: { id: true, nom: true } },
             parrainClient: {
@@ -381,6 +386,7 @@ export class ClientsService implements OnModuleInit {
               },
             },
             ventes: {
+              where: salesWhere,
               select: { id: true, numeroVente: true, montantNet: true, pointsAttribues: true, createdAt: true },
               orderBy: { createdAt: 'desc' },
               take: 20,
@@ -533,8 +539,9 @@ export class ClientsService implements OnModuleInit {
     };
   }
 
-  async search(q: string, statut?: string) {
+  async search(q: string, statut?: string, siteId?: string) {
     const where: any = {};
+    if (siteId) where.siteInscriptionId = siteId;
     if (statut) where.statut = statut;
     if (q) {
       where.OR = [
@@ -572,7 +579,7 @@ export class ClientsService implements OnModuleInit {
     modePaiement: ModePaiement;
     numeroRecu?: string;
     agentId: string;
-  }) {
+  }, actor?: StaffActor) {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: { onboardingEtapes: true },
@@ -630,7 +637,7 @@ export class ClientsService implements OnModuleInit {
         notes: null,
       },
     });
-    return { client: await this.findOne(clientId), etapeId: completedStep.id };
+    return { client: await this.findOne(clientId, actor), etapeId: completedStep.id };
   }
 
   /**
@@ -754,6 +761,109 @@ export class ClientsService implements OnModuleInit {
     return { client, transactionId: pending.transaction.id, status: payment.status, reference: payment.reference };
   }
 
+  async createDraft(dto: CreateClientDraftDto, actor: StaffActor): Promise<{
+    client: { id: string; prenom: string; nom: string; telephone: string; statut: StatutClient; createdById: string | null };
+    etapeId: string;
+  }> {
+    if (!hasMinimumRole(actor?.role, Role.AGENT)) throw new ForbiddenException('Rôle insuffisant');
+    const siteId = effectiveStaffSite(actor, dto.siteId);
+    const site = await this.prisma.site.findUnique({ where: { id: siteId }, select: { id: true } });
+    if (!site) throw new NotFoundException({ code: 'ERR_NOT_FOUND', message: 'Site introuvable' });
+
+    const findDuplicate = async () => {
+      const query = {
+        where: {
+          OR: [
+            { telephone: dto.telephone },
+            ...(dto.email ? [{ email: dto.email }] : []),
+            ...(dto.matriculeExterne ? [{ matriculeExterne: dto.matriculeExterne }] : []),
+          ],
+        },
+        select: { id: true, siteInscriptionId: true },
+        orderBy: { id: 'asc' },
+      } satisfies Prisma.ClientFindFirstArgs;
+      const duplicate = await this.prisma.client.findFirst(query);
+      if (!duplicate || !isSiteScopedStaff(actor.role) || duplicate.siteInscriptionId === siteId) return duplicate;
+      return await this.prisma.client.findFirst({
+        ...query,
+        where: { ...query.where, siteInscriptionId: siteId },
+      }) ?? duplicate;
+    };
+    const duplicateConflict = (client: { id: string; siteInscriptionId: string } | null) => new ConflictException({
+      code: 'ERR_DUPLICATE_CLIENT',
+      message: 'Un client avec ces informations existe déjà.',
+      ...(client && (!isSiteScopedStaff(actor.role) || client.siteInscriptionId === siteId) ? { clientId: client.id } : {}),
+    });
+    const duplicate = await findDuplicate();
+    if (duplicate) throw duplicateConflict(duplicate);
+
+    const recruiter = dto.codeParrain ? await this.mlmClaimService.resolveParrain(dto.codeParrain) : null;
+    if (dto.codeParrain && !recruiter) {
+      throw new BadRequestException({
+        code: 'ERR_PARRAIN_NOT_FOUND',
+        message: 'Aucun client ne correspond à ce code parrain ou numéro de téléphone',
+      });
+    }
+    if (recruiter && recruiter.telephone === dto.telephone) {
+      throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Un client ne peut pas se parrainer lui-même' });
+    }
+
+    try {
+      return await this.prisma.$transaction(async tx => {
+        const client = await tx.client.create({
+          data: {
+            prenom: dto.prenom,
+            nom: dto.nom,
+            telephone: dto.telephone,
+            email: dto.email || undefined,
+            matriculeExterne: dto.matriculeExterne || undefined,
+            siteInscriptionId: siteId,
+            createdById: actor.id,
+            parrainClientId: recruiter?.id,
+            statut: StatutClient.EN_COURS,
+          },
+        });
+        const step = await tx.onboardingEtape.create({
+          data: {
+            clientId: client.id,
+            agentId: actor.id,
+            siteId,
+            etape: EtapeOnboarding.RECIT,
+            statut: StatutEtape.EN_ATTENTE,
+          },
+        });
+        if (recruiter && recruiter.statut !== StatutClient.ACTIF) {
+          await tx.parrainClaim.upsert({
+            where: { filleulClientId: client.id },
+            create: {
+              filleulClientId: client.id,
+              parrainClientId: recruiter.id,
+              statut: 'EN_ATTENTE',
+              telephoneParrainSaisi: dto.codeParrain!,
+            },
+            update: {},
+          });
+        }
+        return {
+          client: {
+            id: client.id,
+            prenom: client.prenom,
+            nom: client.nom,
+            telephone: client.telephone,
+            statut: client.statut,
+            createdById: client.createdById,
+          },
+          etapeId: step.id,
+        };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw duplicateConflict(await findDuplicate());
+      }
+      throw error;
+    }
+  }
+
   /**
    * Crée un nouveau client + étape RÉCIT (Cash).
    * Si un client EN_COURS existe déjà avec ce numéro et que son RÉCIT n'est pas
@@ -772,7 +882,7 @@ export class ClientsService implements OnModuleInit {
     modePaiement: ModePaiement;
     numeroRecu?: string;
     agentId: string;
-  }) {
+  }, actor?: StaffActor) {
     // Chercher un client existant par téléphone
     const existingClient = await this.prisma.client.findUnique({
       where: { telephone: dto.telephone },
@@ -838,7 +948,7 @@ export class ClientsService implements OnModuleInit {
             notes: null,
           },
         });
-        return { client: await this.findOne(existingClient.id), etapeId: resumedStep.id };
+        return { client: await this.findOne(existingClient.id, actor), etapeId: resumedStep.id };
       }
 
       // Sinon : RÉCIT déjà COMPLETE avec paiement valide → doublon
@@ -954,7 +1064,7 @@ export class ClientsService implements OnModuleInit {
       return { newClient, etape };
     });
 
-    const client = await this.findOne(newClient.id);
+    const client = await this.findOne(newClient.id, actor);
     return {
       client,
       etapeId: etape.id,
@@ -1194,7 +1304,7 @@ export class ClientsService implements OnModuleInit {
     });
   }
 
-  async onboardingActivate(clientId: string, dto: OnboardingActivateDto, agentId: string, opts: { deferClaims?: boolean } = {}) {
+  async onboardingActivate(clientId: string, dto: OnboardingActivateDto, agentId: string, opts: { deferClaims?: boolean; responseActor?: StaffActor } = {}) {
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
       include: { onboardingEtapes: true },
@@ -1389,7 +1499,7 @@ export class ClientsService implements OnModuleInit {
       where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
     });
 
-    const result = await this.findOne(activatedClient.id);
+    const result = await this.findOne(activatedClient.id, opts.responseActor);
     
     // Ajouter l'info des claims pendants dans la réponse
     return {
@@ -1467,8 +1577,9 @@ export class ClientsService implements OnModuleInit {
     agentId?: string;
     page?: number;
     limit?: number;
-  }) {
-    const { siteId, dateDebut, dateFin, agentId, page = 1, limit = 50 } = query;
+  }, actor: StaffActor) {
+    const { dateDebut, dateFin, agentId, page = 1, limit = 50 } = query;
+    const siteId = effectiveStaffSite(actor, query.siteId);
 
     const where: any = {
       etape: { in: ['RECIT', 'FICHE'] },
@@ -1477,6 +1588,7 @@ export class ClientsService implements OnModuleInit {
     };
 
     if (siteId) where.siteId = siteId;
+    if (isSiteScopedStaff(actor.role)) where.client = { siteInscriptionId: siteId };
     if (agentId) where.agentId = agentId;
     if (dateDebut || dateFin) {
       where.completeeAt = {};
@@ -1624,7 +1736,19 @@ export class ClientsService implements OnModuleInit {
     throw new BadRequestException('Tirage de code parrain épuisé — réessayez.');
   }
 
-  async importPreview(file: Express.Multer.File) {
+  private scopeImportRow(row: Record<string, string>, actor: StaffActor): string | undefined {
+    const siteId = effectiveStaffSite(actor, row.siteid);
+    if (isSiteScopedStaff(actor.role)) {
+      const allowedColumns = ['prenom', 'nom', 'telephone', 'email', 'matricule', 'matriculeexterne', 'siteid', 'createdbyid', 'agentid', 'statut'];
+      if (Object.keys(row).some(column => !allowedColumns.includes(column) && row[column]) ||
+        (row.statut && row.statut !== StatutClient.EN_COURS)) {
+        throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: "L'import accepte uniquement des dossiers en cours sans paiement." });
+      }
+    }
+    return siteId;
+  }
+
+  async importPreview(file: Express.Multer.File, actor: StaffActor) {
     if (!file) {
       throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Fichier requis' });
     }
@@ -1666,6 +1790,7 @@ export class ClientsService implements OnModuleInit {
         row[h] = values[idx] ?? '';
       });
 
+      this.scopeImportRow(row, actor);
       const nom = `${row.prenom ?? ''} ${row.nom ?? ''}`.trim();
       const telephone = row.telephone ?? '';
       const matricule = row.matricule ?? row.matriculeexterne ?? '';
@@ -1683,7 +1808,7 @@ export class ClientsService implements OnModuleInit {
         continue;
       }
 
-      const exists = await this.prisma.client.findUnique({ where: { telephone } });
+      const exists = await this.prisma.client.findUnique({ where: { telephone }, select: { id: true } });
       if (exists) {
         rows.push({ ligne: i + 1, nom, telephone, matricule, statut: 'DOUBLON', message: 'Numéro déjà enregistré' });
         continue;
@@ -1705,7 +1830,7 @@ export class ClientsService implements OnModuleInit {
     };
   }
 
-  async importExecute(file: Express.Multer.File) {
+  async importExecute(file: Express.Multer.File, actor: StaffActor) {
     if (!file) {
       throw new BadRequestException({ code: 'ERR_BAD_REQUEST', message: 'Fichier requis' });
     }
@@ -1723,13 +1848,18 @@ export class ClientsService implements OnModuleInit {
     const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
     const results = { success: 0, doublons: 0, errors: 0, details: [] as { ligne: number; message: string }[] };
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map((v) => v.trim());
+    const rows = lines.slice(1).map(line => {
+      const values = line.split(',').map(value => value.trim());
       const row: any = {};
-      headers.forEach((h, idx) => {
-        row[h] = values[idx] ?? '';
+      headers.forEach((header, index) => {
+        row[header] = values[index] ?? '';
       });
+      row.siteid = this.scopeImportRow(row, actor);
+      return row;
+    });
 
+    for (let i = 1; i < lines.length; i++) {
+      const row = rows[i - 1];
       try {
         if (!row.telephone || !/^\+243[0-9]{9}$/.test(row.telephone)) {
           results.errors++;
@@ -1739,6 +1869,7 @@ export class ClientsService implements OnModuleInit {
 
         const exists = await this.prisma.client.findUnique({
           where: { telephone: row.telephone },
+          select: { id: true },
         });
 
         if (exists) {
@@ -1759,9 +1890,9 @@ export class ClientsService implements OnModuleInit {
           continue;
         }
 
-        const agent = await this.prisma.utilisateur.findFirst({
-          where: { siteId: row.siteid, actif: true },
-        });
+        const agent = isSiteScopedStaff(actor.role)
+          ? { id: actor.id }
+          : await this.prisma.utilisateur.findFirst({ where: { siteId: row.siteid, actif: true } });
         if (!agent) {
           results.errors++;
           results.details.push({ ligne: i + 1, message: 'Aucun agent actif pour ce site' });

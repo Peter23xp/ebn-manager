@@ -1,5 +1,6 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { DashboardService } from './dashboard.service';
+import { Role } from '@prisma/client';
 
 describe('DashboardService - getStats nouveauxFilleuls', () => {
   let service: DashboardService;
@@ -26,6 +27,29 @@ describe('DashboardService - getStats nouveauxFilleuls', () => {
   beforeEach(() => {
     prisma = mockPrisma();
     service = new DashboardService(prisma);
+  });
+
+  it.each<Role>(['CAISSIER' as Role, 'AGENT', 'GERANT', 'FORMATEUR'])('scopes every stats query to the assigned site for %s', async (role) => {
+    await service.getStats(undefined, 'today', { id: 'staff', role, siteId: 'my-site' });
+    expect(prisma.client.count).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ siteInscriptionId: { in: ['my-site'] } }) }));
+    expect(prisma.vente.aggregate).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ siteId: { in: ['my-site'] } }) }));
+    expect(prisma.membre.count).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ client: { siteInscriptionId: { in: ['my-site'] } } }) }));
+    expect(prisma.stockSite.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { siteId: { in: ['my-site'] } } }));
+  });
+
+  it.each<Role>(['CAISSIER' as Role, 'AGENT', 'GERANT', 'FORMATEUR'])('rejects %s without an assigned site before stats queries', async (role) => {
+    await expect(service.getStats('other-site', 'today', { id: 'staff', role })).rejects.toMatchObject({ response: { code: 'ERR_SITE_REQUIRED' } });
+    expect(prisma.client.count).not.toHaveBeenCalled();
+    expect(prisma.vente.aggregate).not.toHaveBeenCalled();
+    expect(prisma.membre.count).not.toHaveBeenCalled();
+    expect(prisma.stockSite.findMany).not.toHaveBeenCalled();
+  });
+
+  it.each<Role>(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL'])('preserves all-site stats and explicit filters for %s', async (role) => {
+    await service.getStats(undefined, 'today', { id: 'manager', role });
+    expect(prisma.stockSite.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: {} }));
+    await service.getStats('selected-site', 'today', { id: 'manager', role });
+    expect(prisma.stockSite.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: { siteId: { in: ['selected-site'] } } }));
   });
 
   it('compte les nouveaux membres (filleuls) inscrits dans la période', async () => {

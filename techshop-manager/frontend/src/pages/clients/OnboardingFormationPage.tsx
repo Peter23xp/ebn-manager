@@ -10,6 +10,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { cn, initials, formatDate } from '@/lib/utils';
 import { OnboardingStepper } from '@/components/clients/OnboardingStepper';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { hasMinimumRole } from '@/lib/roles';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 
 // ── Schema Zod ────────────────────────────────────────────────────────────────
 
@@ -47,20 +49,24 @@ interface ClientForFormation {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingFormationPage() {
+  const scope = usePrivateQueryScope('FORMATEUR');
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuthStore();
+  const canCollect = hasMinimumRole(user?.role, 'CAISSIER');
+  const nextRoute = canCollect ? `/clients/${id}/fiche` : `/clients/${id}`;
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Bloquer l'accès AGENT
   const canAccess = hasRole('FORMATEUR');
 
-  const { data: client, isLoading } = useQuery<ClientForFormation>({
-    queryKey: ['client-basic', id],
+  const { data, isLoading } = useQuery<ClientForFormation>({
+    queryKey: ['client-basic', id, scope.key],
     queryFn: () => api.get(`/clients/${id}`).then(r => r.data),
-    enabled: !!id && canAccess,
+    enabled: !!id && canAccess && scope.enabled,
   });
+  const client = scope.enabled ? data : undefined;
 
   const recitEtape = client?.onboardingEtapes?.find((e) => e.etape === 'RECIT');
   const recitDone  = recitEtape?.statut === 'COMPLETE';
@@ -89,13 +95,13 @@ export default function OnboardingFormationPage() {
       }),
     onSuccess: () => {
       toast.success('Formation validée.');
-      navigate(`/clients/${id}/fiche`);
+      navigate(nextRoute);
     },
     onError: (error: any) => {
       const status = error?.response?.status;
       if (status === 409) {
         toast('Formation déjà validée, passage à l\'étape suivante.', { icon: 'ℹ️' });
-        navigate(`/clients/${id}/fiche`);
+        navigate(nextRoute);
         return;
       }
       const msg = getErrorMessage(error) || 'Erreur lors de l\'enregistrement.';
@@ -158,7 +164,7 @@ export default function OnboardingFormationPage() {
       </div>
 
       {/* Stepper */}
-      <OnboardingStepper currentStep={2} clientId={id} />
+      <OnboardingStepper currentStep={2} clientId={id} completedSteps={recitDone ? [1] : []} canNavigate={canCollect} />
 
       {/* Carte client (lecture seule) */}
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-4">
@@ -206,10 +212,10 @@ export default function OnboardingFormationPage() {
               L'étape Récit doit être complétée avant de valider la formation.
             </p>
             <Link
-              to={`/clients/new/recit`}
+              to={canCollect ? `/clients/${id}/recit` : `/clients/${id}`}
               className="text-[12px] font-semibold text-warning hover:underline mt-1 inline-block"
             >
-              ← Reprendre depuis le Récit
+              {canCollect ? '← Reprendre depuis le Récit' : 'Ouvrir le dossier'}
             </Link>
           </div>
         </div>

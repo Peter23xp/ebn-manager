@@ -6,6 +6,7 @@ import { PortalService } from './portal.service';
 import { PortalAuthController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
 import { MlmModule } from '../mlm/mlm.module';
+import { StaffScopeService } from '../../common/access/staff-scope.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { MlmModule } from '../mlm/mlm.module';
     }),
   ],
   controllers: [PortalController, PortalAuthController],
-  providers: [PortalService, PortalAuthService],
+  providers: [PortalService, PortalAuthService, StaffScopeService],
   exports: [PortalAuthService],
 })
 export class PortalModule {}

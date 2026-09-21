@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AuthUser, Role } from '@/types';
+import { hasMinimumRole } from '@/lib/roles';
 
 interface AuthState {
   user: AuthUser | null;
@@ -24,15 +25,6 @@ interface AuthState {
   setOfflineMode: (offline: boolean) => void;
   setLastSyncAt: (date: Date) => void;
 }
-
-const ROLE_LEVEL: Record<Role, number> = {
-  SUPER_ADMIN: 6,
-  DIRECTEUR_REGIONAL: 5,
-  GERANT: 4,
-  AGENT: 3,
-  FORMATEUR: 2,
-  CLIENT: 1,
-};
 
 // ── LocalStorage helpers ──────────────────────────────────────────────────────
 const STORAGE_KEY = 'ebn_auth_v1';
@@ -112,7 +104,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   hasRole: (minRole) => {
     const user = get().user;
     if (!user) return false;
-    return (ROLE_LEVEL[user.role] ?? 0) >= (ROLE_LEVEL[minRole] ?? 0);
+    return hasMinimumRole(user.role, minRole);
   },
 
   setLoading: (isLoading) => set({ isLoading }),

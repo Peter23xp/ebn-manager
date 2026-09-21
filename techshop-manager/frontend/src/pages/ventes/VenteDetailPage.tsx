@@ -16,6 +16,9 @@ import { api, getErrorMessage } from '@/lib/api';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
 import { SaleStatusBadge } from '@/components/sales/SaleStatusBadge';
 import type { StatutVente, ModePaiement } from '@/types';
+import { useAuthStore } from '@/store/auth.store';
+import { hasMinimumRole } from '@/lib/roles';
+import { useSalesQueryScope } from '@/hooks/useSalesQueryScope';
 
 // ── Types locaux étendus ──────────────────────────────────────────────────────
 
@@ -112,16 +115,19 @@ function VenteDetailSkeleton() {
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function VenteDetailPage() {
+  const role = useAuthStore(state => state.user?.role);
+  const salesScope = useSalesQueryScope();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { data: vente, isLoading } = useQuery<VenteDetail>({
-    queryKey: ['vente', id],
+    queryKey: ['vente', id, salesScope.key],
     queryFn: () =>
       api.get(`/ventes/${id}`).then((r) => r.data),
+    enabled: salesScope.enabled && !!id,
   });
 
-  const canRetour = vente
+  const canRetour = vente && hasMinimumRole(role, 'GERANT')
     ? differenceInDays(new Date(), new Date(vente.createdAt)) <= 7 &&
       vente.statut === 'VALIDE'
     : false;

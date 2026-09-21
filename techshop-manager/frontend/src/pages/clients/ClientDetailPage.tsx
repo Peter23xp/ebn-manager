@@ -10,7 +10,9 @@ import { pdf } from '@react-pdf/renderer';
 import toast from 'react-hot-toast';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
+import { hasMinimumRole } from '@/lib/roles';
 import { useClientDetail } from '@/hooks/useClientDetail';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { EditClientModal } from '@/components/clients/EditClientModal';
@@ -78,6 +80,7 @@ function DetailSkeleton() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientDetailPage() {
+  const scope = usePrivateQueryScope('FORMATEUR');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -101,10 +104,11 @@ export default function ClientDetailPage() {
   } = useClientDetail(id ?? '');
 
   const canEdit = hasRole('GERANT');
+  const canCollect = hasMinimumRole(user?.role, 'CAISSIER');
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
   async function handleGenerateFiche() {
-    if (!client) return;
+    if (!client || !scope.isCurrent()) return;
     setGeneratingPDF(true);
     try {
       const activation = client.onboardingEtapes?.find(e => e.etape === 'ACTIVATION');
@@ -141,6 +145,7 @@ export default function ClientDetailPage() {
       };
 
       const blob = await pdf(<FicheAdhesionPDF data={ficheData} />).toBlob();
+      if (!scope.isCurrent()) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -256,22 +261,21 @@ export default function ClientDetailPage() {
         {/* Bannière EN_COURS */}
         {missingStep && (
           <div
-            className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3"
+            className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3"
             role="alert"
           >
             <div className="flex items-center gap-2">
               <Clock size={15} className="text-warning flex-shrink-0" aria-hidden />
               <p className="text-[13px] text-warning font-medium">
-                Onboarding en cours — étape manquante :{' '}
-                <strong>{ETAPE_LABEL[missingStep] ?? missingStep}</strong>
+                {canCollect ? <>Onboarding en cours — étape manquante :{' '}<strong>{ETAPE_LABEL[missingStep] ?? missingStep}</strong></> : 'En attente de passage en caisse'}
               </p>
             </div>
-            <Link
+            {canCollect && <Link
               to={`/clients/${client.id}/${ETAPE_ROUTE[missingStep] ?? missingStep.toLowerCase()}`}
               className="text-[13px] font-semibold text-warning hover:underline whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning rounded"
             >
               Continuer →
-            </Link>
+            </Link>}
           </div>
         )}
 

@@ -7,6 +7,7 @@ import { useClients } from '@/hooks/useClients';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
 import { Pagination } from '@/components/ui/Pagination';
 import type { StatutClient } from '@/types';
+import { isSiteScopedStaff } from '@/lib/roles';
 
 // ── Avatar initiales ──────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export default function ClientsListPage() {
 
   const [page, setPage]     = useState(1);
 
-  const isAgent     = user?.role === 'AGENT';
+  const isScoped = !!user && isSiteScopedStaff(user.role);
   const isFormateur = user?.role === 'FORMATEUR';
   const canCreate   = !isFormateur;
   const canImport   = hasRole('GERANT');
@@ -62,6 +63,7 @@ export default function ClientsListPage() {
   const showSiteFilter = hasRole('DIRECTEUR_REGIONAL');
 
   const { clients, meta, isLoading, isFetching, isError, refetch } = useClients({
+    siteId: isScoped ? user.siteId : undefined,
     search,
     statut,
 
@@ -163,7 +165,7 @@ export default function ClientsListPage() {
                 <option value="ACTIF">Actif</option>
                 <option value="EN_COURS">En cours</option>
                 <option value="SUSPENDU">Suspendu</option>
-                {!isAgent && <option value="ARCHIVE">Archivé</option>}
+                {!isScoped && <option value="ARCHIVE">Archivé</option>}
               </select>
               <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle" aria-hidden />
             </div>

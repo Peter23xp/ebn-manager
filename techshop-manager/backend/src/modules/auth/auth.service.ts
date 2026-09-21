@@ -10,6 +10,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MailerService } from "../mailer/mailer.service";
+import { requiresAssignedSite } from "../../common/access/staff-access";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import {
@@ -79,11 +80,7 @@ export class AuthService {
       });
     }
 
-    // Validation : GERANT, AGENT et FORMATEUR doivent avoir un site attribué
-    if (
-      (user.role === "GERANT" || user.role === "AGENT" || user.role === "FORMATEUR") &&
-      !user.siteId
-    ) {
+    if (requiresAssignedSite(user.role) && !user.siteId) {
       throw new UnauthorizedException({
         error: {
           code: "SITE_REQUIRED",

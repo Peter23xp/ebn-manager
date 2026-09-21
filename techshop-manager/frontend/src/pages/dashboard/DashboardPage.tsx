@@ -19,6 +19,7 @@ import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
 import { StockAlerts } from '@/components/dashboard/StockAlerts';
 import { formatUSD, formatRelative } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -33,6 +34,8 @@ export default function DashboardPage() {
 
   const isAgent  = user?.role === 'AGENT';
   const isGerant = user?.role === 'GERANT';
+  const canCollect = hasMinimumRole(user?.role, 'CAISSIER');
+  const canManage = hasMinimumRole(user?.role, 'GERANT');
 
   const canSeePeriod      = !isAgent;
   const canSeeChart       = !isAgent;
@@ -40,7 +43,7 @@ export default function DashboardPage() {
   const canSeeRegionalLink = canAccess(['SUPER_ADMIN', 'DIRECTEUR_REGIONAL']);
 
   // AGENT / GERANT forcés sur leur site
-  const effectiveSiteId = isAgent || isGerant ? (user?.siteId ?? null) : selectedSiteId;
+  const effectiveSiteId = (user && isSiteScopedStaff(user.role)) || isGerant ? (user?.siteId ?? null) : selectedSiteId;
 
   const { stats, salesChart, recentTransactions, stockAlerts, isAnyLoading, refetchAll, isOfflineData } =
     useDashboard(effectiveSiteId, period);
@@ -172,7 +175,7 @@ export default function DashboardPage() {
             value: stats.data.trends.ventesJour,
             label: 'vs hier',
           } : undefined}
-          onClick={() => navigate('/sales')}
+          onClick={canCollect ? () => navigate('/sales') : undefined}
         />
 
         {canSeeAlertesKpi && (
@@ -193,7 +196,7 @@ export default function DashboardPage() {
                 : undefined
             }
             badgeVariant="danger"
-            onClick={() => navigate('/stocks/alerts')}
+            onClick={canManage ? () => navigate('/stocks/alerts') : undefined}
           />
         )}
 
@@ -208,7 +211,7 @@ export default function DashboardPage() {
             value: stats.data.trends.nouveauxFilleuls,
             label: 'vs mois préc.',
           } : undefined}
-          onClick={() => navigate('/mlm/members')}
+          onClick={canManage ? () => navigate('/mlm/members') : undefined}
         />
       </div>
 
@@ -224,13 +227,13 @@ export default function DashboardPage() {
       {/* ── Transactions + Alertes ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3">
-          <RecentTransactions data={recentTransactions.data} isLoading={recentTransactions.isLoading} />
+          <RecentTransactions data={recentTransactions.data} isLoading={recentTransactions.isLoading} canNavigate={canCollect} />
         </div>
         <div className="lg:col-span-2">
           <StockAlerts
             data={stockAlerts.data}
             isLoading={stockAlerts.isLoading}
-            canManage={!isAgent}
+            canManage={canManage}
           />
         </div>
       </div>

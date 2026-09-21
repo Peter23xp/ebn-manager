@@ -8,6 +8,7 @@ jest.mock("bcrypt", () => ({
 import * as bcrypt from "bcrypt";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { AuthService } from "./auth.service";
+import { Role } from "@prisma/client";
 
 /* bcrypt mocké en module entier (le spyOn sur require('bcrypt') est fragile avec ts-jest).
    Aliases typés : jest.fn() nu donne ResolveType<never>, on précise la signature. */
@@ -15,6 +16,50 @@ const compareMock = bcrypt.compare as jest.Mock<
   (...args: any[]) => Promise<boolean>
 >;
 const hashMock = bcrypt.hash as jest.Mock<(...args: any[]) => Promise<string>>;
+
+describe("AuthService staff site assignment at login", () => {
+  const assignedRoles: Role[] = ["CAISSIER" as Role, "AGENT", "GERANT", "FORMATEUR"];
+  let service: AuthService;
+  let prisma: any;
+  let jwt: any;
+
+  function staff(role: Role, siteId: string | null) {
+    return {
+      id: "staff-1", nom: "Staff", role, siteId,
+      site: siteId ? { id: siteId, nom: "Site 1" } : null,
+      passwordHash: "hash", tentativesConnexion: 0, bloqueJusquA: null, actif: true,
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    compareMock.mockResolvedValue(true);
+    prisma = { utilisateur: { findFirst: jest.fn(), update: jest.fn() } };
+    jwt = { sign: jest.fn().mockReturnValue("token") };
+    service = new AuthService(prisma, jwt, { get: jest.fn() } as never, {} as never);
+  });
+
+  it.each(assignedRoles)("rejects %s without a site before signing or writing", async (role) => {
+    prisma.utilisateur.findFirst.mockResolvedValue(staff(role, null));
+    await expect(service.login({ identifier: "+243812345678", password: "password" })).rejects.toMatchObject({
+      response: { error: { code: "SITE_REQUIRED" } },
+    });
+    expect(jwt.sign).not.toHaveBeenCalled();
+    expect(prisma.utilisateur.update).not.toHaveBeenCalled();
+  });
+
+  it.each(assignedRoles)("returns the assigned site and %s role", async (role) => {
+    prisma.utilisateur.findFirst.mockResolvedValue(staff(role, "site-1"));
+    const result = await service.login({ identifier: "+243812345678", password: "password" });
+    expect(result.user).toEqual({ id: "staff-1", name: "Staff", role, siteId: "site-1", siteName: "Site 1" });
+    expect(jwt.sign).toHaveBeenCalledWith({ sub: "staff-1", role, siteId: "site-1" }, expect.any(Object));
+  });
+
+  it.each<Role>(["SUPER_ADMIN", "DIRECTEUR_REGIONAL"])("keeps login without a site for %s", async (role) => {
+    prisma.utilisateur.findFirst.mockResolvedValue(staff(role, null));
+    expect((await service.login({ identifier: "+243812345678", password: "password" })).user).toMatchObject({ role, siteId: null });
+  });
+});
 
 describe("AuthService — password reset (persisted tokens)", () => {
   let service: AuthService;

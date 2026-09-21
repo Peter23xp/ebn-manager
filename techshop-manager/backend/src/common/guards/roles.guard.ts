@@ -2,15 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-
-const ROLE_HIERARCHY: Record<Role, number> = {
-  SUPER_ADMIN: 6,
-  DIRECTEUR_REGIONAL: 5,
-  GERANT: 4,
-  AGENT: 3,
-  FORMATEUR: 2,
-  CLIENT: 1,
-};
+import { hasMinimumRole } from '../access/staff-access';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -27,8 +19,7 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest();
     if (!user) throw new ForbiddenException({ code: 'ERR_FORBIDDEN', message: 'Rôle insuffisant' });
 
-    const userLevel = ROLE_HIERARCHY[user.role as Role] ?? 0;
-    const hasRole = requiredRoles.some((r) => ROLE_HIERARCHY[r] <= userLevel);
+    const hasRole = requiredRoles.some((minimum) => hasMinimumRole(user.role, minimum));
 
     if (!hasRole) {
       throw new ForbiddenException({ code: 'ERR_FORBIDDEN', message: 'Rôle insuffisant' });
