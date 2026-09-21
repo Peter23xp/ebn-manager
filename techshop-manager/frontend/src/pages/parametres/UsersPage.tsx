@@ -15,6 +15,9 @@ import { cn, formatRelative, initials } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/api';
 import type { Role, Utilisateur } from '@/types';
 import { requiresAssignedSite } from '@/lib/roles';
+import { SettingsPageLayout, SettingsSummary } from '@/components/settings/SettingsPageLayout';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
+import './settings-directory.css';
 
 // ── Constants ──────────────────────────────────────────────────────
 const ALL_ROLES: Role[] = ['SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'CAISSIER', 'AGENT', 'FORMATEUR'];
@@ -25,49 +28,18 @@ const ROLE_LABELS: Record<Role, string> = {
 
 // ── Helpers ────────────────────────────────────────────────────────
 function UserAvatar({ nom }: { nom: string }) {
-  const parts = nom.trim().split(' ');
-  const abbr = parts.length >= 2
-    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    : nom.slice(0, 2).toUpperCase();
-  const colors = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700',
-    'bg-teal-100 text-teal-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
-  const color = colors[nom.charCodeAt(0) % colors.length];
-  return (
-    <span className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold select-none', color)}>
-      {abbr}
-    </span>
-  );
+  return <span className="settings-user-avatar" aria-hidden="true">{initials(nom)}</span>;
 }
 
-// ── Stat card ──────────────────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, color, sub }: {
-  label: string; value: string | number; icon: React.ElementType;
-  color: string; sub?: string;
-}) {
-  return (
-    <div className="card flex items-center gap-4 py-4">
-      <div className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl', color)}>
-        <Icon size={18} aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[22px] font-black text-primary leading-none">{value}</p>
-        <p className="text-xs text-text-muted mt-0.5">{label}</p>
-        {sub && <p className="text-[10px] text-text-subtle mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
-// ── Toast ──────────────────────────────────────────────────────────
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
   return createPortal(
     <div role="alert" className={cn(
-      'fixed bottom-6 right-6 z-[60] flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-semibold shadow-xl text-white max-w-sm',
+      'settings-toast',
       ok ? 'bg-success' : 'bg-danger',
     )}>
       {ok ? <CheckCircle size={16} className="flex-shrink-0" /> : <AlertCircle size={16} className="flex-shrink-0" />}
       <span className="flex-1">{msg}</span>
-      <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100">
+      <button onClick={onDismiss} aria-label="Fermer la notification">
         <X size={14} />
       </button>
     </div>,
@@ -76,35 +48,25 @@ function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: ()
 }
 
 // ── Confirm dialog ─────────────────────────────────────────────────
-function ConfirmDialog({
-  open, title, message, confirmLabel, danger, onConfirm, onCancel, loading,
-}: {
+function ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, onCancel, loading }: {
   open: boolean; title: string; message: string; confirmLabel: string;
   danger?: boolean; onConfirm: () => void; onCancel: () => void; loading?: boolean;
 }) {
   if (!open) return null;
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
-        <h3 className="font-bold text-primary text-base">{title}</h3>
+  return (
+    <SettingsDialog title={title} onClose={onCancel} busy={loading}>
+      <header><h2>{title}</h2></header>
+      <div className="settings-confirm-content space-y-4">
         <p className="text-sm text-text-muted">{message}</p>
-        <div className="flex gap-3 pt-1">
-          <button className="btn-secondary flex-1" onClick={onCancel} disabled={loading}>Annuler</button>
-          <button
-            className={cn('btn flex-1', danger ? 'btn-danger' : 'btn-primary')}
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? <RefreshCw size={14} className="animate-spin" /> : confirmLabel}
-          </button>
+        <div className="settings-form-actions">
+          <button className="btn-secondary" onClick={onCancel} disabled={loading}>Annuler</button>
+          <button className={danger ? 'btn-danger' : 'btn-primary'} onClick={onConfirm} disabled={loading}>{loading ? 'Enregistrement…' : confirmLabel}</button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </SettingsDialog>
   );
 }
 
-// ── CreateUserDialog ───────────────────────────────────────────────
 const createSchema = z.object({
   nom: z.string().min(2, 'Nom trop court (min 2 caractères)'),
   telephone: z.string().regex(/^\+243\d{9}$/, 'Format requis : +243XXXXXXXXX'),
@@ -154,22 +116,14 @@ function CreateUserDialog({ open, onClose, onCreated }: {
 
   if (!open) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      role="dialog" aria-modal="true" aria-label="Créer un utilisateur">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light">
-              <UserCog size={16} className="text-primary-accent" />
-            </div>
-            <h2 className="font-bold text-primary">Nouvel utilisateur</h2>
-          </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 transition-colors">
+  return (
+    <SettingsDialog title="Créer un utilisateur" onClose={onClose} busy={mutation.isPending}>
+        <header>
+          <h2>Nouvel utilisateur</h2>
+          <button onClick={onClose} disabled={mutation.isPending} className="btn-ghost !px-2" aria-label="Fermer">
             <X size={16} />
           </button>
-        </div>
+        </header>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4">
@@ -185,7 +139,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
               {errors.telephone && <p className="form-error">{errors.telephone.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="settings-form-grid">
               <div className="form-group">
                 <label className="form-label" htmlFor="cu-role">Rôle</label>
                 <div className="relative">
@@ -222,13 +176,14 @@ function CreateUserDialog({ open, onClose, onCreated }: {
                   type={showPwd ? 'text' : 'password'}
                   {...register('passwordTemp')}
                   placeholder="Min. 8 caractères"
-                  className="pr-10"
+                  className="!pr-14"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text"
-                  tabIndex={-1}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center text-text-muted"
+                  aria-label={showPwd ? 'Masquer le mot de passe temporaire' : 'Afficher le mot de passe temporaire'}
+                  aria-pressed={showPwd}
                 >
                   {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -245,16 +200,14 @@ function CreateUserDialog({ open, onClose, onCreated }: {
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" className="btn-secondary flex-1" onClick={onClose}>Annuler</button>
+          <div className="settings-form-actions">
+            <button type="button" className="btn-secondary flex-1" onClick={onClose} disabled={mutation.isPending}>Annuler</button>
             <button type="submit" className="btn-primary flex-1" disabled={mutation.isPending} aria-label="Valider la création">
               {mutation.isPending ? <><RefreshCw size={14} className="animate-spin" /> Création…</> : 'Créer l\'utilisateur'}
             </button>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body,
+    </SettingsDialog>
   );
 }
 
@@ -305,34 +258,21 @@ function EditUserDialog({ user, onClose, onSaved }: {
     },
   });
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Modifier l'utilisateur"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-light">
-              <Pencil size={15} className="text-primary-accent" />
-            </div>
-            <div>
+  return (
+    <SettingsDialog title="Modifier l'utilisateur" onClose={onClose} busy={mutation.isPending}>
+        <header>
+            <div className="min-w-0">
               <h2 className="font-bold text-primary text-[14px] leading-none">Modifier l'utilisateur</h2>
               <p className="text-[11px] text-text-muted mt-0.5">{user.telephone}</p>
             </div>
-          </div>
           <button
-            onClick={onClose}
+            onClick={onClose} disabled={mutation.isPending}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 transition-colors"
             aria-label="Fermer"
           >
             <X size={16} />
           </button>
-        </div>
+        </header>
 
         {/* Body scrollable */}
         <form
@@ -387,17 +327,14 @@ function EditUserDialog({ user, onClose, onSaved }: {
             </div>
           )}
 
-          {/* Footer actions — inside form so submit works */}
-          <div className="flex gap-3 pt-2">
-            <button type="button" className="btn-secondary flex-1" onClick={onClose}>Annuler</button>
+          <div className="settings-form-actions">
+            <button type="button" className="btn-secondary flex-1" onClick={onClose} disabled={mutation.isPending}>Annuler</button>
             <button type="submit" className="btn-primary flex-1" disabled={mutation.isPending}>
               {mutation.isPending ? <><RefreshCw size={14} className="animate-spin" /> Enregistrement…</> : 'Enregistrer'}
             </button>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body,
+    </SettingsDialog>
   );
 }
 
@@ -418,7 +355,7 @@ export default function UsersPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['users', roleFilter, actifFilter],
     queryFn: () => usersApi.getAll({ role: roleFilter || undefined, actif: actifFilter || undefined }),
   });
@@ -455,7 +392,8 @@ export default function UsersPage() {
     else resetMut.mutate(confirm.user.id);
   };
 
-  const users = data?.data ?? [];
+  const users = isError ? [] : data?.data ?? [];
+  const ready = !!data && !isError;
   const filtered = users.filter((u) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -473,297 +411,50 @@ export default function UsersPage() {
   const clearFilters = () => { setSearch(''); setRoleFilter(''); setActifFilter(''); searchRef.current?.focus(); };
 
   return (
-    <div className="space-y-6 animate-fade-up">
-
-      {/* ── En-tête ─────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-light" aria-hidden>
-            <UserCog size={20} className="text-primary-accent" />
-          </div>
-          <div>
-            <h1 className="text-page-title text-primary">Gestion des utilisateurs</h1>
-            <p className="text-xs text-text-muted mt-0.5">Administration des accès et des rôles</p>
-          </div>
-        </div>
-        <button
-          className="btn-primary"
-          onClick={() => setCreateOpen(true)}
-          aria-label="Créer un nouvel utilisateur"
-        >
-          <Plus size={16} /> Nouvel utilisateur
-        </button>
-      </div>
-
-      {/* ── Stats ───────────────────────────────────────────────── */}
-      {!isLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard label="Utilisateurs" value={total} icon={Users} color="bg-primary-light text-primary-accent" />
-          <StatCard label="Actifs" value={actifs} icon={CheckCircle} color="bg-green-100 text-success" />
-          <StatCard label="Inactifs" value={inactifs} icon={Lock} color="bg-red-50 text-danger" />
-          <StatCard label="Super Admins" value={admins} icon={ShieldCheck} color="bg-violet-100 text-violet-700" />
-        </div>
-      )}
-
-      {/* ── Tableau ─────────────────────────────────────────────── */}
-      <div className="rounded-xl shadow-card border border-border bg-white">
-
-        {/* Barre de filtres */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 px-4 py-3 border-b border-border">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle pointer-events-none" />
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="Nom, téléphone, email…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 border border-border rounded-lg text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-primary-accent/30 focus:border-primary-accent transition"
-              aria-label="Rechercher un utilisateur"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="relative">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className={cn(
-                  'appearance-none pl-3 pr-7 py-2 border rounded-lg text-[12px] font-medium bg-white cursor-pointer',
-                  'focus:outline-none focus:ring-2 focus:ring-primary-accent/30 transition',
-                  roleFilter ? 'border-primary-accent text-primary-accent bg-primary-light/30' : 'border-border text-text-muted',
-                )}
-                aria-label="Filtrer par rôle"
-              >
-                <option value="">Tous les rôles</option>
-                {ALL_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
-              <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle" />
-            </div>
-
-            <div className="relative">
-              <select
-                value={actifFilter}
-                onChange={(e) => setActifFilter(e.target.value)}
-                className={cn(
-                  'appearance-none pl-3 pr-7 py-2 border rounded-lg text-[12px] font-medium bg-white cursor-pointer',
-                  'focus:outline-none focus:ring-2 focus:ring-primary-accent/30 transition',
-                  actifFilter ? 'border-primary-accent text-primary-accent bg-primary-light/30' : 'border-border text-text-muted',
-                )}
-                aria-label="Filtrer par statut"
-              >
-                <option value="">Tous les statuts</option>
-                <option value="true">Actifs</option>
-                <option value="false">Inactifs</option>
-              </select>
-              <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-text-subtle" />
-            </div>
-
-            {hasFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="flex items-center gap-1 px-2 py-2 rounded-lg text-[12px] font-semibold text-text-muted hover:text-danger transition-colors"
-                aria-label="Effacer les filtres"
-              >
-                <X size={13} /> <span className="hidden sm:inline">Effacer</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isLoading}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-white text-text-muted hover:border-primary-accent hover:text-primary-accent transition-colors"
-              aria-label="Actualiser"
-            >
-              <RefreshCw size={14} className={cn(isLoading && 'animate-spin')} />
-            </button>
-          </div>
-        </div>
-
-        {/* Corps */}
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="space-y-px p-2" role="status" aria-label="Chargement">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <div className="skeleton h-9 w-9 rounded-full flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="skeleton h-3.5 w-40 rounded-full" />
-                    <div className="skeleton h-3 w-28 rounded-full" />
-                  </div>
-                  <div className="skeleton h-5 w-20 rounded-full hidden sm:block" />
-                  <div className="skeleton h-5 w-16 rounded-full hidden sm:block" />
-                </div>
-              ))}
-            </div>
-          ) : isError ? (
-            <div className="flex flex-col items-center gap-3 py-16 px-5" role="alert">
-              <AlertCircle size={32} className="text-danger opacity-60" />
-              <p className="text-[13px] font-medium text-text">Impossible de charger les utilisateurs.</p>
-              <button className="btn-secondary text-[13px] flex items-center gap-1.5" onClick={() => refetch()}>
-                <RefreshCw size={13} /> Réessayer
-              </button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-text-muted" role="status">
-              <Users size={36} className="mb-3 opacity-20" />
-              <p className="text-[13px] font-semibold text-text">
-                {hasFilters ? 'Aucun résultat pour ces critères' : 'Aucun utilisateur trouvé'}
-              </p>
-              {hasFilters && (
-                <button className="mt-3 text-[13px] font-semibold text-primary-accent hover:text-blue-700 transition-colors" onClick={clearFilters}>
-                  Réinitialiser les filtres
-                </button>
-              )}
-            </div>
-          ) : (
-            <table className="w-full text-sm" aria-label="Liste des utilisateurs">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left">Utilisateur</th>
-                  <th className="px-4 py-3 text-left">Rôle</th>
-                  <th className="px-4 py-3 text-left hidden md:table-cell">Site</th>
-                  <th className="px-4 py-3 text-left hidden lg:table-cell">Dernière connexion</th>
-                  <th className="px-4 py-3 text-left">Statut</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((user, i) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-border/60 last:border-b-0 transition-colors duration-100 hover:bg-blue-50/40"
-                    style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar nom={user.nom} />
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-text truncate">{user.nom}</p>
-                          <p className="text-[11px] text-text-muted font-mono">{user.telephone}</p>
-                          {user.email && <p className="text-[10px] text-text-subtle truncate">{user.email}</p>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3"><UserRoleBadge role={user.role} /></td>
-                    <td className="px-4 py-3 text-[12px] text-text-muted hidden md:table-cell">
-                      {user.site?.nom ?? <span className="text-text-subtle italic">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-text-muted hidden lg:table-cell">
-                      {user.derniereConnexion ? formatRelative(user.derniereConnexion) : <span className="italic text-text-subtle">Jamais</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {user.actif
-                        ? <span className="badge-success"><CheckCircle size={9} className="mr-0.5" />Actif</span>
-                        : <span className="badge-danger"><Lock size={9} className="mr-0.5" />Inactif</span>
-                      }
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditUser(user)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-text-muted border border-border hover:border-primary-accent hover:text-primary-accent hover:bg-primary-light/40 transition-colors"
-                          title="Modifier l'utilisateur"
-                          aria-label={`Modifier ${user.nom}`}
-                        >
-                          <Pencil size={11} /> Modifier
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirm({ user, action: 'reset' })}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-text-muted border border-border hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-colors"
-                          title="Réinitialiser le mot de passe"
-                        >
-                          <RotateCcw size={11} /> MDP
-                        </button>
-                        {user.actif ? (
-                          <button
-                            type="button"
-                            onClick={() => setConfirm({ user, action: 'desactiver' })}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-danger border border-border hover:border-red-300 hover:bg-red-50 transition-colors"
-                            aria-label={`Désactiver ${user.nom}`}
-                          >
-                            <Lock size={11} /> Désactiver
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirm({ user, action: 'reactiver' })}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-success border border-border hover:border-green-300 hover:bg-green-50 transition-colors"
-                            aria-label={`Réactiver ${user.nom}`}
-                          >
-                            <Unlock size={11} /> Réactiver
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer */}
-        {!isLoading && filtered.length > 0 && (
-          <div className="px-4 py-2.5 border-t border-border bg-slate-50/50 flex items-center justify-between">
-            <p className="text-[11px] text-text-muted">
-              {filtered.length === users.length
-                ? `${users.length} utilisateur${users.length > 1 ? 's' : ''}`
-                : `${filtered.length} sur ${users.length} utilisateur${users.length > 1 ? 's' : ''}`}
-            </p>
-            {hasFilters && (
-              <button onClick={clearFilters} className="text-[11px] text-primary-accent hover:underline">
-                Effacer les filtres
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Dialogs ─────────────────────────────────────────────── */}
-      <CreateUserDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={(pwd) => showToast(`Utilisateur créé. MDP temp : ${pwd}`)}
-      />
-
-      {editUser && (
-        <EditUserDialog
-          user={editUser}
-          onClose={() => setEditUser(null)}
-          onSaved={() => showToast(`${editUser.nom} mis à jour`)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={!!confirm}
-        title={
-          confirm?.action === 'desactiver' ? `Désactiver ${confirm?.user.nom} ?` :
-          confirm?.action === 'reactiver' ? `Réactiver ${confirm?.user.nom} ?` :
-          `Réinitialiser le mot de passe de ${confirm?.user.nom} ?`
-        }
-        message={
-          confirm?.action === 'desactiver'
-            ? 'Cet utilisateur ne pourra plus se connecter jusqu\'à sa réactivation.'
-            : confirm?.action === 'reactiver'
-            ? 'Cet utilisateur pourra de nouveau se connecter.'
-            : 'Un nouveau mot de passe temporaire sera généré. L\'ancien ne fonctionnera plus.'
-        }
-        confirmLabel={
-          confirm?.action === 'desactiver' ? 'Désactiver' :
-          confirm?.action === 'reactiver' ? 'Réactiver' : 'Réinitialiser'
-        }
-        danger={confirm?.action === 'desactiver'}
-        onConfirm={handleConfirmAction}
-        onCancel={() => setConfirm(null)}
-        loading={isActionLoading}
-      />
-
+    <SettingsPageLayout active="users" title="Gestion des utilisateurs" description="Administrez les accès, les rôles et les affectations de votre équipe."
+      action={<button className="btn-primary" onClick={() => setCreateOpen(true)} aria-label="Créer un nouvel utilisateur"><Plus size={16} aria-hidden="true" />Nouvel utilisateur</button>}>
+      <SettingsSummary label="Synthèse des utilisateurs" loading={isLoading} items={[
+        { label: 'Utilisateurs', value: ready ? total : undefined },
+        { label: 'Actifs', value: ready ? actifs : undefined },
+        { label: 'Inactifs', value: ready ? inactifs : undefined },
+        { label: 'Super administrateurs', value: ready ? admins : undefined },
+      ]} note="Totaux selon le rôle et le statut sélectionnés, avant la recherche par nom." />
+      <section className="settings-panel settings-toolbar" aria-label="Filtres des utilisateurs">
+        <div className="settings-search"><label htmlFor="users-search">Rechercher un utilisateur</label><input id="users-search" ref={searchRef} type="search" placeholder="Nom, téléphone, email…" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+        <div className="settings-filter"><label htmlFor="users-role">Rôle</label><select id="users-role" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} aria-label="Filtrer par rôle"><option value="">Tous les rôles</option>{ALL_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}</select></div>
+        <div className="settings-filter"><label htmlFor="users-status">Statut</label><select id="users-status" value={actifFilter} onChange={(event) => setActifFilter(event.target.value)} aria-label="Filtrer par statut"><option value="">Tous les statuts</option><option value="true">Actifs</option><option value="false">Inactifs</option></select></div>
+        <button className="btn-secondary" onClick={() => refetch()} disabled={isFetching} aria-label="Actualiser"><RefreshCw size={16} className={cn(isFetching && 'animate-spin')} aria-hidden="true" /></button>
+        {hasFilters && <button className="btn-secondary" onClick={clearFilters} aria-label="Effacer les filtres">Effacer</button>}
+      </section>
+      <section className="settings-directory" aria-labelledby="users-list-title">
+        <div className="settings-directory-heading"><h2 id="users-list-title" className="settings-section-title">Équipe et accès</h2>{ready && <p className="settings-description" role="status">{filtered.length} sur {users.length} utilisateur{users.length > 1 ? 's' : ''}</p>}</div>
+        {isLoading ? <div className="settings-panel space-y-4" role="status" aria-label="Chargement">{[0, 1, 2].map((index) => <div key={index} className="skeleton h-20 w-full" />)}</div>
+          : isError ? <div className="settings-panel settings-empty" role="alert"><AlertCircle size={28} /><p>Impossible de charger les utilisateurs.</p><button className="btn-secondary" onClick={() => refetch()}>Réessayer</button></div>
+          : !filtered.length ? <div className="settings-panel settings-empty" role="status"><Users size={28} /><h3 className="settings-section-title">{hasFilters ? 'Aucun résultat pour ces critères' : 'Aucun utilisateur trouvé'}</h3><p className="settings-description">{hasFilters ? 'Modifiez la recherche, le rôle ou le statut sélectionné.' : 'Ajoutez un membre à votre équipe pour lui donner accès au système.'}</p>{hasFilters ? <button className="btn-secondary" onClick={clearFilters}>Réinitialiser les filtres</button> : <button className="btn-primary" onClick={() => setCreateOpen(true)}>Créer le premier utilisateur</button>}</div>
+          : <div className="settings-users-results"><table className="settings-users-table" role="table" aria-label="Liste des utilisateurs">
+            <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Utilisateur</th><th scope="col" role="columnheader">Rôle</th><th scope="col" role="columnheader">Site</th><th scope="col" role="columnheader">Dernière connexion</th><th scope="col" role="columnheader">Statut</th><th scope="col" role="columnheader">Actions</th></tr></thead>
+            <tbody role="rowgroup">{filtered.map((user) => <tr key={user.id} role="row">
+              <th scope="row" role="rowheader" className="settings-user-identity"><div className="flex items-start gap-3 min-w-0"><UserAvatar nom={user.nom} /><div className="min-w-0"><p className="font-semibold text-text">{user.nom}</p><p className="font-mono text-xs text-text-muted mt-1">{user.telephone}</p>{user.email && <p className="text-xs text-text-muted mt-1">{user.email}</p>}</div></div></th>
+              <td role="cell" className="settings-user-role" data-label="Rôle"><UserRoleBadge role={user.role} /></td>
+              <td role="cell" className="settings-user-site" data-label="Site">{user.site?.nom ?? 'Non rattaché'}</td>
+              <td role="cell" className="settings-user-connection" data-label="Dernière connexion">{user.derniereConnexion ? formatRelative(user.derniereConnexion) : 'Jamais'}</td>
+              <td role="cell" className="settings-user-status" data-label="Statut"><span className={user.actif ? 'badge-success' : 'badge-gray'}>{user.actif ? <CheckCircle size={13} aria-hidden="true" /> : <Lock size={13} aria-hidden="true" />}{user.actif ? 'Actif' : 'Inactif'}</span></td>
+              <td role="cell" className="settings-user-actions"><div>
+                <button className="btn-secondary" onClick={() => setEditUser(user)} aria-label={`Modifier ${user.nom}`}><Pencil size={14} aria-hidden="true" />Modifier</button>
+                <button className="btn-secondary" onClick={() => setConfirm({ user, action: 'reset' })} aria-label={`Réinitialiser le mot de passe de ${user.nom}`}><RotateCcw size={14} aria-hidden="true" />Mot de passe</button>
+                <button className={cn('btn-secondary', user.actif ? '!text-red-700' : '!text-green-700')} onClick={() => setConfirm({ user, action: user.actif ? 'desactiver' : 'reactiver' })} aria-label={`${user.actif ? 'Désactiver' : 'Réactiver'} ${user.nom}`}>{user.actif ? <Lock size={14} aria-hidden="true" /> : <Unlock size={14} aria-hidden="true" />}{user.actif ? 'Désactiver' : 'Réactiver'}</button>
+              </div></td>
+            </tr>)}</tbody>
+          </table></div>}
+      </section>
+      <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(password) => showToast(`Utilisateur créé. Mot de passe temporaire : ${password}`)} />
+      {editUser && <EditUserDialog user={editUser} onClose={() => setEditUser(null)} onSaved={() => showToast(`${editUser.nom} mis à jour`)} />}
+      <ConfirmDialog open={!!confirm}
+        title={confirm?.action === 'desactiver' ? `Désactiver ${confirm?.user.nom} ?` : confirm?.action === 'reactiver' ? `Réactiver ${confirm?.user.nom} ?` : `Réinitialiser le mot de passe de ${confirm?.user.nom} ?`}
+        message={confirm?.action === 'desactiver' ? 'Cet utilisateur ne pourra plus se connecter jusqu’à sa réactivation.' : confirm?.action === 'reactiver' ? 'Cet utilisateur pourra de nouveau se connecter.' : 'Un nouveau mot de passe temporaire sera généré. L’ancien ne fonctionnera plus.'}
+        confirmLabel={confirm?.action === 'desactiver' ? 'Désactiver' : confirm?.action === 'reactiver' ? 'Réactiver' : 'Réinitialiser'}
+        danger={confirm?.action === 'desactiver'} onConfirm={handleConfirmAction} onCancel={() => setConfirm(null)} loading={isActionLoading} />
       {toast && <Toast msg={toast.msg} ok={toast.ok} onDismiss={() => setToast(null)} />}
-    </div>
+    </SettingsPageLayout>
   );
 }

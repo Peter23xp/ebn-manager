@@ -1,29 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Clock, ChevronRight, RefreshCw, FileText, Zap } from 'lucide-react';
+import { Users, Clock, ChevronRight, RefreshCw, FileText, Zap, Plus, CheckCircle2, Circle, ListFilter } from 'lucide-react';
 import { api } from '@/lib/api';
-import { formatDate, cn } from '@/lib/utils';
+import { formatDate, formatRelative, initials, cn } from '@/lib/utils';
 import { useSites } from '@/hooks/useSites';
 import { useAuthStore } from '@/store/auth.store';
 import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+import './onboarding-queue.css';
 
 interface QueueClient {
   id: string;
   prenom: string;
   nom: string;
   telephone: string;
-  site: { id: string; nom: string };
+  site: { id: string; nom: string } | null;
   createdBy: { id: string; nom: string } | null;
   createdAt: string;
   etapeActuelle: 'RECIT' | 'FICHE' | 'ACTIVATION';
   prochainRoute: string;
   etapes: {
-    recit:      { statut: string; completeeAt?: string | null } | null;
-    fiche:      { statut: string; completeeAt?: string | null } | null;
+    recit: { statut: string; completeeAt?: string | null } | null;
+    fiche: { statut: string; completeeAt?: string | null } | null;
     activation: { statut: string; completeeAt?: string | null } | null;
   };
 }
@@ -33,234 +32,238 @@ interface QueueResponse {
   stats: { ficheEnAttente: number; activationEnAttente: number; total: number };
 }
 
-// ── Couleurs par étape ────────────────────────────────────────────────────────
-
-const ETAPE_CONFIG: Record<string, { label: string; labelAction: string; bg: string; text: string; icon: React.ReactNode }> = {
-  FICHE:      { label: 'Fiche à payer',   labelAction: 'Enregistrer la fiche',   bg: 'bg-blue-50 border-blue-200',    text: 'text-blue-700',   icon: <FileText size={13} /> },
-  ACTIVATION: { label: 'Prêt à activer', labelAction: 'Activer le compte',       bg: 'bg-green-50 border-green-200',  text: 'text-green-700',  icon: <Zap size={13} /> },
-  RECIT:      { label: 'Récit à encaisser', labelAction: 'Compléter le récit',   bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700',  icon: <Clock size={13} /> },
+const ETAPE_CONFIG = {
+  RECIT: { label: 'Récit à encaisser', labelAction: 'Compléter le récit', color: 'bg-amber-100 text-amber-800', icon: Clock },
+  FICHE: { label: 'Fiche à payer', labelAction: 'Enregistrer la fiche', color: 'bg-blue-50 text-blue-700', icon: FileText },
+  ACTIVATION: { label: 'Prêt à activer', labelAction: 'Activer le compte', color: 'bg-green-100 text-green-700', icon: Zap },
 };
 
-// ── Dot récapitulatif d'étape ─────────────────────────────────────────────────
-
-function StepDot({ done, label }: { done: boolean; label: string }) {
+function StepStatus({ done, label }: { done: boolean; label: string }) {
+  const Icon = done ? CheckCircle2 : Circle;
   return (
-    <div className="flex items-center gap-1">
-      <div className={cn('w-2 h-2 rounded-full flex-shrink-0', done ? 'bg-success' : 'bg-slate-200')} />
-      <span className={cn('text-[10px] font-medium', done ? 'text-success' : 'text-text-muted')}>{label}</span>
-    </div>
+    <li className={cn('queue-step', done ? 'text-success' : 'text-text-muted')} aria-label={`${label} : ${done ? 'terminé' : 'en attente'}`}>
+      <Icon size={14} aria-hidden />
+      <span className={done ? 'text-success' : 'text-text-muted'}>{label}</span>
+    </li>
   );
 }
 
-// ── Ligne client ──────────────────────────────────────────────────────────────
-
 function ClientRow({ client, canCollect, onAction }: { client: QueueClient; canCollect: boolean; onAction: (route: string) => void }) {
-  const cfg = ETAPE_CONFIG[client.etapeActuelle] ?? ETAPE_CONFIG['RECIT'];
-  const joursDepuis = Math.floor((Date.now() - new Date(client.createdAt).getTime()) / 86_400_000);
+  const config = ETAPE_CONFIG[client.etapeActuelle] ?? ETAPE_CONFIG.RECIT;
+  const Icon = config.icon;
+  const clientName = `${client.prenom} ${client.nom}`.trim();
 
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary-accent/10 flex items-center justify-center text-[11px] font-bold text-primary-accent flex-shrink-0">
-            {client.prenom[0]}{client.nom[0]}
-          </div>
-          <div>
-            <p className="text-[13px] font-semibold text-text">{client.prenom} {client.nom}</p>
-            <p className="text-[11px] text-text-muted">{client.telephone}</p>
+    <tr role="row">
+      <th scope="row" role="rowheader" className="queue-client">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="queue-avatar" aria-hidden>{initials(clientName) || '?'}</span>
+          <div className="min-w-0">
+            <p className="queue-client-name">{clientName}</p>
+            <p className="queue-meta">{client.telephone}</p>
           </div>
         </div>
+      </th>
+      <td role="cell" className="queue-site">
+        <span className="queue-mobile-label">Site / Agent</span>
+        <p className="text-sm text-text">{client.site?.nom ?? '—'}</p>
+        <p className="queue-meta">{client.createdBy ? `Préparé par ${client.createdBy.nom}` : 'Agent non renseigné'}</p>
       </td>
-
-      <td className="px-4 py-3 hidden sm:table-cell">
-        <p className="text-[12px] text-text-muted">{client.site?.nom ?? '—'}</p>
-        {client.createdBy && (
-          <p className="text-[10px] text-text-subtle">Par {client.createdBy.nom}</p>
-        )}
+      <td role="cell" className="queue-stage">
+        <span className={cn('queue-badge', canCollect ? config.color : 'bg-slate-100 text-slate-700')}>
+          <Icon size={14} aria-hidden />
+          {canCollect ? config.label : 'En attente de passage en caisse'}
+        </span>
       </td>
-
-      <td className="px-4 py-3">
-        <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold', cfg.bg, cfg.text)}>
-          {cfg.icon}
-          {canCollect ? cfg.label : 'En attente de passage en caisse'}
-        </div>
+      <td role="cell" className="queue-progress">
+        <span className="queue-mobile-label">Progression du dossier</span>
+        <ol className="queue-steps" aria-label="Progression du dossier">
+          <StepStatus done={client.etapes.recit?.statut === 'COMPLETE'} label="Récit" />
+          <StepStatus done={client.etapes.fiche?.statut === 'COMPLETE'} label="Fiche" />
+          <StepStatus done={client.etapes.activation?.statut === 'COMPLETE'} label="Activation" />
+        </ol>
       </td>
-
-      <td className="px-4 py-3 hidden md:table-cell">
-        <div className="flex flex-col gap-1">
-          <StepDot done={client.etapes.recit?.statut === 'COMPLETE'} label="Récit" />
-          <StepDot done={client.etapes.fiche?.statut === 'COMPLETE'} label="Fiche" />
-        </div>
+      <td role="cell" className="queue-since">
+        <span className="queue-mobile-label">Inscrit le</span>
+        <time dateTime={client.createdAt} className="text-sm tabular-nums">{formatDate(client.createdAt)}</time>
+        <p className="queue-meta">{formatRelative(client.createdAt)}</p>
       </td>
-
-      <td className="px-4 py-3 hidden lg:table-cell">
-        <p className="text-[12px] text-text-muted">{formatDate(client.createdAt)}</p>
-        <p className="text-[10px] text-text-subtle">
-          {joursDepuis === 0 ? "Aujourd'hui" : joursDepuis === 1 ? 'Hier' : `Il y a ${joursDepuis}j`}
-        </p>
-      </td>
-
-      <td className="px-4 py-3 text-right">
+      <td role="cell" className="queue-action">
         <button
           type="button"
           onClick={() => onAction(canCollect ? client.prochainRoute : `/clients/${client.id}`)}
-          className={cn(
-            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors',
-            canCollect && client.etapeActuelle === 'ACTIVATION'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'btn-primary',
-          )}
+          className="btn-secondary"
         >
-          {canCollect ? cfg.labelAction : 'Ouvrir le dossier'}
-          <ChevronRight size={13} />
+          <span>{canCollect ? config.labelAction : 'Ouvrir le dossier'}</span>
+          <ChevronRight size={16} aria-hidden />
         </button>
       </td>
     </tr>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export default function OnboardingQueuePage() {
   const scope = usePrivateQueryScope();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { sites } = useSites();
-
   const isScoped = !!user && isSiteScopedStaff(user.role);
   const canCollect = hasMinimumRole(user?.role, 'CAISSIER');
   const [selectedSiteId, setSiteId] = useState(user?.siteId ?? '');
   const siteId = isScoped ? user.siteId ?? '' : selectedSiteId;
-  const [filterEtape, setFilterEtape] = useState<string>('');
+  const [filterEtape, setFilterEtape] = useState('');
+  const [deniedScopes, setDeniedScopes] = useState<string[]>([]);
+  const queryScope = JSON.stringify([siteId, scope.key]);
 
-  const { data: response, isLoading, refetch, isFetching } = useQuery<QueueResponse>({
+  const { data: response, isLoading, refetch, isFetching, isError, isSuccess, error } = useQuery<QueueResponse>({
     queryKey: ['onboarding-queue', siteId, scope.key],
-    queryFn: () => api.get('/clients/onboarding-queue', { params: siteId ? { siteId } : {} }).then(r => r.data),
+    queryFn: () => api.get('/clients/onboarding-queue', { params: siteId ? { siteId } : {} }).then(result => result.data),
     refetchInterval: 30_000,
     enabled: scope.enabled,
   });
-  const data = scope.enabled ? response : undefined;
-
-  const queue = (data?.queue ?? []).filter(c => !filterEtape || c.etapeActuelle === filterEtape);
+  const responseDenied = (error as { response?: { status?: number } } | null)?.response?.status === 403;
+  useEffect(() => {
+    if (responseDenied) {
+      setDeniedScopes(current => current.includes(queryScope) ? current : [...current, queryScope]);
+    } else if (isSuccess) {
+      setDeniedScopes(current => current.includes(queryScope) ? current.filter(key => key !== queryScope) : current);
+    }
+  }, [responseDenied, isSuccess, queryScope]);
+  const accessDenied = responseDenied || deniedScopes.includes(queryScope);
+  const data = scope.enabled && !accessDenied ? response : undefined;
+  const queue = (data?.queue ?? []).filter(client => !filterEtape || client.etapeActuelle === filterEtape);
+  const showData = scope.enabled && !accessDenied && (!isError || !!data);
+  const filteredEmpty = !!filterEtape && (data?.queue.length ?? 0) > 0;
 
   return (
-    <div className="space-y-5">
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="onboarding-queue">
+      <header className="queue-header">
         <div>
-          <h1 className="text-[20px] font-extrabold text-primary flex items-center gap-2">
-            <Users size={20} className="text-primary-accent" />
-            File d'attente onboarding
-          </h1>
-          <p className="text-[13px] text-text-muted mt-0.5">
-            Clients en cours d'enregistrement — actualisé toutes les 30 secondes
-          </p>
+          <h1 className="text-page-title text-primary">File d’attente des clients</h1>
+          <p className="mt-1 text-sm text-text-muted">Suivez les dossiers en cours, du récit à l’activation du compte.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="btn-secondary flex items-center gap-1.5 text-[13px]"
-        >
-          <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-          Actualiser
-        </button>
-      </div>
+        {scope.enabled && <button type="button" onClick={() => navigate('/clients/new/recit')} className="btn-primary">
+          <Plus size={16} aria-hidden />Nouveau client
+        </button>}
+      </header>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        {[
-          { label: 'Total',          value: data?.stats.total ?? 0,               color: 'text-primary' },
-          { label: 'Fiche à payer',  value: data?.stats.ficheEnAttente ?? 0,      color: 'text-blue-700' },
-          { label: 'À activer',      value: data?.stats.activationEnAttente ?? 0, color: 'text-green-700' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-xl border border-border bg-white px-2 sm:px-4 py-3 text-center min-w-0">
-            <p className={cn('text-[22px] sm:text-[24px] font-black leading-none', color)}>{value}</p>
-            <p className="text-[10px] sm:text-[11px] text-text-muted font-medium mt-1 truncate">{label}</p>
+      <div className="queue-toolbar">
+        <div className="queue-filter-fields" role="group" aria-label="Filtres de la file">
+          {!isScoped ? (
+            <div className="queue-site-field">
+              <label htmlFor="queue-site">Site</label>
+              <select id="queue-site" value={siteId} disabled={!scope.enabled} onChange={event => setSiteId(event.target.value)}>
+                <option value="">Tous les sites</option>
+                {sites.map(site => <option key={site.id} value={site.id}>{site.nom}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="queue-site-field">
+              <span className="queue-field-label">Site attribué</span>
+              <p className="queue-assigned-site">{user.siteId ? user.site?.nom ?? user.siteName ?? 'Votre site' : 'Aucun site attribué'}</p>
+            </div>
+          )}
+          <div className="min-w-0 max-w-full">
+            <p className="queue-field-label mb-1.5">Étape du dossier</p>
+            <div className="queue-stage-filter" role="group" aria-label="Étape du dossier">
+              {[
+                { key: '', label: 'Tous' },
+                { key: 'RECIT', label: 'Récit' },
+                { key: 'FICHE', label: 'Fiche' },
+                { key: 'ACTIVATION', label: 'À activer' },
+              ].map(option => (
+                <button key={option.key} type="button" disabled={!scope.enabled} onClick={() => setFilterEtape(option.key)} aria-pressed={filterEtape === option.key}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-
-      {/* Filtres */}
-      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2.5">
-        {!isScoped && (
-          <select
-            value={siteId}
-            onChange={e => setSiteId(e.target.value)}
-            className="text-[13px] px-3 py-2 rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary-accent/30 w-full sm:w-auto"
-          >
-            <option value="">Tous les sites</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
-          </select>
-        )}
-
-        <div className="flex rounded-lg border border-border overflow-hidden flex-shrink-0">
-          {[
-            { key: '',           label: 'Tous' },
-            { key: 'FICHE',      label: 'Fiche' },
-            { key: 'ACTIVATION', label: 'À activer' },
-          ].map(opt => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => setFilterEtape(opt.key)}
-              className={cn(
-                'px-3 py-1.5 text-[12px] font-semibold transition-colors whitespace-nowrap',
-                filterEtape === opt.key
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-text-muted hover:bg-slate-50',
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        </div>
+        <div className="queue-refresh">
+          <p className="text-xs leading-relaxed text-text-muted">Actualisation automatique<br />toutes les 30 secondes</p>
+          <button type="button" onClick={() => scope.isCurrent() && refetch()} disabled={!scope.enabled || isFetching} className="btn-secondary">
+            <RefreshCw size={16} className={cn(isFetching && 'animate-spin')} aria-hidden />Actualiser
+          </button>
         </div>
       </div>
 
-      {/* Tableau */}
-      <div className="rounded-xl border border-border bg-white overflow-hidden">
-        {isLoading ? (
-          <div className="p-4 space-y-2">
-            {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-14 rounded-lg" />)}
+      {!scope.enabled ? (
+        <div className="queue-notice" role="alert">
+          <p>{isScoped && !user.siteId ? 'Votre compte n’est pas associé à un site. Contactez votre responsable pour consulter la file des clients.' : 'Cette file n’est pas accessible avec votre session actuelle. Contactez votre responsable.'}</p>
+        </div>
+      ) : accessDenied ? (
+        <div className="queue-notice" role="alert">
+          <p>Vous n’avez pas accès à cette file de clients. Contactez votre responsable pour vérifier vos autorisations.</p>
+        </div>
+      ) : isError ? (
+        <div className="queue-notice" role="alert">
+          <p>{data ? 'L’actualisation a échoué. Les dernières données chargées restent affichées.' : 'Impossible de charger la file des clients. Vérifiez votre connexion puis réessayez.'}</p>
+          <button type="button" onClick={() => scope.isCurrent() && refetch()} disabled={isFetching} className="btn-secondary">Réessayer</button>
+        </div>
+      ) : null}
+
+      {showData && <>
+        <section aria-label="Synthèse de la file" aria-busy={isLoading}>
+          <dl className="queue-metrics">
+            {[
+              { label: 'Clients en attente', value: data?.stats.total, icon: Users },
+              { label: 'Fiches à payer', value: data?.stats.ficheEnAttente, icon: FileText },
+              { label: 'Comptes à activer', value: data?.stats.activationEnAttente, icon: Zap },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="queue-metric">
+                <dt><Icon size={16} aria-hidden />{label}</dt>
+                <dd>{isLoading ? <span className="skeleton block h-8 w-16 rounded" aria-hidden /> : value?.toLocaleString('fr') ?? '—'}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-xs leading-relaxed text-text-muted">{siteId ? 'Tous les dossiers du site sélectionné' : 'Tous les dossiers, tous sites confondus'}, avant le filtre d’étape.</p>
+        </section>
+
+        {!canCollect && <p className="text-sm leading-relaxed text-text-muted">
+          Vous pouvez consulter les dossiers. Les encaissements et l’activation des comptes sont réservés à la caisse.
+        </p>}
+
+        <section className="queue-results" aria-labelledby="queue-results-heading" aria-busy={isFetching}>
+          <div className="queue-results-heading">
+            <div>
+              <h2 id="queue-results-heading" className="text-section-title text-primary">Dossiers à traiter</h2>
+              <p className="mt-1 text-xs text-text-muted">Du plus ancien au plus récent.</p>
+            </div>
+            {!isLoading && <span role="status" aria-label="Nombre de dossiers affichés" className="queue-count">
+              {queue.length.toLocaleString('fr')} {queue.length === 1 ? 'dossier affiché' : 'dossiers affichés'}
+            </span>}
           </div>
-        ) : queue.length === 0 ? (
-          <div className="py-16 text-center">
-            <Users size={32} className="mx-auto text-text-muted opacity-30 mb-3" />
-            <p className="text-[14px] font-semibold text-text">Aucun client en attente</p>
-            <p className="text-[12px] text-text-muted mt-1">
-              {filterEtape ? 'Changer le filtre ou ' : ''}Enregistrer un nouveau client pour le voir apparaître ici.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/clients/new/recit')}
-              className="btn-primary mt-4 text-[13px]"
-            >
-              + Nouveau client
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
-                  <th className="px-4 py-2.5">Client</th>
-                  <th className="px-4 py-2.5 hidden sm:table-cell">Site / Agent</th>
-                  <th className="px-4 py-2.5">Étape actuelle</th>
-                  <th className="px-4 py-2.5 hidden md:table-cell">Progression</th>
-                  <th className="px-4 py-2.5 hidden lg:table-cell">Depuis</th>
-                  <th className="px-4 py-2.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {queue.map(c => (
-                  <ClientRow key={c.id} client={c} canCollect={canCollect} onAction={(route) => navigate(route)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+
+          {isLoading ? <div className="queue-loading" role="status" aria-label="Chargement des dossiers">
+            {Array.from({ length: 4 }, (_, index) => <div key={index} className="skeleton h-24 rounded-lg" />)}
+          </div> : queue.length === 0 ? (
+            <div className="queue-empty" role="status">
+              {filteredEmpty ? <ListFilter size={28} aria-hidden /> : <Users size={28} aria-hidden />}
+              <h3 className="text-sm font-semibold text-text">{filteredEmpty ? 'Aucun dossier à cette étape' : 'Aucun client en attente'}</h3>
+              <p className="text-sm leading-relaxed text-text-muted">
+                {filteredEmpty ? 'Les autres dossiers sont toujours disponibles dans la file.' : 'Utilisez « Nouveau client » pour préparer un dossier. Il apparaîtra ici jusqu’à son activation.'}
+              </p>
+              {filteredEmpty && <button type="button" className="btn-secondary" onClick={() => setFilterEtape('')}>Afficher toutes les étapes</button>}
+            </div>
+          ) : (
+            <div className="queue-table-scroll">
+              <table className="queue-table" role="table" aria-label="Clients en cours d’enregistrement">
+                <thead role="rowgroup"><tr role="row">
+                  <th scope="col" role="columnheader">Client</th>
+                  <th scope="col" role="columnheader">Site / Agent</th>
+                  <th scope="col" role="columnheader">Étape actuelle</th>
+                  <th scope="col" role="columnheader">Progression</th>
+                  <th scope="col" role="columnheader">Inscrit le</th>
+                  <th scope="col" role="columnheader">Action</th>
+                </tr></thead>
+                <tbody role="rowgroup">
+                  {queue.map(client => <ClientRow key={client.id} client={client} canCollect={canCollect} onAction={route => navigate(route)} />)}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </>}
     </div>
   );
 }

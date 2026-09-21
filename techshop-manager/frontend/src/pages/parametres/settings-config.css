@@ -1,0 +1,405 @@
+.settings-config {
+  min-width: 0;
+  color: #0a1628;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.settings-config .config-navigation {
+  margin-bottom: 20px;
+}
+
+.settings-config .config-navigation button {
+  max-width: 100%;
+  white-space: normal;
+  font-size: 13px;
+}
+
+.settings-config .config-navigation button:hover {
+  border-color: #93c5fd;
+}
+
+.settings-config :is(.config-stack, .config-section, .config-form) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-config .config-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-config .config-section-heading > div {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.settings-config .config-section-heading .settings-description {
+  margin-top: 4px;
+}
+
+.settings-config .config-badge {
+  max-width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 4px 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-config .config-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.settings-config .config-metric {
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.settings-config .config-metric dt {
+  color: #475569;
+  font-size: 13px;
+}
+
+.settings-config .config-metric dd {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-config .config-metric dd > span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.settings-config .config-metrics-server {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-config .config-metrics-server dd {
+  font-size: 15px;
+}
+
+.settings-config .config-details > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.settings-config .config-details dt {
+  color: #475569;
+}
+
+.settings-config .config-details dd {
+  min-width: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-config .config-stock-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.settings-config .config-stock-alert p {
+  flex: 1 1 200px;
+}
+
+.settings-config .config-stock-alert a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.settings-config :is(.config-fieldset, .form-group, .settings-form-grid > div) {
+  min-width: 0;
+  margin: 0;
+}
+
+.settings-config .config-fieldset {
+  padding: 0;
+}
+
+.settings-config .config-subheading {
+  margin-bottom: 12px;
+  color: #0a1628;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-config .config-subsection {
+  min-width: 0;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.settings-config :is(input, select) {
+  max-width: 100%;
+}
+
+.settings-config :is(input, select)[aria-invalid="true"] {
+  border-color: #b91c1c;
+}
+
+.settings-config .form-error {
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.settings-config .config-secret {
+  position: relative;
+}
+
+.settings-config .config-secret input {
+  padding-right: 52px;
+}
+
+.settings-config .config-secret button {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  color: #475569;
+  border-radius: 6px;
+}
+
+.settings-config .config-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-config .config-toggle > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-config .config-toggle label {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.settings-config .config-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.settings-config .config-switch > span {
+  display: block;
+  width: 44px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #64748b;
+}
+
+.settings-config .config-switch > span::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 150ms ease-out;
+}
+
+.settings-config .config-switch[aria-checked="true"] > span {
+  background: #2563eb;
+}
+
+.settings-config .config-switch[aria-checked="true"] > span::before {
+  transform: translateX(20px);
+}
+
+.settings-config .config-switch:hover > span {
+  outline: 2px solid #cbd5e1;
+  outline-offset: 2px;
+}
+
+.settings-config .config-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-config .config-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settings-config .config-choice:hover,
+.settings-config .config-choice:has(input:checked) {
+  background: #f1f5f9;
+}
+
+.settings-config .config-choice input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.settings-config .config-choice > span {
+  min-width: 0;
+}
+
+.settings-config .config-choice strong {
+  font-weight: 600;
+}
+
+.settings-config .config-choice .settings-description {
+  display: block;
+}
+
+.settings-config .config-cap-field {
+  max-width: 440px;
+}
+
+.settings-config .config-test-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-config .config-test-row .form-group {
+  flex: 1 1 240px;
+}
+
+.settings-config :is(.config-test-result, .config-toast) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.settings-config .config-test-result {
+  margin-top: 12px;
+}
+
+.settings-config :is(.config-test-result, .config-toast) > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-config :is(.config-test-result, .config-toast) > svg {
+  flex-shrink: 0;
+}
+
+.settings-config :is(.config-test-result, .config-toast) button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.settings-config .config-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  font-weight: 600;
+}
+
+.settings-config .config-feedback-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.settings-config .config-feedback-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.settings-config :is(.config-empty, .config-loading) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-config .config-skeleton {
+  width: 100%;
+  height: 44px;
+  background: #e2e8f0;
+  border-radius: 6px;
+}
+
+@media (max-width: 767px) {
+  .settings-config :is(.config-metrics, .config-metrics-server) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+
+  .settings-config .config-details > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .settings-config .settings-form-actions > button {
+    flex: 1 1 160px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .settings-config :is(.config-metrics, .config-metrics-server) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-config .config-test-row > button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-config .config-switch > span::before {
+    transition: none;
+  }
+}

@@ -1,221 +1,195 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  Settings, MessageSquare, Hash, Clock, Info, Send,
+  Send,
   CheckCircle, AlertCircle, RefreshCw, X, Save,
-  Lock, Eye, EyeOff, Database, Cpu, Wifi, WifiOff,
-  Users, Building2, Package, ShoppingCart, GitBranch,
-  Star, Plus, Trash2, ChevronRight, Activity, Server,
-  MemoryStick, Zap,
+  Eye, EyeOff, Star, Plus, Trash2,
 } from 'lucide-react';
 import { configApi, type AppConfig, type UpdateConfigPayload, type SystemStats } from '@/lib/settings.api';
 import { cn, formatUSD } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/api';
+import { SettingsPageLayout } from '@/components/settings/SettingsPageLayout';
+import './settings-config.css';
 
-// ── Helpers ────────────────────────────────────────────────────────
 function formatUptime(seconds: number) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 24) return `${Math.floor(h / 24)}j ${h % 24}h`;
-  return `${h}h ${m}m`;
+  if (!Number.isFinite(seconds) || seconds < 0) return 'Indisponible';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${days > 0 ? `${days} j ` : ''}${hours} h ${minutes} min`;
 }
 
-// ── Toast ──────────────────────────────────────────────────────────
 function Toast({ msg, ok, onDismiss }: { msg: string; ok: boolean; onDismiss: () => void }) {
   return (
     <div role="alert" className={cn(
-      'fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[60] flex items-center gap-3 rounded-xl px-4 sm:px-5 py-3 text-sm font-semibold shadow-xl text-white sm:max-w-sm',
-      ok ? 'bg-success' : 'bg-danger',
+      'config-toast', ok ? 'config-feedback-success' : 'config-feedback-error',
     )}>
-      {ok ? <CheckCircle size={16} className="flex-shrink-0" /> : <AlertCircle size={16} className="flex-shrink-0" />}
-      <span className="flex-1">{msg}</span>
-      <button onClick={onDismiss} className="ml-1 opacity-70 hover:opacity-100"><X size={14} /></button>
+      {ok ? <CheckCircle size={16} aria-hidden /> : <AlertCircle size={16} aria-hidden />}
+      <span>{msg}</span>
+      <button type="button" onClick={onDismiss} aria-label="Fermer la notification"><X size={16} aria-hidden /></button>
     </div>
   );
 }
 
-// ── Section wrapper ────────────────────────────────────────────────
-function Section({ icon, title, subtitle, children, badge, badgeOk }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
+function Section({ title, subtitle, children, badge, badgeOk }: {
+  icon?: React.ReactNode; title: string; subtitle?: string;
   children: React.ReactNode; badge?: string; badgeOk?: boolean;
 }) {
+  const headingId = useId();
   return (
-    <div className="card space-y-5">
-      <div className="flex items-center gap-3 pb-4 border-b border-border">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-light">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-primary leading-none">{title}</h2>
-          {subtitle && <p className="text-[11px] text-text-muted mt-0.5">{subtitle}</p>}
+    <section className="settings-panel config-section" aria-labelledby={headingId}>
+      <div className="config-section-heading">
+        <div>
+          <h2 id={headingId} className="settings-section-title">{title}</h2>
+          {subtitle && <p className="settings-description">{subtitle}</p>}
         </div>
         {badge && (
           <span className={cn(
-            'text-[10px] font-bold rounded-full px-2.5 py-1 border flex-shrink-0',
-            badgeOk ? 'bg-green-50 text-success border-green-200' : 'bg-slate-100 text-slate-500 border-border',
+            'config-badge', badgeOk && 'config-feedback-success',
           )}>
             {badge}
           </span>
         )}
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 
-// ── Toggle switch ──────────────────────────────────────────────────
 function Toggle({ checked, onChange, label, description }: {
   checked: boolean; onChange: (v: boolean) => void; label: string; description?: string;
 }) {
+  const controlId = useId();
   return (
-    <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-border hover:border-primary-accent/50 hover:bg-primary-light/10 transition-all">
+    <div className="config-toggle">
+      <div>
+        <label id={`${controlId}-label`} htmlFor={controlId}>{label}</label>
+        {description && <p id={`${controlId}-description`} className="settings-description">{description}</p>}
+      </div>
       <button
+        id={controlId}
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={`${controlId}-label`}
+        aria-describedby={description ? `${controlId}-description` : undefined}
         onClick={() => onChange(!checked)}
-        className={cn(
-          'relative flex-shrink-0 w-10 h-6 rounded-full transition-colors duration-200',
-          checked ? 'bg-primary-accent' : 'bg-slate-200',
-        )}
+        className="config-switch"
       >
-        <span className={cn(
-          'absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200',
-          checked && 'translate-x-4',
-        )} />
+        <span aria-hidden />
       </button>
-      <div>
-        <p className="text-[13px] font-semibold text-text">{label}</p>
-        {description && <p className="text-[11px] text-text-muted">{description}</p>}
-      </div>
-    </label>
-  );
-}
-
-// ── Stat card mini ─────────────────────────────────────────────────
-function MiniStat({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string; color: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white">
-      <div className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', color)}>
-        <Icon size={16} aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className="text-lg font-black text-primary leading-none">{value}</p>
-        <p className="text-[10px] text-text-muted mt-0.5 truncate">{label}</p>
-        {sub && <p className="text-[10px] text-text-subtle">{sub}</p>}
-      </div>
     </div>
   );
 }
 
-// ── Panneau de navigation latérale ─────────────────────────────────
+function Metric({ label, value, sub }: {
+  label: string; value: string | number | undefined; sub?: string;
+}) {
+  return (
+    <div className="config-metric">
+      <dt>{label}</dt>
+      <dd>{value ?? 'Indisponible'}{sub && <span>{sub}</span>}</dd>
+    </div>
+  );
+}
+
 type Section_ID = 'systeme' | 'sms' | 'operations' | 'parrainage';
 
-const NAV: { id: Section_ID; label: string; icon: React.ElementType; badge?: string }[] = [
-  { id: 'systeme',    label: 'Vue système',      icon: Activity },
-  { id: 'sms',        label: 'SMS & Notifs',     icon: MessageSquare },
-  { id: 'operations', label: 'Opérations',       icon: Settings },
-  { id: 'parrainage', label: 'Parrainage',        icon: GitBranch },
+const NAV: { id: Section_ID; label: string }[] = [
+  { id: 'systeme', label: 'Vue système' },
+  { id: 'sms', label: 'SMS & notifications' },
+  { id: 'operations', label: 'Opérations' },
+  { id: 'parrainage', label: 'Parrainage' },
 ];
 
-// ════════════════════════════════════════════════════════════════════
-// SECTIONS
-// ════════════════════════════════════════════════════════════════════
-
-// ── Vue Système ────────────────────────────────────────────────────
-function SystemeSection({ stats, loadingStats, refetchStats }: {
-  stats?: SystemStats; loadingStats: boolean; refetchStats: () => void;
+function SystemeSection({ stats, loadingStats, statsError, fetchingStats, refetchStats }: {
+  stats?: SystemStats; loadingStats: boolean; statsError: boolean; fetchingStats: boolean; refetchStats: () => void;
 }) {
   if (loadingStats) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="animate-pulse skeleton h-16 rounded-xl" />
-          ))}
-        </div>
+      <div className="settings-panel config-loading" role="status" aria-label="Chargement des métriques système">
+        <p>Chargement des métriques système…</p>
+        <div className="config-skeleton" aria-hidden />
+        <div className="config-skeleton" aria-hidden />
       </div>
     );
   }
-  if (!stats) return null;
+  if (statsError || !stats) {
+    return (
+      <div className="settings-panel config-empty" role="alert">
+        <h2 className="settings-section-title">Les métriques système sont indisponibles.</h2>
+        <p className="settings-description">Réessayez pour consulter l’état du système. Les autres sections restent accessibles.</p>
+        <button type="button" className="btn-secondary" onClick={refetchStats} disabled={fetchingStats}>
+          <RefreshCw size={16} aria-hidden /> Réessayer les métriques
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Stats métier */}
+    <div className="config-stack">
       <Section
-        icon={<Activity size={18} className="text-primary-accent" />}
         title="Données en temps réel"
-        subtitle="État actuel de la base de données"
+        subtitle="Activité et données enregistrées. Actualisation automatique toutes les 30 secondes."
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <MiniStat icon={Users}       label="Clients actifs"   value={stats.clients.actifs}             sub={`${stats.clients.enCours} en cours`}   color="bg-blue-100 text-blue-700" />
-          <MiniStat icon={Users}       label="Agents actifs"    value={stats.utilisateurs.actifs}        sub={`${stats.utilisateurs.inactifs} inactifs`} color="bg-indigo-100 text-indigo-700" />
-          <MiniStat icon={Building2}   label="Sites actifs"     value={stats.sites.actifs}               sub={`${stats.sites.total} total`}          color="bg-violet-100 text-violet-700" />
-          <MiniStat icon={Package}     label="Produits"         value={stats.stocks.totalProduits}       sub={`${stats.stocks.alertes} alertes`}     color="bg-amber-100 text-amber-700" />
-          <MiniStat icon={ShoppingCart} label="Ventes aujourd'hui" value={stats.ventes.aujourdhui.count}  sub={formatUSD(stats.ventes.aujourdhui.montant)} color="bg-green-100 text-green-700" />
-          <MiniStat icon={GitBranch}   label="Parrainages"      value={stats.parrainage?.total ?? 0}     sub={`${stats.ventes?.mois?.count ?? 0} ventes/mois`} color="bg-rose-100 text-rose-700" />
-        </div>
+        <dl className="config-metrics">
+          <Metric label="Clients actifs" value={stats.clients.actifs} sub={`${stats.clients.enCours} en cours`} />
+          <Metric label="Agents actifs" value={stats.utilisateurs.actifs} sub={`${stats.utilisateurs.inactifs} inactifs`} />
+          <Metric label="Sites actifs" value={stats.sites.actifs} sub={`${stats.sites.total} au total`} />
+          <Metric label="Produits" value={stats.stocks.totalProduits} sub={`${stats.stocks.alertes} alertes`} />
+          <Metric label="Ventes aujourd'hui" value={stats.ventes.aujourdhui.count} sub={formatUSD(stats.ventes.aujourdhui.montant)} />
+          <Metric label="Parrainages" value={stats.parrainage?.total} />
+        </dl>
 
         {stats.stocks.ruptures > 0 && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle size={15} className="text-danger flex-shrink-0" />
-            <p className="text-[13px] text-danger font-semibold">
+          <div className="config-stock-alert config-feedback-error">
+            <AlertCircle size={16} aria-hidden />
+            <p>
               {stats.stocks.ruptures} rupture{stats.stocks.ruptures > 1 ? 's' : ''} de stock — action requise
             </p>
-            <a href="/stocks/alerts" className="ml-auto text-[12px] text-danger underline">Voir →</a>
+            <a href="/stocks/alerts">Voir les alertes</a>
           </div>
         )}
       </Section>
 
-      {/* Stats serveur */}
       <Section
-        icon={<Server size={18} className="text-primary-accent" />}
         title="Santé du serveur"
         subtitle="Métriques Node.js en direct"
-        badge={stats.systeme.environnement === 'production' ? 'Production' : 'Développement'}
+        badge={stats.systeme.environnement === 'production' ? 'Production' : stats.systeme.environnement || 'Environnement indisponible'}
         badgeOk={stats.systeme.environnement === 'production'}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MiniStat icon={Zap}        label="Node.js"    value={stats.systeme.nodeVersion}           color="bg-green-100 text-green-700" />
-          <MiniStat icon={Clock}      label="Uptime"     value={formatUptime(stats.systeme.uptime)}  color="bg-sky-100 text-sky-700" />
-          <MiniStat icon={MemoryStick} label="Mémoire"   value={`${stats.systeme.memoire} MB`}       color="bg-amber-100 text-amber-700" />
-          <MiniStat
-            icon={stats.systeme.smsConfigured ? Wifi : WifiOff}
-            label="SMS"
-            value={stats.systeme.smsConfigured ? 'Configuré' : 'Non configuré'}
-            color={stats.systeme.smsConfigured ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
-          />
-        </div>
+        <dl className="config-metrics config-metrics-server">
+          <Metric label="Node.js" value={stats.systeme.nodeVersion} />
+          <Metric label="Durée de fonctionnement" value={formatUptime(stats.systeme.uptime)} />
+          <Metric label="Mémoire utilisée" value={Number.isFinite(stats.systeme.memoire) ? `${stats.systeme.memoire} Mio` : 'Indisponible'} sub="Mémoire du processus Node.js" />
+          <Metric label="SMS" value={stats.systeme.smsConfigured ? 'Configuré' : 'Non configuré'} />
+        </dl>
 
-        <div className="divide-y divide-border/60 rounded-xl border border-border overflow-hidden">
+        <dl className="config-details">
           {[
-            { label: 'Base de données',  value: 'PostgreSQL + Prisma ORM',                    icon: Database },
-            { label: 'API endpoint',     value: import.meta.env.VITE_API_URL ?? '/api/v1',    icon: Server },
-            { label: 'Auth',             value: 'JWT Bearer + httpOnly Cookie',               icon: Lock },
-            { label: 'Ventes ce mois',   value: `${stats.ventes.mois.count} ventes — ${formatUSD(stats.ventes.mois.montant)}`, icon: ShoppingCart },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="flex items-center justify-between px-4 py-3 bg-white">
-              <div className="flex items-center gap-2 text-[12px] text-text-muted">
-                <Icon size={13} className="opacity-50 flex-shrink-0" />
-                {label}
-              </div>
-              <span className="text-[12px] font-semibold text-text font-mono">{value}</span>
+            { label: 'Base de données', value: 'PostgreSQL + Prisma ORM' },
+            { label: 'Adresse de l’API', value: import.meta.env.VITE_API_URL ?? '/api/v1' },
+            { label: 'Authentification', value: 'JWT Bearer + httpOnly Cookie' },
+            { label: 'Ventes ce mois', value: `${stats.ventes.mois.count} ventes — ${formatUSD(stats.ventes.mois.montant)}` },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
             </div>
           ))}
-        </div>
+        </dl>
 
-        <div className="flex justify-end">
+        <div className="settings-form-actions">
           <button
             type="button"
             onClick={refetchStats}
-            className="flex items-center gap-1.5 text-[12px] text-text-muted hover:text-primary-accent transition-colors"
+            disabled={fetchingStats}
+            className="btn-secondary"
           >
-            <RefreshCw size={12} /> Actualiser les métriques
+            <RefreshCw size={16} aria-hidden /> {fetchingStats ? 'Actualisation…' : 'Actualiser les métriques'}
           </button>
         </div>
       </Section>
@@ -223,7 +197,6 @@ function SystemeSection({ stats, loadingStats, refetchStats }: {
   );
 }
 
-// ── SMS ─────────────────────────────────────────────────────────────
 const smsSchema = z.object({
   smsApiKey: z.string().optional(),
   smsUsername: z.string().optional(),
@@ -238,7 +211,7 @@ function SmsSection({ config, onSaved }: { config: AppConfig; onSaved: (msg: str
   const [showKey, setShowKey] = useState(false);
   const isConfigured = !!(config.generale.smsApiKey && config.generale.smsUsername);
 
-  const { register, handleSubmit, formState: { isDirty } } = useForm<SmsForm>({
+  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<SmsForm>({
     resolver: zodResolver(smsSchema),
     values: { smsApiKey: config.generale.smsApiKey ?? '', smsUsername: config.generale.smsUsername ?? '', smsSenderId: config.generale.smsSenderId ?? '' },
   });
@@ -256,79 +229,79 @@ function SmsSection({ config, onSaved }: { config: AppConfig; onSaved: (msg: str
 
   return (
     <Section
-      icon={<MessageSquare size={18} className="text-primary-accent" />}
       title="SMS — Africa's Talking"
-      subtitle="Notifications onboarding, activation et alertes clients"
-      badge={isConfigured ? 'Opérationnel ✓' : 'Non configuré'}
+      subtitle="Identifiants du service utilisé pour l’inscription, l’activation et les alertes clients."
+      badge={isConfigured ? 'Configuré' : 'Non configuré'}
       badgeOk={isConfigured}
     >
-      {isConfigured && (
-        <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
-          <CheckCircle size={14} className="text-success flex-shrink-0" />
-          <span className="text-[13px] text-success font-medium">SMS actifs</span>
-          <span className="ml-auto text-[11px] text-text-muted font-mono">Sender : {config.generale.smsSenderId || 'défaut'}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit((d) => saveMut.mutate(d))} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="form-group col-span-2 sm:col-span-1">
+      <form onSubmit={handleSubmit((data) => saveMut.mutate(data))} className="config-form">
+        <div className="settings-form-grid">
+          <div className="form-group">
             <label className="form-label" htmlFor="sms-key">
-              <Lock size={10} className="inline mr-1 opacity-60" />API Key Africa's Talking
+              Clé API Africa's Talking
             </label>
-            <div className="relative">
+            <div className="config-secret">
               <input id="sms-key" type={showKey ? 'text' : 'password'} {...register('smsApiKey')}
-                placeholder="at_live_XXXXXXXXXXXXXXXX" className="pr-10 font-mono text-xs" />
-              <button type="button" onClick={() => setShowKey(v => !v)} tabIndex={-1}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text">
-                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                autoComplete="off" spellCheck={false} placeholder="at_live_XXXXXXXXXXXXXXXX" />
+              <button type="button" onClick={() => setShowKey(visible => !visible)}
+                aria-label={showKey ? 'Masquer la clé API' : 'Afficher la clé API'} aria-pressed={showKey}>
+                {showKey ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
               </button>
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="sms-user">Username</label>
-            <input id="sms-user" {...register('smsUsername')} placeholder="sandbox ou votre username" />
+            <label className="form-label" htmlFor="sms-user">Nom d’utilisateur Africa's Talking</label>
+            <input id="sms-user" {...register('smsUsername')} placeholder="sandbox ou votre nom d’utilisateur" />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="sms-sender">
-              Sender ID <span className="text-text-subtle normal-case font-normal">(max 11 car.)</span>
+              Identifiant expéditeur (Sender ID)
             </label>
-            <input id="sms-sender" {...register('smsSenderId')} placeholder="EBN" />
+            <input id="sms-sender" {...register('smsSenderId')} placeholder="EBN"
+              aria-invalid={!!errors.smsSenderId} aria-describedby={errors.smsSenderId ? 'sms-sender-hint sms-sender-error' : 'sms-sender-hint'} />
+            <p id="sms-sender-hint" className="settings-description">11 caractères maximum.</p>
+            {errors.smsSenderId && <p id="sms-sender-error" className="form-error">{errors.smsSenderId.message}</p>}
           </div>
         </div>
 
-        <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
-          {saveMut.isPending ? <><RefreshCw size={14} className="animate-spin" /> Sauvegarde…</> : <><Save size={14} /> Sauvegarder</>}
-        </button>
+        <div className="settings-form-actions">
+          <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
+            {saveMut.isPending ? <><RefreshCw size={16} aria-hidden /> Sauvegarde…</> : <><Save size={16} aria-hidden /> Sauvegarder</>}
+          </button>
+        </div>
       </form>
 
-      {/* Test SMS */}
-      <div className="mt-2 space-y-2 pt-4 border-t border-border">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle">Tester l'envoi</p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input type="tel" placeholder="+243900000001" value={testPhone} onChange={(e) => setTestPhone(e.target.value)}
-            className="flex-1 text-[13px]" aria-label="Numéro pour test SMS" />
-          <button type="button" className="btn-secondary w-full sm:w-auto whitespace-nowrap flex-shrink-0"
+      <section className="config-subsection" aria-labelledby="sms-test-heading">
+        <h3 id="sms-test-heading" className="config-subheading">Tester l’envoi</h3>
+        <p id="sms-test-help" className="settings-description">
+          {isConfigured ? 'Ce test envoie un SMS au numéro saisi avec la configuration sauvegardée.' : 'Configurez et sauvegardez le service SMS avant de lancer un test.'}
+        </p>
+        <div className="config-test-row">
+          <div className="form-group">
+            <label className="form-label" htmlFor="sms-test-phone">Numéro pour test SMS</label>
+            <input id="sms-test-phone" type="tel" placeholder="+243900000001" value={testPhone}
+              onChange={(event) => setTestPhone(event.target.value)} aria-describedby="sms-test-help" />
+          </div>
+          <button type="button" className="btn-secondary"
             onClick={() => testMut.mutate()} disabled={!testPhone || testMut.isPending || !isConfigured}
             title={!isConfigured ? 'Configurez et sauvegardez le SMS d\'abord' : ''}>
-            {testMut.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Send size={13} />}
+            {testMut.isPending ? <RefreshCw size={16} aria-hidden /> : <Send size={16} aria-hidden />}
             {testMut.isPending ? 'Envoi…' : 'Tester'}
           </button>
         </div>
         {testResult && (
-          <div className={cn('flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px]',
-            testResult.ok ? 'bg-green-50 border border-green-200 text-success' : 'bg-red-50 border border-red-200 text-danger')}>
-            {testResult.ok ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
-            {testResult.msg}
-            <button onClick={() => setTestResult(null)} className="ml-auto opacity-60 hover:opacity-100"><X size={12} /></button>
+          <div role={testResult.ok ? 'status' : 'alert'} className={cn('config-test-result',
+            testResult.ok ? 'config-feedback-success' : 'config-feedback-error')}>
+            {testResult.ok ? <CheckCircle size={16} aria-hidden /> : <AlertCircle size={16} aria-hidden />}
+            <span>{testResult.msg}</span>
+            <button type="button" onClick={() => setTestResult(null)} aria-label="Fermer le résultat du test"><X size={16} aria-hidden /></button>
           </div>
         )}
-      </div>
+      </section>
     </Section>
   );
 }
 
-// ── Opérations ─────────────────────────────────────────────────────
 const opsSchema = z.object({
   dureeSectionHeures: z.number().min(1).max(24),
   delaiRetourJours: z.number().min(0).max(90),
@@ -372,101 +345,87 @@ function OperationsSection({ config, onSaved }: { config: AppConfig; onSaved: (m
 
   return (
     <Section
-      icon={<Settings size={18} className="text-primary-accent" />}
       title="Paramètres opérationnels"
-      subtitle="Sessions, retours, matricules — règles métier"
+      subtitle="Durées, conditions de retour et destinations des encaissements KPay."
     >
-      <form onSubmit={handleSubmit((d) => saveMut.mutate(d))} className="space-y-5">
-        {/* Sessions & Retours */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Sessions & Retours</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <form onSubmit={handleSubmit((data) => saveMut.mutate(data))} className="config-form">
+        <fieldset className="config-fieldset">
+          <legend className="config-subheading">Sessions et retours</legend>
+          <div className="settings-form-grid">
             <div className="form-group">
-              <label className="form-label" htmlFor="ops-session">Durée session</label>
+              <label className="form-label" htmlFor="ops-session">Durée de session (heures)</label>
               <div className="relative">
-                <input id="ops-session" type="number" min={1} max={24} className="pr-8"
+                <input id="ops-session" type="number" min={1} max={24} className="pr-8" aria-invalid={!!errors.dureeSectionHeures} aria-describedby={errors.dureeSectionHeures ? 'ops-session-error' : undefined}
                   {...register('dureeSectionHeures', { valueAsNumber: true })} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-subtle font-semibold">h</span>
               </div>
-              {errors.dureeSectionHeures && <p className="form-error">{errors.dureeSectionHeures.message}</p>}
+              {errors.dureeSectionHeures && <p id="ops-session-error" className="form-error">{errors.dureeSectionHeures.message}</p>}
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="ops-retour">Délai retour</label>
+              <label className="form-label" htmlFor="ops-retour">Délai de retour (jours)</label>
               <div className="relative">
-                <input id="ops-retour" type="number" min={0} max={90} className="pr-14"
+                <input id="ops-retour" type="number" min={0} max={90} className="pr-14" aria-invalid={!!errors.delaiRetourJours} aria-describedby={errors.delaiRetourJours ? 'ops-retour-error' : undefined}
                   {...register('delaiRetourJours', { valueAsNumber: true })} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-subtle font-semibold">jours</span>
               </div>
-              {errors.delaiRetourJours && <p className="form-error">{errors.delaiRetourJours.message}</p>}
+              {errors.delaiRetourJours && <p id="ops-retour-error" className="form-error">{errors.delaiRetourJours.message}</p>}
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="ops-frais">Frais retour</label>
+              <label className="form-label" htmlFor="ops-frais">Frais de retour (%)</label>
               <div className="relative">
-                <input id="ops-frais" type="number" min={0} max={100} step={0.5} className="pr-8"
+                <input id="ops-frais" type="number" min={0} max={100} step={0.5} className="pr-8" aria-invalid={!!errors.fraisRetourPct} aria-describedby={errors.fraisRetourPct ? 'ops-frais-error' : undefined}
                   {...register('fraisRetourPct', { valueAsNumber: true })} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-text-subtle font-black">%</span>
               </div>
-              {errors.fraisRetourPct && <p className="form-error">{errors.fraisRetourPct.message}</p>}
+              {errors.fraisRetourPct && <p id="ops-frais-error" className="form-error">{errors.fraisRetourPct.message}</p>}
             </div>
           </div>
 
-          {/* Résumé visuel */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 rounded-xl bg-bg-inset border border-border p-3 text-center">
-            {[
-              { label: 'Session', value: `${watch('dureeSectionHeures')}h` },
-              { label: 'Retour sous', value: `${watch('delaiRetourJours')} j` },
-              { label: 'Frais retour', value: `${watch('fraisRetourPct')}%` },
-            ].map((item) => (
-              <div key={item.label}>
-                <p className="text-lg font-black text-primary leading-none">{item.value}</p>
-                <p className="text-[10px] text-text-muted mt-0.5">{item.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        </fieldset>
 
-        {/* Matricule externe */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Matricule externe</p>
+        <fieldset className="config-fieldset config-subsection">
+          <legend className="config-subheading">Matricule externe</legend>
           <Toggle
             checked={matActif}
-            onChange={(v) => setValue('matriculeExterneActif', v, { shouldDirty: true })}
+            onChange={(checked) => setValue('matriculeExterneActif', checked, { shouldDirty: true })}
             label="Activer le matricule externe"
-            description="Les agents pourront saisir un identifiant employeur lors de l'onboarding"
+            description="Permettre aux agents de saisir un identifiant employeur lors de l’inscription."
           />
           {matActif && (
             <div className="form-group mt-3">
               <label className="form-label" htmlFor="ops-regex">
                 Regex de validation <span className="text-text-subtle normal-case font-normal">(optionnel)</span>
               </label>
-              <input id="ops-regex" {...register('matriculeRegex')} placeholder="Ex: ^[A-Z]{2}\d{4}$" className="font-mono text-xs" />
-              <p className="text-[11px] text-text-subtle mt-1">{"Vide = tout format accepté. Ex: ^[A-Z]{2}\\d{4}$ pour AB1234"}</p>
+              <input id="ops-regex" {...register('matriculeRegex')} placeholder="Ex: ^[A-Z]{2}\d{4}$" className="font-mono" aria-describedby="ops-regex-help" />
+              <p id="ops-regex-help" className="settings-description">{"Vide = tout format accepté. Ex: ^[A-Z]{2}\\d{4}$ pour AB1234"}</p>
             </div>
           )}
-        </div>
+        </fieldset>
 
-        <div className="border-t border-border pt-5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Transfert automatique KPay</p>
-          <Toggle checked={autoPayoutActif} onChange={(v) => setValue('kpayAutoPayoutActif', v, { shouldDirty: true })} label="Transférer automatiquement les encaissements" description="Après confirmation d'une vente KPay, effectuer un payout vers le numéro administrateur configuré." />
-          {autoPayoutActif && <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <fieldset className="config-fieldset config-subsection">
+          <legend className="config-subheading">Transfert automatique KPay</legend>
+          <Toggle checked={autoPayoutActif} onChange={(checked) => setValue('kpayAutoPayoutActif', checked, { shouldDirty: true })} label="Transférer automatiquement les encaissements" description="Après confirmation d’une vente KPay, effectuer un transfert vers le numéro administrateur configuré." />
+          {autoPayoutActif && <div className="settings-form-grid mt-3">
             <div className="form-group"><label className="form-label" htmlFor="kpay-auto-provider">Opérateur administrateur</label><select id="kpay-auto-provider" {...register('kpayAutoPayoutProvider')}><option value="VODACOM_MPESA_COD">M-Pesa</option><option value="AIRTEL_COD">Airtel Money</option><option value="ORANGE_COD">Orange Money</option></select></div>
-            <div className="form-group"><label className="form-label" htmlFor="kpay-auto-phone">Numéro administrateur</label><input id="kpay-auto-phone" placeholder="243XXXXXXXXX" {...register('kpayAutoPayoutPhone')} />{errors.kpayAutoPayoutPhone && <p className="form-error">{errors.kpayAutoPayoutPhone.message}</p>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-auto-phone">Numéro administrateur</label><input id="kpay-auto-phone" type="tel" placeholder="243XXXXXXXXX" {...register('kpayAutoPayoutPhone')} aria-invalid={!!errors.kpayAutoPayoutPhone} aria-describedby={errors.kpayAutoPayoutPhone ? 'kpay-auto-error' : undefined} />{errors.kpayAutoPayoutPhone && <p id="kpay-auto-error" className="form-error">{errors.kpayAutoPayoutPhone.message}</p>}</div>
           </div>}
-        </div>
+        </fieldset>
 
-        <div className="border-t border-border pt-5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">KPay — numéros administrateur</p>
-          <p className="text-[11px] text-text-muted mb-3">Un numéro par opérateur. Ces destinations servent à la réception et aux payouts automatiques ; les retraits clients utilisent leur numéro de demande.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-mpesa">M-Pesa</label><input id="kpay-admin-mpesa" placeholder="243XXXXXXXXX" {...register('kpayAdminMpesaPhone')} />{errors.kpayAdminMpesaPhone && <p className="form-error">{errors.kpayAdminMpesaPhone.message}</p>}</div>
-            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-airtel">Airtel Money</label><input id="kpay-admin-airtel" placeholder="243XXXXXXXXX" {...register('kpayAdminAirtelPhone')} />{errors.kpayAdminAirtelPhone && <p className="form-error">{errors.kpayAdminAirtelPhone.message}</p>}</div>
-            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-orange">Orange Money</label><input id="kpay-admin-orange" placeholder="243XXXXXXXXX" {...register('kpayAdminOrangePhone')} />{errors.kpayAdminOrangePhone && <p className="form-error">{errors.kpayAdminOrangePhone.message}</p>}</div>
+        <fieldset className="config-fieldset config-subsection">
+          <legend className="config-subheading">KPay — numéros administrateur</legend>
+          <p className="settings-description mb-3">Un numéro par opérateur, au format 243XXXXXXXXX. Ces destinations servent à la réception et aux transferts automatiques ; les retraits clients utilisent leur numéro de demande.</p>
+          <div className="settings-form-grid">
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-mpesa">M-Pesa</label><input id="kpay-admin-mpesa" type="tel" placeholder="243XXXXXXXXX" {...register('kpayAdminMpesaPhone')} aria-invalid={!!errors.kpayAdminMpesaPhone} aria-describedby={errors.kpayAdminMpesaPhone ? 'kpay-mpesa-error' : undefined} />{errors.kpayAdminMpesaPhone && <p id="kpay-mpesa-error" className="form-error">{errors.kpayAdminMpesaPhone.message}</p>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-airtel">Airtel Money</label><input id="kpay-admin-airtel" type="tel" placeholder="243XXXXXXXXX" {...register('kpayAdminAirtelPhone')} aria-invalid={!!errors.kpayAdminAirtelPhone} aria-describedby={errors.kpayAdminAirtelPhone ? 'kpay-airtel-error' : undefined} />{errors.kpayAdminAirtelPhone && <p id="kpay-airtel-error" className="form-error">{errors.kpayAdminAirtelPhone.message}</p>}</div>
+            <div className="form-group"><label className="form-label" htmlFor="kpay-admin-orange">Orange Money</label><input id="kpay-admin-orange" type="tel" placeholder="243XXXXXXXXX" {...register('kpayAdminOrangePhone')} aria-invalid={!!errors.kpayAdminOrangePhone} aria-describedby={errors.kpayAdminOrangePhone ? 'kpay-orange-error' : undefined} />{errors.kpayAdminOrangePhone && <p id="kpay-orange-error" className="form-error">{errors.kpayAdminOrangePhone.message}</p>}</div>
           </div>
-        </div>
+        </fieldset>
 
-        <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
-          {saveMut.isPending ? <><RefreshCw size={14} className="animate-spin" /> Sauvegarde…</> : <><Save size={14} /> Sauvegarder</>}
-        </button>
+        <div className="settings-form-actions">
+          <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
+            {saveMut.isPending ? <><RefreshCw size={16} aria-hidden /> Sauvegarde…</> : <><Save size={16} aria-hidden /> Sauvegarder</>}
+          </button>
+        </div>
       </form>
     </Section>
   );
@@ -602,7 +561,6 @@ function FideliteSection({ config, onSaved }: { config: AppConfig; onSaved: (msg
   );
 }
 
-// ── Parrainage ─────────────────────────────────────────────────────
 const parrainageSchema = z.object({
   multiNiveaux: z.boolean(),
   typeRecompense: z.enum(['POINTS', 'REMISE_PROCHAINE_VENTE', 'COMMISSION_CDF']),
@@ -638,110 +596,98 @@ function ParrainageSection({ config, onSaved }: { config: AppConfig; onSaved: (m
 
   return (
     <Section
-      icon={<GitBranch size={18} className="text-primary-accent" />}
       title="Règles de parrainage"
       subtitle="Récompenses, déclenchement et plafonds"
     >
-      <form onSubmit={handleSubmit((d) => saveMut.mutate(d))} className="space-y-5">
-        {/* Type de récompense */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Type de récompense</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <form onSubmit={handleSubmit((data) => saveMut.mutate(data))} className="config-form">
+        <fieldset className="config-fieldset">
+          <legend className="config-subheading">Type de récompense</legend>
+          <div className="config-choices">
             {([
               { v: 'POINTS', label: 'Points fidélité', desc: 'Crédités au parrain' },
               { v: 'REMISE_PROCHAINE_VENTE', label: 'Remise prochaine vente', desc: '% sur le prochain achat' },
               { v: 'COMMISSION_CDF', label: 'Commission CDF', desc: 'Montant fixe en francs' },
-            ] as const).map(({ v, label, desc }) => (
-              <label key={v} className={cn(
-                'cursor-pointer p-3 rounded-xl border-2 transition-all select-none',
-                typeRecomp === v ? 'border-primary-accent bg-primary-light/30' : 'border-border hover:border-border-strong',
-              )}>
-                <input type="radio" value={v} {...register('typeRecompense')} className="sr-only" />
-                <p className="text-[13px] font-semibold text-text">{label}</p>
-                <p className="text-[11px] text-text-muted mt-0.5">{desc}</p>
+            ] as const).map(({ v: value, label, desc }) => (
+              <label key={value} className="config-choice">
+                <input type="radio" value={value} {...register('typeRecompense')} />
+                <span><strong>{label}</strong><span className="settings-description">{desc}</span></span>
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
-        {/* Valeurs */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle mb-3">Valeurs de récompense</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <fieldset className="config-fieldset config-subsection">
+          <legend className="config-subheading">Valeurs de récompense</legend>
+          <p id="par-unit" className="settings-description mb-3">Unité des récompenses et du plafond : {recompenseLabel}.</p>
+          <Toggle
+            checked={multiNiv}
+            onChange={(checked) => setValue('multiNiveaux', checked, { shouldDirty: true })}
+            label="Parrainage multi-niveaux"
+            description="Récompenser aussi le grand-parrain (niveau 2)."
+          />
+          <div className="settings-form-grid mt-3">
             <div className="form-group">
               <label className="form-label" htmlFor="par-n1">Niveau 1 (parrain direct)</label>
               <div className="relative">
-                <input id="par-n1" type="number" min={0} className="pr-12"
+                <input id="par-n1" type="number" min={0} className="pr-12" aria-invalid={!!errors.valeurNiveau1} aria-describedby={errors.valeurNiveau1 ? 'par-unit par-n1-error' : 'par-unit'}
                   {...register('valeurNiveau1', { valueAsNumber: true })} />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-subtle font-bold">{recompenseLabel}</span>
               </div>
-              {errors.valeurNiveau1 && <p className="form-error">{errors.valeurNiveau1.message}</p>}
+              {errors.valeurNiveau1 && <p id="par-n1-error" className="form-error">{errors.valeurNiveau1.message}</p>}
             </div>
             {multiNiv && (
               <div className="form-group">
                 <label className="form-label" htmlFor="par-n2">Niveau 2 (grand-parrain)</label>
                 <div className="relative">
-                  <input id="par-n2" type="number" min={0} className="pr-12"
+                  <input id="par-n2" type="number" min={0} className="pr-12" aria-invalid={!!errors.valeurNiveau2} aria-describedby={errors.valeurNiveau2 ? 'par-unit par-n2-error' : 'par-unit'}
                     {...register('valeurNiveau2', { valueAsNumber: true, setValueAs: v => v === '' ? null : Number(v) })} />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-subtle font-bold">{recompenseLabel}</span>
                 </div>
+                {errors.valeurNiveau2 && <p id="par-n2-error" className="form-error">{errors.valeurNiveau2.message}</p>}
               </div>
             )}
           </div>
-        </div>
+        </fieldset>
 
-        {/* Options */}
-        <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-text-subtle">Options</p>
-          <Toggle
-            checked={multiNiv}
-            onChange={(v) => setValue('multiNiveaux', v, { shouldDirty: true })}
-            label="Parrainage multi-niveaux"
-            description="Récompenser aussi le grand-parrain (niveau 2)"
-          />
-
-          <div className="form-group">
-            <label className="form-label">Déclenchement de la récompense</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+        <fieldset className="config-fieldset config-subsection">
+          <legend className="config-subheading">Déclenchement de la récompense</legend>
+            <div className="config-choices">
               {([
                 { v: 'ACTIVATION', label: 'À l\'activation', desc: 'Dès que le filleul est activé' },
                 { v: 'PREMIER_ACHAT', label: 'Premier achat', desc: 'Après le premier achat du filleul' },
-              ] as const).map(({ v, label, desc }) => (
-                <label key={v} className={cn(
-                  'cursor-pointer p-3 rounded-xl border-2 transition-all select-none',
-                  watch('conditionDeclenchement') === v ? 'border-primary-accent bg-primary-light/30' : 'border-border hover:border-border-strong',
-                )}>
-                  <input type="radio" value={v} {...register('conditionDeclenchement')} className="sr-only" />
-                  <p className="text-[12px] font-semibold text-text">{label}</p>
-                  <p className="text-[11px] text-text-muted mt-0.5">{desc}</p>
+              ] as const).map(({ v: value, label, desc }) => (
+                <label key={value} className="config-choice">
+                  <input type="radio" value={value} {...register('conditionDeclenchement')} />
+                  <span><strong>{label}</strong><span className="settings-description">{desc}</span></span>
                 </label>
               ))}
             </div>
-          </div>
+        </fieldset>
 
-          <div className="form-group">
+        <div className="config-subsection">
+          <div className="form-group config-cap-field">
             <label className="form-label" htmlFor="par-plafond">
               Plafond mensuel <span className="text-text-subtle normal-case font-normal">(0 = illimité)</span>
             </label>
             <div className="relative">
-              <input id="par-plafond" type="number" min={0} className="pr-12"
+              <input id="par-plafond" type="number" min={0} className="pr-12" aria-invalid={!!errors.plafondMensuel} aria-describedby={errors.plafondMensuel ? 'par-unit par-plafond-error' : 'par-unit'}
                 {...register('plafondMensuel', { valueAsNumber: true, setValueAs: v => v === '' || Number(v) === 0 ? null : Number(v) })} />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-subtle font-bold">{recompenseLabel}</span>
             </div>
+            {errors.plafondMensuel && <p id="par-plafond-error" className="form-error">{errors.plafondMensuel.message}</p>}
           </div>
         </div>
 
-        <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
-          {saveMut.isPending ? <><RefreshCw size={14} className="animate-spin" /> Sauvegarde…</> : <><Save size={14} /> Sauvegarder</>}
-        </button>
+        <div className="settings-form-actions">
+          <button type="submit" className="btn-primary" disabled={saveMut.isPending || !isDirty}>
+            {saveMut.isPending ? <><RefreshCw size={16} aria-hidden /> Sauvegarde…</> : <><Save size={16} aria-hidden /> Sauvegarder</>}
+          </button>
+        </div>
       </form>
     </Section>
   );
 }
 
-// ════════════════════════════════════════════════════════════════════
-// PAGE PRINCIPALE
-// ════════════════════════════════════════════════════════════════════
 export default function ConfigGeneralePage() {
   const [activeSection, setActiveSection] = useState<Section_ID>('systeme');
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -751,115 +697,62 @@ export default function ConfigGeneralePage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const { data: config, isLoading, isError, refetch } = useQuery({
+  const { data: config, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['config'],
     queryFn: () => configApi.getConfig(),
   });
 
-  const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+  const { data: stats, isLoading: loadingStats, isError: statsError, isFetching: fetchingStats, refetch: refetchStats } = useQuery({
     queryKey: ['config', 'system-stats'],
     queryFn: () => configApi.getSystemStats(),
     refetchInterval: 30_000,
   });
 
   return (
-    <div className="animate-fade-up">
-      {/* En-tête */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-light" aria-hidden>
-            <Settings size={20} className="text-primary-accent" />
-          </div>
-          <div>
-            <h1 className="text-page-title text-primary break-words">Panneau de configuration</h1>
-            <p className="text-xs text-text-muted mt-0.5">Contrôle complet du système — EBN Network</p>
-          </div>
-        </div>
-        <button onClick={() => { refetch(); refetchStats(); }} disabled={isLoading}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-white text-text-muted hover:border-primary-accent hover:text-primary-accent transition-colors"
-          aria-label="Actualiser">
-          <RefreshCw size={14} className={cn(isLoading && 'animate-spin')} />
+    <SettingsPageLayout
+      active="general"
+      title="Configuration générale"
+      description="Consultez l’état du système et configurez les règles de fonctionnement."
+      action={
+        <button type="button" onClick={() => { refetch(); refetchStats(); }} disabled={isFetching || fetchingStats} className="btn-secondary" aria-label="Actualiser">
+          <RefreshCw size={16} aria-hidden /> {isFetching || fetchingStats ? 'Actualisation…' : 'Actualiser'}
         </button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch lg:items-start min-w-0">
-        {/* Navigation latérale */}
-        <nav className="hidden lg:flex flex-col w-48 flex-shrink-0 space-y-1 sticky top-4" aria-label="Sections configuration">
-          {NAV.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveSection(id)}
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2.5 min-h-11 rounded-xl text-[13px] font-medium transition-all text-left w-full',
-                activeSection === id
-                  ? 'bg-primary-accent text-white shadow-sm'
-                  : 'text-text-muted hover:bg-bg-inset hover:text-text',
-              )}
-            >
-              <Icon size={15} className="flex-shrink-0" />
+      }
+    >
+      <div className="settings-config">
+        <nav className="settings-tabs config-navigation" aria-label="Sections configuration">
+          {NAV.map(({ id, label }) => (
+            <button key={id} type="button" onClick={() => setActiveSection(id)} aria-pressed={activeSection === id} aria-controls="config-section-content">
               {label}
             </button>
           ))}
         </nav>
-
-        {/* Navigation mobile */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar mb-0 w-full max-w-full pb-1" style={{ scrollbarWidth: 'none' }}>
-          {NAV.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveSection(id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 min-h-11 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all flex-shrink-0',
-                activeSection === id ? 'bg-primary-accent text-white' : 'bg-white border border-border text-text-muted',
-              )}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Contenu */}
-        <div className="flex-1 min-w-0">
+        <div id="config-section-content">
           {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="card animate-pulse space-y-4">
-                  <div className="flex items-center gap-3 pb-4 border-b border-border">
-                    <div className="skeleton h-10 w-10 rounded-xl" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="skeleton h-4 w-1/3 rounded-full" />
-                      <div className="skeleton h-3 w-1/2 rounded-full" />
-                    </div>
-                  </div>
-                  <div className="skeleton h-10 w-full rounded-lg" />
-                  <div className="skeleton h-10 w-2/3 rounded-lg" />
-                  <div className="skeleton h-9 w-32 rounded-lg" />
-                </div>
-              ))}
+            <div className="settings-panel config-loading" role="status" aria-label="Chargement de la configuration">
+              <p>Chargement de la configuration…</p>
+              <div className="config-skeleton" aria-hidden />
+              <div className="config-skeleton" aria-hidden />
             </div>
           ) : isError ? (
-            <div className="card flex flex-col items-center gap-3 py-16" role="alert">
-              <AlertCircle size={32} className="text-danger opacity-60" />
-              <p className="font-medium text-text">Impossible de charger la configuration.</p>
-              <button className="btn-secondary flex items-center gap-1.5" onClick={() => refetch()}>
-                <RefreshCw size={13} /> Réessayer
+            <div className="settings-panel config-empty" role="alert">
+              <h2 className="settings-section-title">Impossible de charger la configuration.</h2>
+              <p className="settings-description">Vérifiez votre connexion ou vos droits d’accès, puis réessayez.</p>
+              <button type="button" className="btn-secondary" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCw size={16} aria-hidden /> Réessayer
               </button>
             </div>
           ) : config ? (
             <>
-              {activeSection === 'systeme'    && <SystemeSection    stats={stats} loadingStats={loadingStats} refetchStats={refetchStats} />}
+              {activeSection === 'systeme'    && <SystemeSection stats={stats} loadingStats={loadingStats} statsError={statsError} fetchingStats={fetchingStats} refetchStats={refetchStats} />}
               {activeSection === 'sms'        && <SmsSection        config={config} onSaved={showToast} />}
               {activeSection === 'operations' && <OperationsSection config={config} onSaved={showToast} />}
               {activeSection === 'parrainage' && <ParrainageSection config={config} onSaved={showToast} />}
             </>
-          ) : null}
+          ) : <div className="settings-panel config-empty"><h2 className="settings-section-title">Aucune configuration disponible.</h2><p className="settings-description">Actualisez pour réessayer de charger les paramètres.</p></div>}
         </div>
+        {toast && <Toast msg={toast.msg} ok={toast.ok} onDismiss={() => setToast(null)} />}
       </div>
-
-      {toast && <Toast msg={toast.msg} ok={toast.ok} onDismiss={() => setToast(null)} />}
-    </div>
+    </SettingsPageLayout>
   );
 }
