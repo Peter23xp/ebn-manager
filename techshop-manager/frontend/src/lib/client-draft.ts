@@ -8,7 +8,6 @@ export const clientDraftSchema = z.object({
   siteId: z.string().min(1, 'Site requis'),
   email: z.string().email('Email invalide').or(z.literal('')).optional().transform(value => value || undefined),
   codeParrain: z.string().optional().transform(value => value || undefined),
-  matriculeExterne: z.string().optional().transform(value => value || undefined),
 }).strict();
 
 export type ClientDraftValues = z.infer<typeof clientDraftSchema>;

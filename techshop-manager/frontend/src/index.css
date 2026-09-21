@@ -233,6 +233,14 @@
   .text-balance { text-wrap: balance; }
 }
 
+@media (hover: none) and (pointer: coarse) {
+  :root input:not([type="checkbox"]):not([type="radio"]),
+  :root select,
+  :root textarea {
+    font-size: max(1rem, 16px);
+  }
+}
+
 /* ── Print ─────────────────────────────────────────────────────── */
 @media print {
   .no-print { display: none !important; }

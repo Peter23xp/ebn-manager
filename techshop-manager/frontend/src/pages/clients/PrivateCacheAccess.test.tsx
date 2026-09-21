@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import type { AuthUser } from '@/types';
 import toast from 'react-hot-toast';
+import { AxiosError, AxiosHeaders } from 'axios';
 
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 const { toBlob, createObjectURL } = vi.hoisted(() => ({ toBlob: vi.fn(), createObjectURL: vi.fn(() => 'blob:synthetic') }));
@@ -112,6 +113,49 @@ const changes = [
   { name: 'role with unchanged token', previous: manager, next: { ...manager, role: 'CAISSIER' as const }, token: 'token' },
   { name: 'logout/login with reused token', previous: cashier, next: cashier, token: 'token', logout: true },
 ];
+
+describe('client detail access-denied message', () => {
+  function failRequest(status: number) {
+    get.mockRejectedValue(new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_REQUEST', undefined, undefined, {
+      status, statusText: status === 403 ? 'Forbidden' : 'Internal Server Error',
+      data: { message: 'Technical server message' }, headers: {}, config: { headers: new AxiosHeaders() },
+    }));
+  }
+
+  it.each(['CAISSIER', 'AGENT'] as const)('explains site restrictions to %s without exposing technical errors or private data', async role => {
+    failRequest(403);
+    mount(views[0], { ...cashier, role }, <ClientDetailPage />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Vous n’avez pas accès à ce dossier.');
+    expect(alert).toHaveTextContent('Vous pouvez uniquement consulter les clients de votre site.');
+    expect(alert).toHaveTextContent('Contactez votre responsable si nécessaire.');
+    expect(alert).not.toHaveTextContent(/403|Request failed|Technical server message|Erreur réseau/);
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Retour à la liste' })).toHaveAttribute('href', '/clients');
+    expectPrivateHidden();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('does not describe a regional administrator as limited to one site', async () => {
+    failRequest(403);
+    mount(views[0], { id: 'regional', name: 'Responsable', role: 'DIRECTEUR_REGIONAL', siteId: null }, <ClientDetailPage />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Vous n’avez pas accès à ce dossier.');
+    expect(alert).toHaveTextContent('Contactez votre responsable si nécessaire.');
+    expect(alert).not.toHaveTextContent('uniquement consulter les clients de votre site');
+    expect(alert).not.toHaveTextContent(/403|Request failed|Technical server message/);
+  });
+
+  it('keeps retry available for a server failure rather than reporting an access denial', async () => {
+    failRequest(500);
+    mount(views[0], cashier, <ClientDetailPage />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Impossible de charger ce client.');
+    expect(alert).not.toHaveTextContent('Vous n’avez pas accès à ce dossier.');
+    await userEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+  });
+});
 
 describe.each(views)('retained QueryClient on actual $path', view => {
   it.each(changes)('withholds fresh private data and printing after $name', async change => {

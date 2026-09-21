@@ -54,6 +54,7 @@ describe('Préparation de dossier sans encaissement', () => {
     renderForm();
     expect(screen.queryByLabelText(/mode de paiement/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/montant payé/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/matricule externe/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /cash/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /encaisser/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enregistrer le dossier' })).toBeEnabled();
@@ -64,19 +65,19 @@ describe('Préparation de dossier sans encaissement', () => {
     expect(get).not.toHaveBeenCalledWith('/config');
   });
 
-  it('submits the seven-field draft contract, resets identity/recruiter, and opens the created dossier', async () => {
+  it('submits the draft without an external registration number, resets identity/recruiter, and opens the created dossier', async () => {
     const user = renderForm();
     await fillIdentity(user);
     await user.type(screen.getByLabelText('Email'), 'client@example.test');
-    await user.type(screen.getByLabelText(/matricule externe/i), 'EXT-1');
     await selectRecruiter(user, 'Alice');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le dossier' }));
     await waitFor(() => expect(screen.getByLabelText('Prénom *')).toHaveValue(''));
     expect(post).toHaveBeenCalledWith('/clients/onboarding/draft', {
-      prenom: 'Premier', nom: 'Client', telephone: '+243900000001', email: 'client@example.test', siteId: 'site-1', codeParrain: 'EBN-ALICE', matriculeExterne: 'EXT-1',
+      prenom: 'Premier', nom: 'Client', telephone: '+243900000001', email: 'client@example.test', siteId: 'site-1', codeParrain: 'EBN-ALICE',
     });
+    expect(post.mock.calls[0][1]).not.toHaveProperty('matriculeExterne');
     expect(screen.getByPlaceholderText(searchPlaceholder)).toHaveValue('');
-    expect(screen.getByLabelText(/matricule externe/i)).toHaveValue('');
+    expect(screen.queryByLabelText(/matricule externe/i)).not.toBeInTheDocument();
     expect(screen.getByText('En attente de passage en caisse')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'Ouvrir le dossier' });
     expect(link).toHaveAttribute('href', '/clients/client-Premier');

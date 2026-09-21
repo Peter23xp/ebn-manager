@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import toast from 'react-hot-toast';
+import { isAxiosError } from 'axios';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
-import { hasMinimumRole } from '@/lib/roles';
+import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 import { useClientDetail } from '@/hooks/useClientDetail';
 import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
@@ -201,29 +202,35 @@ export default function ClientDetailPage() {
 
   // ── Error ────────────────────────────────────────────────────────
   if (isError || !client) {
+    const accessDenied = isAxiosError(error) && error.response?.status === 403;
     return (
       <div className="flex flex-col items-center justify-center py-20 text-text-muted" role="alert">
         <AlertCircle size={36} className="mb-3 opacity-40" aria-hidden />
         <p className="text-[14px] font-medium text-text mb-1">
-          {isError ? 'Impossible de charger ce client.' : 'Client introuvable.'}
+          {accessDenied ? 'Vous n’avez pas accès à ce dossier.' : isError ? 'Impossible de charger ce client.' : 'Client introuvable.'}
         </p>
         {isError && (
-          <p className="text-[12px] text-text-muted mb-4">
-            {error instanceof Error ? error.message : 'Erreur réseau.'}
+          <p className="max-w-md text-center text-[12px] text-text-muted mb-4">
+            {accessDenied ? (
+              <>
+                {user && isSiteScopedStaff(user.role) && 'Vous pouvez uniquement consulter les clients de votre site. '}
+                Contactez votre responsable si nécessaire.
+              </>
+            ) : error instanceof Error ? error.message : 'Erreur réseau.'}
           </p>
         )}
         <div className="flex items-center gap-3">
-          <button
+          {!accessDenied && <button
             type="button"
             onClick={() => refetch()}
             className="flex items-center gap-1.5 text-[13px] font-medium text-primary-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent rounded"
           >
             <RefreshCw size={13} aria-hidden />
             Réessayer
-          </button>
+          </button>}
           <Link
             to="/clients"
-            className="text-[13px] text-text-muted hover:text-text transition-colors"
+            className={accessDenied ? 'btn-secondary' : 'text-[13px] text-text-muted hover:text-text transition-colors'}
           >
             Retour à la liste
           </Link>

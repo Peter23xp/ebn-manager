@@ -685,7 +685,7 @@ export default function POSPage() {
   // ── Rendu ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden bg-bg">
+    <div className="flex min-h-0 h-full flex-col overflow-hidden bg-bg">
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between gap-2 bg-primary px-3 py-2 z-10 min-h-0 h-11">

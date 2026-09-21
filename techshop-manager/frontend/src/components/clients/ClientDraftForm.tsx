@@ -18,7 +18,7 @@ export function ClientDraftForm() {
   const [failure, setFailure] = useState<{ message: string; clientId?: string } | null>(null);
   const { register, control, handleSubmit, watch, reset, formState: { errors } } = useForm<ClientDraftValues>({
     resolver: zodResolver(clientDraftSchema),
-    defaultValues: { siteId: user?.siteId ?? '', prenom: '', nom: '', telephone: '', email: '', codeParrain: '', matriculeExterne: '' },
+    defaultValues: { siteId: user?.siteId ?? '', prenom: '', nom: '', telephone: '', email: '', codeParrain: '' },
   });
   const telephone = watch('telephone');
   const mutation = useMutation({
@@ -26,7 +26,7 @@ export function ClientDraftForm() {
     onMutate: () => setFailure(null),
     onSuccess: ({ client }) => {
       setSessionClients(previous => [client, ...previous]);
-      reset({ siteId: user?.siteId ?? '', prenom: '', nom: '', telephone: '', email: '', codeParrain: '', matriculeExterne: '' });
+      reset({ siteId: user?.siteId ?? '', prenom: '', nom: '', telephone: '', email: '', codeParrain: '' });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['onboarding-queue'] });
     },
@@ -93,10 +93,6 @@ export function ClientDraftForm() {
           <div className="form-group">
             <label className="form-label">Parrain <span className="text-text-muted font-normal">(optionnel — matricule ou nom)</span></label>
             <Controller name="codeParrain" control={control} render={({ field }) => <CodeParrainInput value={field.value ?? ''} onChange={field.onChange} currentClientPhone={telephone} disabled={disabled} error={errors.codeParrain?.message} />} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="matriculeExterne" className="form-label">Matricule externe (optionnel)</label>
-            <input id="matriculeExterne" disabled={disabled} className={fieldClass(!!errors.matriculeExterne)} {...register('matriculeExterne')} />
           </div>
           {failure && (
             <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-danger">
