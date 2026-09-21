@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, UserPlus, Upload, Users, RefreshCw, AlertCircle, ChevronDown, X } from 'lucide-react';
+import { Search, UserPlus, Upload, Users, RefreshCw, AlertCircle, ChevronDown, X, Printer } from 'lucide-react';
 import { cn, formatDate, initials } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { useClients } from '@/hooks/useClients';
@@ -8,6 +8,9 @@ import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
 import { Pagination } from '@/components/ui/Pagination';
 import type { StatutClient } from '@/types';
 import { isSiteScopedStaff } from '@/lib/roles';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
+import { ClientPrintPreview } from '@/components/clients/print/ClientPrintPreview';
+import type { ClientPrintSnapshot } from '@/components/clients/print/client-print';
 
 // ── Avatar initiales ──────────────────────────────────────────────
 
@@ -47,6 +50,9 @@ function TableSkeleton() {
 export default function ClientsListPage() {
   const navigate = useNavigate();
   const { hasRole, user } = useAuthStore();
+  const scope = usePrivateQueryScope();
+  const [printSnapshot, setPrintSnapshot] = useState<ClientPrintSnapshot | null>(null);
+  const printButton = useRef<HTMLButtonElement>(null);
 
   const [search, setSearch] = useState('');
   const [statut, setStatut] = useState<StatutClient | ''>('');
@@ -80,6 +86,11 @@ export default function ClientsListPage() {
     setPage(1);
   };
 
+  if (printSnapshot) return <ClientPrintPreview snapshot={printSnapshot} onClose={() => {
+    setPrintSnapshot(null);
+    requestAnimationFrame(() => printButton.current?.focus());
+  }} />;
+
   return (
     <div className="space-y-5 animate-fade-up">
 
@@ -104,6 +115,23 @@ export default function ClientsListPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            ref={printButton}
+            type="button"
+            className="btn-secondary text-[13px]"
+            disabled={!scope.enabled || !meta || isError}
+            onClick={() => {
+              if (!scope.isCurrent() || !meta || isError) return;
+              setPrintSnapshot({
+                filters: Object.freeze({ search: search || undefined, statut: statut || undefined, siteId: scope.siteId, page, limit: 25 }),
+                siteLabel: scope.siteId ? user?.siteName || user?.site?.nom || scope.siteId : 'Tous les sites autorisés',
+                isCurrent: scope.isCurrent,
+              });
+            }}
+          >
+            <Printer size={15} aria-hidden />
+            Imprimer
+          </button>
           {canImport && (
             <Link
               to="/clients/import"

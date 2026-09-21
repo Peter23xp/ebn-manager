@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BarChart2, AlertCircle, RefreshCw, Building2,
-  TrendingUp, ShoppingCart, Users, ExternalLink,
+  TrendingUp, ShoppingCart, Users, ExternalLink, Download, Package,
 } from 'lucide-react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -22,6 +22,9 @@ import { DateRangePicker } from '@/components/reports/DateRangePicker';
 import { DoughnutSiteChart } from '@/components/reports/DoughnutSiteChart';
 import { SitesSummaryTable } from '@/components/reports/SitesSummaryTable';
 import { TopProductsBarChart } from '@/components/reports/TopProductsBarChart';
+import { OperationalSummary } from '@/components/reports/OperationalSummary';
+import { useSites } from '@/hooks/useSites';
+import { toISODate } from '@/lib/dateRange.utils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
@@ -87,7 +90,7 @@ function CALineChart({
     );
   }
 
-  if (!seriesCA || seriesCA.length === 0) {
+  if (!seriesCA || !seriesCA.some(point => Object.values(point.values).some(value => value !== 0))) {
     return (
       <div
         data-testid="ca-chart-empty"
@@ -103,7 +106,7 @@ function CALineChart({
   }
 
   // Build datasets — one per site (keys inside seriesCA[0].values)
-  const siteNames = seriesCA.length > 0 ? Object.keys(seriesCA[0].values) : [];
+  const siteNames = [...new Set(seriesCA.flatMap(point => Object.keys(point.values)))];
   const labels = seriesCA.map((p) => p.label);
 
   const datasets = siteNames.map((site, i) => {
@@ -173,6 +176,8 @@ export default function RapportsDashboardPage() {
 
   const isGerant          = hasRole('GERANT') && !hasRole('DIRECTEUR_REGIONAL');
   const isRegionalOrAbove = hasRole('DIRECTEUR_REGIONAL');
+  const { sites, isLoading: sitesLoading } = useSites();
+  const [siteId, setSiteId] = useState('');
 
   // ── Period state ──────────────────────────────────────────────────────────
   const [preset, setPreset] = useState<PeriodPreset>('this_month');
@@ -190,7 +195,7 @@ export default function RapportsDashboardPage() {
 
   // ── Query ─────────────────────────────────────────────────────────────────
   const { data, isLoading, isFetching, error, refetch } = useReportsDashboard({
-    siteId: isGerant ? (user?.siteId ?? undefined) : undefined,
+    siteId: isGerant ? (user?.siteId ?? undefined) : siteId || undefined,
     dateRange,
   });
 
@@ -203,6 +208,13 @@ export default function RapportsDashboardPage() {
     })),
     [data],
   );
+  const reportParams = new URLSearchParams({ dateDebut: toISODate(dateRange.from), dateFin: toISODate(dateRange.to) });
+  const selectedSite = isGerant ? user?.siteId : siteId;
+  if (selectedSite) reportParams.set('siteId', selectedSite);
+
+  if (!hasRole('GERANT') || (isGerant && !user?.siteId)) {
+    return <div className="card text-sm text-text-muted" role="alert">Un accès aux rapports et un site attribué sont nécessaires. Contactez votre responsable.</div>;
+  }
 
   // ── Error state ───────────────────────────────────────────────────────────
   if (error) {
@@ -213,7 +225,7 @@ export default function RapportsDashboardPage() {
           Impossible de charger les données du rapport.
         </p>
         <p className="text-sm text-text-muted">
-          {error instanceof Error ? error.message : 'Une erreur réseau est survenue.'}
+          Vérifiez votre connexion et réessayez. Si le problème persiste, contactez votre responsable.
         </p>
         <button
           type="button"
@@ -228,7 +240,7 @@ export default function RapportsDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
 
       {/* ── Header ── */}
       <div className="page-header">
@@ -254,7 +266,13 @@ export default function RapportsDashboardPage() {
         </div>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 w-full max-w-full flex-wrap items-center gap-2 xl:w-auto">
+          {isRegionalOrAbove && (
+            <select aria-label="Site du rapport" value={siteId} onChange={event => setSiteId(event.target.value)} disabled={sitesLoading} className="input-field min-w-0 !w-full max-w-full min-h-11 sm:!w-auto sm:max-w-xs">
+              <option value="">Tous les sites</option>
+              {sites.map(site => <option key={site.id} value={site.id}>{site.nom}</option>)}
+            </select>
+          )}
           <PeriodSelector
             value={preset}
             onChange={handlePresetChange}
@@ -284,17 +302,20 @@ export default function RapportsDashboardPage() {
         </div>
       </div>
 
+      <nav aria-label="Rapports disponibles" className="flex flex-wrap gap-2">
+        {isRegionalOrAbove && <Link to={`/reports/sales?${reportParams}`} className="btn-secondary min-h-11 gap-2"><ShoppingCart size={16} />Ventes détaillées</Link>}
+        {isRegionalOrAbove && <Link to={`/reports/stocks?${selectedSite ? new URLSearchParams({ siteId: selectedSite }) : ''}`} className="btn-secondary min-h-11 gap-2"><Package size={16} />Stocks et inventaire</Link>}
+        <Link to={`/reports/export?type=VENTES&${reportParams}`} className="btn-primary min-h-11 gap-2"><Download size={16} />Exporter les données</Link>
+        <Link to="/clients" className="btn-secondary min-h-11 gap-2"><Users size={16} />Liste des clients</Link>
+      </nav>
+      <p className="text-xs text-text-muted">Du {dateRange.from.toLocaleDateString('fr-CD')} au {dateRange.to.toLocaleDateString('fr-CD')} · Journées complètes en UTC · {isGerant ? user?.siteName ?? user?.site?.nom ?? 'Votre site' : sites.find(site => site.id === siteId)?.nom ?? 'Tous les sites'}</p>
+
       {/* ── KPI stat cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={<TrendingUp size={20} />}
           label="Chiffre d'affaires total"
-          value={(() => {
-            const n = data?.totalCA ?? 0;
-            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + ' M $';
-            if (n >= 1_000) return Math.round(n / 1_000) + ' k $';
-            return formatUSD(n);
-          })()}
+          value={formatUSD(data?.totalCA ?? 0)}
           isLoading={isLoading}
           color="#2E86C1"
         />
@@ -313,6 +334,8 @@ export default function RapportsDashboardPage() {
           color="#E65100"
         />
       </div>
+
+      <OperationalSummary activity={data?.activity} isLoading={isLoading} />
 
       {/* ── CA Evolution Line Chart ── */}
       <div className="card">

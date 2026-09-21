@@ -1,16 +1,18 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Package, MapPin, BarChart2, AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { useStocksReport } from '@/hooks/useStocksReport';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatUSD, cn } from '@/lib/utils';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
+import { ReportSiteFilter } from '@/components/reports/ReportSiteFilter';
+import { reportExportUrl, reportErrorMessage } from '@/lib/reportExport.utils';
+import type { StocksReportResponse } from '@/lib/reports.api';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function abbreviateCDF(amount: number): string {
-  if (amount >= 1_000_000) return (amount / 1_000_000).toFixed(1) + ' M $';
-  if (amount >= 1_000) return Math.round(amount / 1_000) + ' k $';
-  return '$' + amount;
+  return formatUSD(amount);
 }
 
 // ── Stat card stocks ──────────────────────────────────────────────────────────
@@ -51,7 +53,7 @@ function StockValueCard({ label, value, sub, icon: Icon, isLoading, color = '#2E
 // ── Tableau stocks consolidés ─────────────────────────────────────────────────
 
 function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
-  rawData: any;
+  rawData: StocksReportResponse | undefined;
   search: string;
   categorie: string;
   isLoading: boolean;
@@ -64,8 +66,8 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
     if (!rawData?.data?.length) return [];
     const siteMap: Record<string, string> = {};
     for (const item of rawData.data) {
-      for (const s of item.sites ?? []) {
-        siteMap[s.site.id] = s.site.nom;
+      for (const stock of item.sites ?? []) {
+        siteMap[stock.site.id] = stock.site.nom;
       }
     }
     return Object.entries(siteMap).map(([id, nom]) => ({ id, nom }));
@@ -73,19 +75,16 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
 
   const produits = useMemo(() => {
     if (!rawData?.data) return [];
-    return rawData.data.map((item: any) => {
+    return rawData.data.map(item => {
       const stockParSite: Record<string, number> = {};
-      const valeurParSite: Record<string, number> = {};
       let hasRupture = false;
-      for (const s of item.sites ?? []) {
-        stockParSite[s.site.id] = s.quantite;
-        valeurParSite[s.site.id] = s.quantite * Number(item.produit.prixAchat ?? 0);
-        if (s.quantite === 0) hasRupture = true;
+      for (const stock of item.sites ?? []) {
+        stockParSite[stock.site.id] = stock.quantite;
+        if (stock.quantite === 0) hasRupture = true;
       }
       return {
         ...item.produit,
         stockParSite,
-        valeurParSite,
         totalStock: item.totalQuantite,
         valeurTotale: item.valeurStock,
         hasRupture,
@@ -94,7 +93,7 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
   }, [rawData]);
 
   const filtered = useMemo(() => {
-    let list = produits;
+    let list = [...produits];
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((p: any) => p.nom.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
@@ -128,7 +127,7 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
 
   if (isLoading) {
     return (
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden" role="status" aria-label="Chargement des stocks">
         <div className="p-4 border-b"><div className="skeleton h-5 w-56 rounded" /></div>
         <div className="divide-y">
           {[...Array(6)].map((_, i) => (
@@ -145,14 +144,14 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
   return (
     <div className="card p-0 overflow-hidden">
       {/* Desktop: Table normale avec scroll horizontal */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: '700px' }}>
+      <div className="hidden md:block overflow-x-auto" role="region" aria-label="Stocks par site, défilement horizontal" tabIndex={0}>
+        <table className="w-full text-sm" style={{ minWidth: '700px' }} aria-label="Stocks par site">
           <thead>
             <tr style={{ background: '#1E3A5F' }}>
               <th
                 className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white sticky left-0 bg-[#1E3A5F] min-w-[100px] cursor-pointer"
-                onClick={() => toggleSort('nom')}
-              >SKU / Nom</th>
+                aria-sort={sortField === 'nom' ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}
+              ><button type="button" className="min-h-11" onClick={() => toggleSort('nom')}>SKU / Nom</button></th>
               <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white">Catégorie</th>
               <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white">P. Achat</th>
               {sites.map((s) => (
@@ -160,8 +159,8 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
               ))}
               <th
                 className="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-white cursor-pointer"
-                onClick={() => toggleSort('total')}
-              >Total</th>
+                aria-sort={sortField === 'total' ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}
+              ><button type="button" className="min-h-11" onClick={() => toggleSort('total')}>Total</button></th>
               <th className="px-3 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide text-white">Valeur</th>
             </tr>
           </thead>
@@ -176,12 +175,12 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
               >
                 <td className="px-3 py-2.5 sticky left-0 bg-inherit">
                   <p className="font-mono text-[11px] text-text-muted">{p.sku}</p>
-                  <p
-                    className="font-semibold text-primary text-xs cursor-pointer hover:underline"
+                  <button type="button"
+                    className="min-h-11 text-left font-semibold text-primary text-sm hover:underline"
                     onClick={() => navigate(`/stocks/${p.id}`)}
                   >
                     {p.nom.length > 22 ? p.nom.slice(0, 22) + '…' : p.nom}
-                  </p>
+                  </button>
                 </td>
                 <td className="px-3 py-2.5 text-xs text-text-muted">{p.categorie}</td>
                 <td className="px-3 py-2.5 text-xs tabular-nums">{formatUSD(Number(p.prixAchat ?? 0))}</td>
@@ -276,13 +275,21 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function RapportStocksPage() {
+function StocksContent() {
   const navigate = useNavigate();
-  const [searchInput, setSearchInput] = useState('');
-  const [categorie, setCategorie] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
+  const [categorie, setCategorie] = useState(searchParams.get('categorie') ?? '');
+  const [siteId, setSiteId] = useState(searchParams.get('siteId') ?? '');
   const search = useDebounce(searchInput, 200);
 
-  const { data: rawData, isLoading, error, refetch } = useStocksReport();
+  const { data: rawData, isLoading, isFetching, error, refetch } = useStocksReport({ siteId: siteId || undefined, categorie: categorie || undefined, search: search || undefined });
+  const updateFilters = (next: { siteId: string; categorie: string; search: string }) => {
+    setSiteId(next.siteId); setCategorie(next.categorie); setSearchInput(next.search);
+    const params = new URLSearchParams(reportExportUrl('STOCKS', next).split('?')[1]);
+    params.delete('type');
+    setSearchParams(params, { replace: true });
+  };
 
   const summary = useMemo(() => {
     if (!rawData) return { nbSites: 0, nbProduits: 0, nbAvecAlerte: 0, valeurTotale: 0 };
@@ -309,24 +316,12 @@ export default function RapportStocksPage() {
     );
   }, [rawData]);
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
-        <AlertTriangle size={36} className="text-danger" />
-        <p className="text-sm font-semibold text-primary">Impossible de charger le rapport stocks.</p>
-        <button type="button" onClick={() => refetch()} className="btn-primary flex items-center gap-2">
-          <RefreshCw size={14} /> Réessayer
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="page-header">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => navigate('/reports')} className="btn-ghost !min-h-0 !p-1.5 rounded-lg">
+          <button type="button" aria-label="Retour aux rapports" onClick={() => navigate('/reports')} className="btn-ghost min-h-11 min-w-11 rounded-lg">
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -336,16 +331,16 @@ export default function RapportStocksPage() {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/reports/export?type=STOCKS')}
-          className="btn-secondary !min-h-0 h-9 text-xs flex items-center gap-1.5"
+          onClick={() => navigate(reportExportUrl('STOCKS', { siteId, categorie, search: searchInput }))}
+          className="btn-secondary min-h-11 text-sm flex items-center gap-1.5"
         >
           <Download size={13} />
-          Export XLSX
+          Export CSV/XLSX
         </button>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {!error && <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StockValueCard label="Sites actifs" value={String(summary.nbSites)} icon={MapPin} isLoading={isLoading} color="#1E3A5F" />
         <StockValueCard
           label="Produits référencés"
@@ -362,10 +357,10 @@ export default function RapportStocksPage() {
           isLoading={isLoading}
           color="#2E86C1"
         />
-      </div>
+      </div>}
 
       {/* Alert ruptures */}
-      {rupturesProduits.length > 0 && !isLoading && (
+      {rupturesProduits.length > 0 && !isLoading && !error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={18} className="text-danger" />
@@ -391,34 +386,50 @@ export default function RapportStocksPage() {
 
       {/* Filtres */}
       <div className="flex flex-wrap items-center gap-3">
+        <ReportSiteFilter value={siteId} onChange={value => updateFilters({ siteId: value, categorie, search: searchInput })} />
         <input
           type="text"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={event => updateFilters({ siteId, categorie, search: event.target.value })}
+          aria-label="Rechercher par nom ou SKU"
           placeholder="Rechercher par nom ou SKU…"
-          className="h-9 rounded-lg border border-border bg-white px-3 text-sm min-w-[220px] focus:outline-none focus:ring-2 focus:ring-primary-accent/30"
+          className="min-h-11 w-full min-w-0 rounded-lg border border-border bg-white px-3 text-sm sm:w-auto focus:outline-none focus:ring-2 focus:ring-primary-accent/30"
         />
         <select
           value={categorie}
-          onChange={(e) => setCategorie(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-white px-3 text-sm"
+          onChange={event => updateFilters({ siteId, categorie: event.target.value, search: searchInput })}
+          className="min-h-11 max-w-full rounded-lg border border-border bg-white px-3 text-sm"
           aria-label="Filtrer par catégorie"
         >
           <option value="">Toutes catégories</option>
+          {categorie && !['Smartphones', 'Accessoires', 'Audio', 'Informatique'].includes(categorie) && <option value={categorie}>{categorie}</option>}
           <option value="Smartphones">Smartphones</option>
           <option value="Accessoires">Accessoires</option>
           <option value="Audio">Audio</option>
           <option value="Informatique">Informatique</option>
         </select>
+        <button type="button" className="btn-secondary min-h-11 text-sm" onClick={() => updateFilters({ siteId: '', categorie: '', search: '' })}>Réinitialiser</button>
       </div>
 
+      {error && <div role="alert" className="card space-y-2 text-sm text-danger">
+        <p>Impossible de charger le rapport stocks. {reportErrorMessage(error, 'Réessayez.')}</p>
+        <button type="button" onClick={() => void refetch()} className="btn-secondary min-h-11">Réessayer</button>
+      </div>}
+      {isFetching && <p role="status" className="text-sm text-text-muted">Actualisation des stocks…</p>}
+
       {/* Tableau consolidé */}
-      <ConsolidatedStockTable
+      {!error && <ConsolidatedStockTable
         rawData={rawData}
         search={search}
         categorie={categorie}
         isLoading={isLoading}
-      />
+      />}
     </div>
   );
+}
+
+export default function RapportStocksPage() {
+  const scope = usePrivateQueryScope('DIRECTEUR_REGIONAL');
+  if (!scope.enabled) return <p role="alert" className="card text-sm text-danger">Votre session ne permet pas l’accès au rapport stocks.</p>;
+  return <StocksContent key={scope.key} />;
 }

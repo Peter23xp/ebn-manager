@@ -1,14 +1,16 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, TrendingDown, ShoppingCart, Percent, Receipt, Download, AlertCircle, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
+import { ReportSiteFilter } from '@/components/reports/ReportSiteFilter';
+import { readReportFilters, reportExportUrl, reportErrorMessage } from '@/lib/reportExport.utils';
 import { useSalesDetailReport } from '@/hooks/useSalesDetailReport';
 import { PeriodSelector } from '@/components/reports/PeriodSelector';
 import { DateRangePicker } from '@/components/reports/DateRangePicker';
 import { getDateRangeFromPreset, type PeriodPreset, type DateRange, toISODate } from '@/lib/dateRange.utils';
 import { formatUSD, formatDateTime, cn } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
-import type { VentesDetailParams, AgentPerformance } from '@/lib/reports.api';
+import type { VentesDetailParams, AgentPerformance, VenteDetail } from '@/lib/reports.api';
 
 // ── Types locaux ──────────────────────────────────────────────────────────────
 
@@ -18,6 +20,8 @@ interface SalesFilters {
   siteId: string;
   agentId: string;
   modePaiement: string;
+  categorie: string;
+  search: string;
 }
 
 const DEFAULT_FILTERS: SalesFilters = {
@@ -26,7 +30,20 @@ const DEFAULT_FILTERS: SalesFilters = {
   siteId: '',
   agentId: '',
   modePaiement: '',
+  categorie: '',
+  search: '',
 };
+
+function initialFilters(params: URLSearchParams): SalesFilters {
+  const filters = readReportFilters(params);
+  const from = new Date(`${filters.dateDebut}T00:00:00`);
+  const to = new Date(`${filters.dateFin}T00:00:00`);
+  const hasDates = Number.isFinite(from.getTime()) && Number.isFinite(to.getTime());
+  return { ...DEFAULT_FILTERS, ...filters,
+    dateRange: hasDates ? { from, to } : getDateRangeFromPreset('this_month'),
+    preset: hasDates ? 'custom' : 'this_month',
+  };
+}
 
 // ── Stat card avec trend ──────────────────────────────────────────────────────
 
@@ -81,7 +98,7 @@ function FiltersPanel({
   onApply: () => void;
   onReset: () => void;
 }) {
-  const activeCount = [draft.siteId, draft.agentId, draft.modePaiement].filter(Boolean).length
+  const activeCount = [draft.siteId, draft.agentId, draft.modePaiement, draft.categorie, draft.search].filter(Boolean).length
     + (draft.preset !== 'this_month' ? 1 : 0);
 
   return (
@@ -89,7 +106,7 @@ function FiltersPanel({
       <div className="flex flex-wrap items-center gap-3">
         <PeriodSelector
           value={draft.preset}
-          onChange={(p, r) => setDraft({ ...draft, preset: p, dateRange: r })}
+          onChange={(p, r) => setDraft({ ...draft, preset: p, dateRange: p === 'custom' ? draft.dateRange : r })}
         />
         {draft.preset === 'custom' && (
           <DateRangePicker
@@ -98,21 +115,11 @@ function FiltersPanel({
             maxDate={new Date()}
           />
         )}
-        <select
-          value={draft.siteId}
-          onChange={(e) => setDraft({ ...draft, siteId: e.target.value })}
-          className="h-9 rounded-lg border border-border bg-white px-3 text-sm"
-          aria-label="Filtrer par site"
-        >
-          <option value="">Tous les sites</option>
-          <option value="goma">Goma</option>
-          <option value="bukavu">Bukavu</option>
-          <option value="kinshasa">Kinshasa</option>
-        </select>
+        <ReportSiteFilter value={draft.siteId} onChange={siteId => setDraft({ ...draft, siteId })} />
         <select
           value={draft.modePaiement}
           onChange={(e) => setDraft({ ...draft, modePaiement: e.target.value })}
-          className="h-9 rounded-lg border border-border bg-white px-3 text-sm"
+          className="min-h-11 max-w-full rounded-lg border border-border bg-white px-3 text-sm"
           aria-label="Mode de paiement"
         >
           <option value="">Tous paiements</option>
@@ -121,12 +128,18 @@ function FiltersPanel({
           <option value="AIRTEL_MONEY">Airtel Money</option>
           <option value="VIREMENT">Virement</option>
         </select>
+        <input aria-label="Rechercher une vente" value={draft.search} onChange={event => setDraft({ ...draft, search: event.target.value })}
+          placeholder="Numéro ou nom du client" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
+        <input aria-label="Catégorie" value={draft.categorie} onChange={event => setDraft({ ...draft, categorie: event.target.value })}
+          placeholder="Toutes catégories" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
+        <input aria-label="Agent (identifiant)" value={draft.agentId} onChange={event => setDraft({ ...draft, agentId: event.target.value })}
+          placeholder="Tous les agents" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={onApply} className="btn-primary !min-h-0 h-8 text-xs px-4">
+        <button type="button" onClick={onApply} className="btn-primary min-h-11 text-sm px-4">
           Appliquer {activeCount > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5">{activeCount}</span>}
         </button>
-        <button type="button" onClick={onReset} className="btn-secondary !min-h-0 h-8 text-xs px-3">
+        <button type="button" onClick={onReset} className="btn-secondary min-h-11 text-sm px-3">
           Réinitialiser
         </button>
       </div>
@@ -137,20 +150,21 @@ function FiltersPanel({
 // ── Tableau ventes ────────────────────────────────────────────────────────────
 
 function SalesDetailTable({
-  ventes, meta, onPageChange, isLoading, isFetching,
+  ventes, meta, onPageChange, isLoading, isFetching, sortDir, onSort,
 }: {
-  ventes: any[];
+  ventes: VenteDetail[];
   meta: { total: number; page: number; limit: number; totalPages: number };
   onPageChange: (p: number) => void;
   isLoading: boolean;
   isFetching: boolean;
+  sortDir: 'asc' | 'desc';
+  onSort: () => void;
 }) {
   const navigate = useNavigate();
-  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   if (isLoading) {
     return (
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden" role="status" aria-label="Chargement des ventes">
         <div className="p-4 border-b">
           <div className="skeleton h-5 w-40 rounded" />
         </div>
@@ -182,21 +196,20 @@ function SalesDetailTable({
         </h2>
         <span className="text-xs text-text-muted">{meta.total} résultat{meta.total !== 1 ? 's' : ''}</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto" role="region" aria-label="Détail des ventes, défilement horizontal" tabIndex={0}>
+        <table className="w-full text-sm" aria-label="Détail des ventes" aria-busy={isFetching}>
           <thead>
             <tr style={{ background: '#1E3A5F' }}>
               {['N° Vente', 'Date', 'Client', 'Produit(s)', 'Agent', 'Site', 'Montant', 'Paiement', 'Remise', 'Points', 'Statut'].map((h) => (
                 <th
                   key={h}
                   className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white whitespace-nowrap"
-                  onClick={h === 'Date' ? () => setSortDir((d) => d === 'desc' ? 'asc' : 'desc') : undefined}
-                  style={h === 'Date' ? { cursor: 'pointer' } : undefined}
+                  scope="col"
+                  aria-sort={h === 'Date' ? sortDir === 'asc' ? 'ascending' : 'descending' : undefined}
                 >
-                  <span className="flex items-center gap-1">
-                    {h}
-                    {h === 'Date' && (sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />)}
-                  </span>
+                  {h === 'Date' ? <button type="button" aria-label="Trier par date" onClick={onSort} className="flex min-h-11 items-center gap-1 focus-visible:ring-2 focus-visible:ring-white">
+                    Date {sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                  </button> : h}
                 </th>
               ))}
             </tr>
@@ -329,10 +342,9 @@ function AgentPerformanceTable({ data, isLoading, onAgentClick }: {
             {data.map((a) => (
               <tr
                 key={a.agentId}
-                onClick={() => onAgentClick(a.agentId)}
-                className="border-b border-border/60 cursor-pointer hover:bg-blue-50/40"
+                className="border-b border-border/60 hover:bg-blue-50/40"
               >
-                <td className="px-4 py-2.5 font-semibold text-primary">{a.agentNom}</td>
+                <td className="px-4 py-2.5 font-semibold text-primary"><button type="button" onClick={() => onAgentClick(a.agentId)} className="min-h-11 text-left hover:underline" aria-label={`Filtrer par agent ${a.agentNom}`}>{a.agentNom}</button></td>
                 <td className="px-4 py-2.5 text-text-muted text-xs">{a.siteNom}</td>
                 <td className="px-4 py-2.5 tabular-nums">{a.nbVentes}</td>
                 <td className="px-4 py-2.5 font-bold text-success tabular-nums">{formatUSD(a.caTotal)}</td>
@@ -356,20 +368,22 @@ function AgentPerformanceTable({ data, isLoading, onAgentClick }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function RapportVentesPage() {
+function SalesContent() {
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
-  const isDR = hasRole('DIRECTEUR_REGIONAL');
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [draft, setDraft] = useState<SalesFilters>(DEFAULT_FILTERS);
-  const [applied, setApplied] = useState<SalesFilters>(DEFAULT_FILTERS);
+  const [draft, setDraft] = useState<SalesFilters>(() => initialFilters(searchParams));
+  const [applied, setApplied] = useState<SalesFilters>(() => initialFilters(searchParams));
   const [page, setPage] = useState(1);
-  const [agentFilter, setAgentFilter] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc');
 
   const params: VentesDetailParams = {
     siteId: applied.siteId || undefined,
-    agentId: agentFilter || applied.agentId || undefined,
+    agentId: applied.agentId || undefined,
     modePaiement: applied.modePaiement || undefined,
+    categorie: applied.categorie || undefined,
+    search: applied.search || undefined,
+    sortDir,
     dateDebut: toISODate(applied.dateRange.from),
     dateFin: toISODate(applied.dateRange.to),
     page,
@@ -378,35 +392,39 @@ export default function RapportVentesPage() {
 
   const { data, isLoading, isFetching, error, refetch } = useSalesDetailReport(params);
 
-  const ventes = useMemo(() => (data as any)?.ventes ?? [], [data]);
-  const meta = useMemo(() => (data as any)?.meta ?? { total: 0, page: 1, limit: 50, totalPages: 0 }, [data]);
-  const resume = useMemo(() => (data as any)?.resume ?? { totalCA: 0, nbVentes: 0, remisesAccordees: 0, ticketMoyen: 0, trends: { ca: 0, ventes: 0 } }, [data]);
-  const totauxParAgent = useMemo(() => (data as any)?.totauxParAgent ?? [], [data]);
+  const ventes = data?.ventes ?? [];
+  const meta = data?.meta ?? { total: 0, page: 1, limit: 50, totalPages: 0 };
+  const resume = data?.resume;
+  const totauxParAgent = data?.totauxParAgent ?? [];
 
-  const handleApply = () => { setApplied(draft); setPage(1); setAgentFilter(''); };
-  const handleReset = () => { setDraft(DEFAULT_FILTERS); setApplied(DEFAULT_FILTERS); setPage(1); setAgentFilter(''); };
-  const handleAgentClick = (agentId: string) => { setAgentFilter(agentId); setPage(1); };
+  const filtersUrl = (filters: SalesFilters, direction = sortDir) => reportExportUrl('VENTES_DETAIL', {
+    siteId: filters.siteId, agentId: filters.agentId, modePaiement: filters.modePaiement, categorie: filters.categorie,
+    search: filters.search, sortDir: direction, dateDebut: toISODate(filters.dateRange.from), dateFin: toISODate(filters.dateRange.to),
+  });
+  const syncUrl = (filters: SalesFilters, direction = sortDir) => {
+    const next = new URLSearchParams(filtersUrl(filters, direction).split('?')[1]);
+    next.delete('type');
+    setSearchParams(next, { replace: true });
+  };
+  const handleApply = () => { setApplied(draft); setPage(1); syncUrl(draft); };
+  const handleReset = () => {
+    const defaults = { ...DEFAULT_FILTERS, dateRange: getDateRangeFromPreset('this_month') };
+    setDraft(defaults); setApplied(defaults); setPage(1); setSortDir('desc'); syncUrl(defaults, 'desc');
+  };
+  const handleAgentClick = (agentId: string) => {
+    const next = { ...applied, agentId };
+    setApplied(next); setDraft(next); setPage(1); syncUrl(next);
+  };
+  const handleSort = () => { const direction = sortDir === 'asc' ? 'desc' : 'asc'; setSortDir(direction); setPage(1); syncUrl(applied, direction); };
 
-  const exportUrl = `/reports/export?type=VENTES_DETAIL&dateDebut=${toISODate(applied.dateRange.from)}&dateFin=${toISODate(applied.dateRange.to)}${applied.siteId ? `&siteId=${applied.siteId}` : ''}`;
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
-        <AlertCircle size={36} className="text-danger" />
-        <p className="text-sm font-semibold text-primary">Impossible de charger le rapport.</p>
-        <button type="button" onClick={() => refetch()} className="btn-primary flex items-center gap-2">
-          <RefreshCw size={14} /> Réessayer
-        </button>
-      </div>
-    );
-  }
+  const exportUrl = filtersUrl(applied);
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="page-header">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => navigate('/reports')} className="btn-ghost !min-h-0 !p-1.5 rounded-lg">
+          <button type="button" aria-label="Retour aux rapports" onClick={() => navigate('/reports')} className="btn-ghost min-h-11 min-w-11 rounded-lg">
             <ArrowLeft size={18} />
           </button>
           <div>
@@ -417,22 +435,29 @@ export default function RapportVentesPage() {
         <button
           type="button"
           onClick={() => navigate(exportUrl)}
-          className="btn-secondary !min-h-0 h-9 text-xs flex items-center gap-1.5"
+          className="btn-secondary min-h-11 text-sm flex items-center gap-1.5"
         >
           <Download size={13} />
-          Export PDF/XLSX
+          Export CSV/XLSX
         </button>
       </div>
 
       {/* Filtres */}
       <FiltersPanel draft={draft} setDraft={setDraft} onApply={handleApply} onReset={handleReset} />
 
+      {error && <div role="alert" className="card space-y-2 text-sm text-danger">
+        <p><AlertCircle size={16} className="inline mr-2" />Impossible de charger le rapport. {reportErrorMessage(error, 'Réessayez.')}</p>
+        <button type="button" onClick={() => void refetch()} className="btn-secondary min-h-11">Réessayer</button>
+      </div>}
+
+      {!error && <>
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="CA Total" value={formatUSD(resume.totalCA)} trend={resume.trends?.ca} icon={<TrendingUp size={16} />} isLoading={isLoading} />
-        <StatCard label="Nb ventes" value={String(resume.nbVentes)} trend={resume.trends?.ventes} icon={<ShoppingCart size={16} />} isLoading={isLoading} />
-        <StatCard label="Remises accordées" value={formatUSD(resume.remisesAccordees)} icon={<Percent size={16} />} isLoading={isLoading} />
-        <StatCard label="Ticket moyen" value={formatUSD(resume.ticketMoyen)} icon={<Receipt size={16} />} isLoading={isLoading} />
+        <StatCard label="CA Total" value={resume ? formatUSD(resume.totalCA) : '—'} trend={resume?.trends?.ca} icon={<TrendingUp size={16} />} isLoading={isLoading} />
+        <StatCard label="Nb ventes" value={resume ? String(resume.nbVentes) : '—'} trend={resume?.trends?.ventes} icon={<ShoppingCart size={16} />} isLoading={isLoading} />
+        <StatCard label="Remises accordées" value={resume ? formatUSD(resume.remisesAccordees) : '—'} icon={<Percent size={16} />} isLoading={isLoading} />
+        <StatCard label="Ticket moyen" value={resume ? formatUSD(resume.ticketMoyen) : '—'} icon={<Receipt size={16} />} isLoading={isLoading} />
       </div>
 
       {/* Tableau ventes */}
@@ -442,6 +467,8 @@ export default function RapportVentesPage() {
         onPageChange={setPage}
         isLoading={isLoading}
         isFetching={isFetching}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
 
       {/* Performance agents */}
@@ -450,6 +477,13 @@ export default function RapportVentesPage() {
         isLoading={isLoading}
         onAgentClick={handleAgentClick}
       />
+      </>}
     </div>
   );
+}
+
+export default function RapportVentesPage() {
+  const scope = usePrivateQueryScope('DIRECTEUR_REGIONAL');
+  if (!scope.enabled) return <p role="alert" className="card text-sm text-danger">Votre session ne permet pas l’accès au rapport détaillé.</p>;
+  return <SalesContent key={scope.key} />;
 }

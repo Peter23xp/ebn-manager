@@ -51,6 +51,7 @@ export interface VentesReportResponse {
 // ── SCR-031 : Ventes détaillées ───────────────────────────────────────────────
 
 export interface VentesDetailParams {
+  sortDir?: 'asc' | 'desc';
   siteId?: string;
   dateDebut?: string;
   dateFin?: string;
@@ -105,6 +106,7 @@ export interface VentesDetailResponse {
 // ── SCR-032 : Stocks consolidé ────────────────────────────────────────────────
 
 export interface StocksReportParams {
+  search?: string;
   siteId?: string;
   categorie?: string;
 }
@@ -176,11 +178,12 @@ export interface ParrainageReportResponse {
 
 // ── SCR-034 : Export ──────────────────────────────────────────────────────────
 
-export type ExportType = 'VENTES' | 'VENTES_DETAIL' | 'STOCKS' | 'PARRAINAGE' | 'CLIENTS' | 'FIDELITE';
+export type ExportType = 'VENTES' | 'VENTES_DETAIL' | 'STOCKS' | 'CLIENTS';
+export type ExportFormat = 'XLSX' | 'CSV';
 
 export interface ExportJobDto {
   type: ExportType;
-  format: 'XLSX' | 'PDF' | 'CSV';
+  format: ExportFormat;
   filtres?: Record<string, unknown>;
 }
 
@@ -207,16 +210,18 @@ export const reportsApi = {
     api.get<VentesReportResponse>('/rapports/ventes/dashboard', { params }).then((r) => r.data),
 
   // SCR-031
-  getVentesDetail: (params: VentesDetailParams) =>
-    api.get<VentesDetailResponse>('/rapports/ventes/detail', { params }).then((r) => r.data),
+  getVentesDetail: (params: VentesDetailParams, signal?: AbortSignal) =>
+    api.get<VentesDetailResponse>('/rapports/ventes/detail', { params, signal }).then((r) => r.data),
 
   // SCR-034 estimate
-  getExportEstimate: (params: { type: string; dateDebut?: string; dateFin?: string; siteId?: string }) =>
-    api.get<{ estimatedRows: number }>('/rapports/export/estimate', { params }).then((r) => r.data),
+  getExportEstimate: (body: ExportJobDto, signal?: AbortSignal) =>
+    api.get<{ estimatedRows: number }>('/rapports/export/estimate', {
+      params: { ...body.filtres, type: body.type, format: body.format }, signal,
+    }).then((r) => r.data),
 
   // SCR-032
-  getStocksReport: (params: StocksReportParams) =>
-    api.get<StocksReportResponse>('/rapports/stocks', { params }).then((r) => r.data),
+  getStocksReport: (params: StocksReportParams, signal?: AbortSignal) =>
+    api.get<StocksReportResponse>('/rapports/stocks', { params, signal }).then((r) => r.data),
 
   // SCR-033
   getParrainageReport: (params: ParrainageReportParams) =>
@@ -227,9 +232,12 @@ export const reportsApi = {
     api.get('/rapports/parrainage', { params }).then((r) => r.data),
 
   // SCR-034
-  createExportJob: (body: ExportJobDto) =>
-    api.post<{ jobId: string }>('/rapports/export', body).then((r) => r.data),
+  createExportJob: (body: ExportJobDto, signal?: AbortSignal) =>
+    api.post<{ jobId: string }>('/rapports/export', body, { signal }).then((r) => r.data),
 
-  getExportJobStatus: (jobId: string) =>
-    api.get<ExportJobStatus>(`/rapports/export/${jobId}`).then((r) => r.data),
+  getExportJobStatus: (jobId: string, signal?: AbortSignal) =>
+    api.get<ExportJobStatus>(`/rapports/export/${encodeURIComponent(jobId)}`, { signal }).then((r) => r.data),
+
+  downloadExportJob: (jobId: string, signal?: AbortSignal) =>
+    api.get<Blob>(`/rapports/export/${encodeURIComponent(jobId)}/download`, { responseType: 'blob', signal }).then((r) => r.data),
 };

@@ -21,6 +21,10 @@ vi.mock('react-chartjs-2', () => ({
 // Mock useAuth
 const mockUseAuth = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mockUseAuth() }));
+vi.mock('@/hooks/usePrivateQueryScope', () => ({ usePrivateQueryScope: () => ({
+  key: JSON.stringify(mockUseAuth().user), enabled: mockUseAuth().hasRole('GERANT'), isCurrent: () => true,
+}) }));
+vi.mock('@/hooks/useSites', () => ({ useSites: () => ({ sites: [{ id: 'goma', nom: 'Site Goma' }, { id: 'bkv', nom: 'Site Bukavu' }], isLoading: false }) }));
 
 // Mock reports API
 const mockGetVentesReport = vi.fn();
@@ -109,6 +113,39 @@ beforeEach(async () => {
 // 1. Accès et affichage
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('ReportsDashboardPage', () => {
+  test('la synthèse présente les remboursements, les encaissements CDF et les liens de rapports', async () => {
+    mockGetVentesReport.mockResolvedValue({ ...BASE_DATA, activity: {
+      generatedAt: '2026-09-21T12:00:00Z', refunds: { count: 1, amount: 20 },
+      pendingSales: { count: 2, amount: 45 }, netAfterRefunds: 3999980, discounts: 5,
+      averageBasket: 24096.39, onboardingCDF: 15000.75,
+      onboarding: [{ etape: 'RECIT', count: 3, amount: 15000.75, currency: 'CDF', includedInSales: false }],
+      payments: [{ mode: 'CASH', count: 166, amount: 4000000 }],
+      clients: { total: 200, activated: 12, byStatus: { ACTIF: 120, EN_COURS: 80 } },
+      stock: { references: 18, units: 152, alerts: 7, value: 4567.89 },
+    } });
+    renderPage(DR_USER);
+    expect(await screen.findByRole('heading', { name: 'Encaissements et remboursements' })).toBeInTheDocument();
+    expect(screen.getAllByText(/15\s*000,75 CDF/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Remboursements effectués')).toBeInTheDocument();
+    expect(screen.getByText(/déjà incluses dans les ventes/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ventes détaillées/i })).toHaveAttribute('href', expect.stringContaining('/reports/sales'));
+    expect(screen.getByRole('link', { name: /exporter/i })).toHaveAttribute('href', expect.stringContaining('/reports/export'));
+  });
+
+  test('un site réel sélectionné filtre le rapport', async () => {
+    mockGetVentesReport.mockResolvedValue(BASE_DATA);
+    renderPage(DR_USER);
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Site du rapport' }), 'bkv');
+    await waitFor(() => expect(mockGetVentesReport).toHaveBeenLastCalledWith(expect.objectContaining({ siteId: 'bkv' })));
+  });
+
+  test('un gérant ne reçoit pas de lien vers les rapports régionaux', async () => {
+    mockGetVentesReport.mockResolvedValue(BASE_DATA);
+    renderPage(GERANT_USER);
+    expect(screen.queryByRole('link', { name: /ventes détaillées/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Site du rapport' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /exporter/i })).toBeInTheDocument();
+  });
   describe('Accès et affichage', () => {
     test('1 — Acces refuse AGENT: le camembert est masque car hasRole(GERANT)=false', () => {
       // The page itself doesn't block AGENT — the RoleGuard wrapper in App.tsx does.
@@ -332,7 +369,7 @@ describe('ReportsDashboardPage', () => {
       await waitFor(() => expect(screen.getByText('TOTAL')).toBeInTheDocument());
 
       // Total CA = 2200000 + 1100000 + 700000 = 4000000
-      expect(screen.getByText(/4\s*000\s*000/)).toBeInTheDocument();
+      expect(screen.getAllByText(/4\s*000\s*000/).length).toBeGreaterThan(0);
     });
 
     test('20 — Badge rouge alertes si > 0', async () => {

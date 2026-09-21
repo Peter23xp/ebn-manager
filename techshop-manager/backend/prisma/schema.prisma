@@ -559,6 +559,19 @@ model ExportJob {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  ownerId          String?
+  scopeRole        Role?
+  scopeActorSiteId  String?
+  scopeSiteId       String?
+  fileBytes        Bytes?
+  fileName         String?
+  mimeType         String?
+  fileSize         Int?
+  rowCount         Int?
+  expiresAt        DateTime?
+
+  @@index([ownerId, statut, expiresAt])
+  @@index([expiresAt])
   @@map("export_jobs")
 }
 

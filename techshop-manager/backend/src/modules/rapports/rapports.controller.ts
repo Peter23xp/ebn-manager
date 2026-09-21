@@ -1,9 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
-  Param,
-  Body,
   Query,
   UseGuards,
   Request,
@@ -32,14 +29,12 @@ export class RapportsController {
     @Query('dateFin') dateFin?: string,
     @Query('granularite') granularite?: 'day' | 'week' | 'month',
   ) {
-    const user = req.user;
-    const isGerant = user?.role === 'GERANT';
     return this.rapportsService.getVentesDashboard({
-      siteId: isGerant ? user.siteId : siteId,
+      siteId,
       dateDebut: dateDebut ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
       dateFin: dateFin ?? new Date().toISOString(),
       granularite: granularite ?? 'day',
-    });
+    }, req.user);
   }
 
   @Get('ventes')
@@ -73,9 +68,11 @@ export class RapportsController {
     @Query('categorie') categorie?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('search') search?: string,
+    @Query('sortDir') sortDir?: 'asc' | 'desc',
   ) {
     return this.rapportsService.getVentesDetail({
-      siteId, dateDebut, dateFin, agentId, modePaiement, categorie, page, limit,
+      siteId, dateDebut, dateFin, agentId, modePaiement, categorie, page, limit, search, sortDir,
     });
   }
 
@@ -86,37 +83,11 @@ export class RapportsController {
   getStocksConsolide(
     @Query('siteId') siteId?: string,
     @Query('categorie') categorie?: string,
+    @Query('search') search?: string,
   ) {
-    return this.rapportsService.getStocksConsolide({ siteId, categorie });
+    return this.rapportsService.getStocksConsolide({ siteId, categorie, search });
   }
 
 
 
-  // ── SCR-034 : Export jobs ──────────────────────────────────────────────────
-
-  @Get('export/estimate')
-  @Roles(Role.GERANT)
-  getExportEstimate(
-    @Query('type') type: string,
-    @Query('dateDebut') dateDebut?: string,
-    @Query('dateFin') dateFin?: string,
-    @Query('siteId') siteId?: string,
-  ) {
-    return this.rapportsService.getExportEstimate({ type, dateDebut, dateFin, siteId });
-  }
-
-  @Post('export')
-  @Roles(Role.GERANT)
-  createExport(
-    @Request() req: any,
-    @Body() body: { type: string; format: string; filtres?: Record<string, any> },
-  ) {
-    return this.rapportsService.createExport({ ...body, userId: req.user?.id });
-  }
-
-  @Get('export/:jobId')
-  @Roles(Role.GERANT)
-  getExportStatus(@Param('jobId') jobId: string) {
-    return this.rapportsService.getExportStatus(jobId);
-  }
 }
