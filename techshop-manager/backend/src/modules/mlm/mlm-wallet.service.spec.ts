@@ -672,11 +672,16 @@ describe('MlmWalletService financial reads', () => {
   };
   const setup = () => {
     const prisma: any = {
+      promotion: { groupBy: jest.fn<any>().mockResolvedValue([]) },
+      bonusAttribue: { groupBy: jest.fn<any>().mockResolvedValue([]) },
+      mlmLevel: { findMany: jest.fn<any>().mockResolvedValue([]) },
+      matrix: { findMany: jest.fn<any>().mockResolvedValue([]) },
+      $queryRaw: jest.fn<any>().mockResolvedValue([]),
       portefeuille: { findUnique: jest.fn<any>().mockResolvedValue({
         id: 'pf-1', membreId: 'm-1', soldeDisponible: new Prisma.Decimal('0.30'), soldeReserve: new Prisma.Decimal('0.10'),
         soldeReinvesti: new Prisma.Decimal('49.33'), totalGagne: new Prisma.Decimal('256.66'), membre: {}, updatedAt: new Date(),
       }) },
-      commission: { aggregate: jest.fn<any>().mockImplementation(async ({ where }: any) => ({
+      commission: { groupBy: jest.fn<any>().mockResolvedValue([]), findMany: jest.fn<any>().mockResolvedValue([]), aggregate: jest.fn<any>().mockImplementation(async ({ where }: any) => ({
         _sum: where.statut.not
           ? { montant: new Prisma.Decimal('589.99') }
           : { montant: new Prisma.Decimal('256.66'), montantSysteme: new Prisma.Decimal('154') },
@@ -708,8 +713,13 @@ describe('MlmWalletService financial reads', () => {
     };
     const summaryAggregate = { _sum: { montant: new Prisma.Decimal(40), montantSysteme: new Prisma.Decimal(24) } };
     const snapshot: any = {
+      promotion: { groupBy: jest.fn<any>().mockResolvedValue([]) },
+      bonusAttribue: { groupBy: jest.fn<any>().mockResolvedValue([]) },
+      mlmLevel: { findMany: jest.fn<any>().mockResolvedValue([]) },
+      matrix: { findMany: jest.fn<any>().mockResolvedValue([]) },
+      $queryRaw: jest.fn<any>().mockResolvedValue([]),
       portefeuille: { findUnique: jest.fn<any>().mockResolvedValue(balance) },
-      commission: { aggregate: jest.fn<any>().mockResolvedValue(summaryAggregate) },
+      commission: { groupBy: jest.fn<any>().mockResolvedValue([]), findMany: jest.fn<any>().mockResolvedValue([]), aggregate: jest.fn<any>().mockResolvedValue(summaryAggregate) },
       reinvestLote: {
         groupBy: jest.fn<any>().mockResolvedValue([{ status: 'RELEASABLE', _sum: { amount: new Prisma.Decimal(16) } }]),
         findMany: jest.fn<any>().mockResolvedValue([lot]),

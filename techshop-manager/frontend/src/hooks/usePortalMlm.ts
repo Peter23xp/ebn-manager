@@ -23,6 +23,7 @@ export function usePortalMlm() {
     wallet: walletData?.wallet ?? null,
     stats: walletData?.stats ?? null,
     financialSummary: walletData?.financialSummary,
+    progressiveCommissions: error ? undefined : walletData?.progressiveCommissions,
     lots: (walletData?.reinvestLots ?? []) as ReinvestLot[],
     isLoading: isWalletLoading,
     error: isNotFound ? null : error,

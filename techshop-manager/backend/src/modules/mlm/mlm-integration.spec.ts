@@ -63,7 +63,7 @@ integration('MLM PostgreSQL integration', () => {
       ],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate(context: any) {
       const req = context.switchToHttp().getRequest();
-      req.user = { id: adminId, role: req.headers['x-test-role'] ?? 'SUPER_ADMIN' };
+      req.user = { id: adminId, role: req.headers['x-test-role'] ?? 'SUPER_ADMIN', siteId: req.headers['x-test-site'] };
       return true;
     } }).compile();
     app = module.createNestApplication();
@@ -92,7 +92,7 @@ integration('MLM PostgreSQL integration', () => {
     const children = [];
     for (let index = 0; index < 4; index++) children.push(await activate(`P${index + 1}`, root.id));
     expect((await progress(root.id)).progression.currentLevel.ordre).toBe(1);
-    expect(await prisma.commission.count({ where: { membreId: root.id, statut: 'EN_ATTENTE' } })).toBe(1);
+    expect(await prisma.commission.count({ where: { membreId: root.id, statut: 'EN_ATTENTE' } })).toBe(4);
     expect((await prisma.portefeuille.findUnique({ where: { membreId: root.id } })).totalGagne.toFixed(2)).toBe('0.00');
     for (let index = 0; index < 4; index++) await activate(`A${index}`, children[0].id);
     expect((await progress(root.id)).progression).toMatchObject({ currentGeneration: 2, completedPositions: 4, remainingPositions: 12 });
@@ -100,7 +100,9 @@ integration('MLM PostgreSQL integration', () => {
     const result = await progress(root.id);
     expect(result.progression.currentLevel.ordre).toBe(2);
     expect(result.totalDescendants).toBe(20);
-    expect(await prisma.commission.count({ where: { membreId: root.id } })).toBe(2);
+    expect(await prisma.commission.count({ where: { membreId: root.id } })).toBe(20);
+    const totals = await prisma.commission.aggregate({ where: { membreId: root.id }, _sum: { montant: true } });
+    expect(totals._sum.montant.toFixed(2)).toBe('123.33');
     const tree = await matrix.getNetworkTree(root.id, 2);
     expect(tree.children).toHaveLength(4);
     expect(tree.children.every(child => child.children.length === 4)).toBe(true);
@@ -151,7 +153,8 @@ integration('MLM PostgreSQL integration', () => {
     await expect(placement.move({ ...input, newParentId: descendant.id, expectedPositionId: moved.id, operationId: randomUUID() }, adminId)).rejects.toThrow();
     await placement.move({ ...input, newParentId: root.id, newPosition: original.numeroPosition, expectedPositionId: moved.id, operationId: randomUUID() }, adminId);
     expect((await progress(root.id)).progression.currentLevel.ordre).toBe(1);
-    expect(await prisma.commission.count({ where: { membreId: root.id } })).toBe(1);
+    expect(await prisma.commission.count({ where: { membreId: root.id, level: { ordre: 1 } } })).toBe(4);
+    expect(await prisma.commission.count({ where: { membreId: root.id, level: { ordre: 2 } } })).toBe(1);
     const otherPosition = await prisma.position.findUnique({ where: { filleulId: children[1].id } });
     const swap = { memberId: children[0].id, otherMemberId: children[1].id, expectedPositionId: original.id, otherExpectedPositionId: otherPosition.id, operationId: randomUUID(), reason: 'Echange administratif' };
     await placement.swap(swap, adminId);
@@ -167,18 +170,21 @@ integration('MLM PostgreSQL integration', () => {
     const commission = await prisma.commission.findFirst({ where: { membreId: root.id } });
     await Promise.all([matrix.validateCommission(commission.id, adminId), matrix.validateCommission(commission.id, adminId)]);
     let balance = await wallet.getWallet(root.id);
-    expect(balance).toMatchObject({ soldeDisponible: 24, soldeReinvesti: 16, totalGagne: 40 });
+    expect(balance).toMatchObject({ soldeDisponible: 6, soldeReinvesti: 4, totalGagne: 10 });
+    expect(balance.progressiveCommissions[0]).toMatchObject({ generatedTotal: '40.00', pendingTotal: '30.00', validatedTotal: '10.00', immediateCredited: '6.00', heldAmount: '4.00' });
     expect(await prisma.reinvestLote.count({ where: { commissionId: commission.id } })).toBe(1);
     const lot = await prisma.reinvestLote.findUnique({ where: { commissionId: commission.id } });
+    const history = await progress(root.id);
+    expect(history.commissions.find(row => row.id === commission.id).reinvestLot).toMatchObject({ amount: '4.00', releaseDate: lot.releaseDate.toISOString(), status: 'HOLD_PERIOD' });
     expect(lot.releasedAt).toBeNull();
     expect(lot.calendarVersion).toContain('synthetic-test');
     await expect(wallet.releaseHeldLot(lot.id, adminId)).rejects.toThrow();
     await prisma.reinvestLote.update({ where: { id: lot.id }, data: { releaseDate: new Date(Date.now() - 1000) } });
     await cron.releaseDueLots();
     balance = await wallet.getWallet(root.id);
-    expect(balance).toMatchObject({ soldeDisponible: 24, soldeReinvesti: 16, totalGagne: 40 });
+    expect(balance).toMatchObject({ soldeDisponible: 6, soldeReinvesti: 4, totalGagne: 10 });
     await Promise.all([wallet.releaseHeldLot(lot.id, adminId), wallet.releaseHeldLot(lot.id, adminId)]);
-    expect(await wallet.getWallet(root.id)).toMatchObject({ soldeDisponible: 40, soldeReinvesti: 0, totalGagne: 40 });
+    expect(await wallet.getWallet(root.id)).toMatchObject({ soldeDisponible: 10, soldeReinvesti: 0, totalGagne: 10 });
     expect(await prisma.transactionPortefeuille.count({ where: { referenceId: `release:${lot.id}` } })).toBe(1);
     expect(payment.initiatePayout).not.toHaveBeenCalled();
     expect(payment.createPayment).not.toHaveBeenCalled();
@@ -191,6 +197,13 @@ integration('MLM PostgreSQL integration', () => {
     await request(app.getHttpServer()).post('/mlm/matrix/move').send({ memberId: root.id, newParentId: root.id, newPosition: 5, expectedPositionId: null, operationId: randomUUID(), reason: 'Invalid test', actorId: 'forged' }).expect(400);
     const response = await request(app.getHttpServer()).get(`/mlm/members/${root.id}/progress`).expect(200);
     expect(response.body.progression).toMatchObject({ currentLevel: null, currentGeneration: 1, requiredPositions: 4 });
+    for (const role of ['AGENT', 'CAISSIER']) {
+      for (const endpoint of [`/mlm/members/${root.id}/progress`, `/mlm/wallet/${root.id}`]) {
+        await request(app.getHttpServer()).get(endpoint).set('x-test-role', role).set('x-test-site', 'other-site').expect(403);
+        await request(app.getHttpServer()).get(endpoint).set('x-test-role', role).expect(403);
+        await request(app.getHttpServer()).get(endpoint).set('x-test-role', role).set('x-test-site', siteId).expect(200);
+      }
+    }
   }, 30000);
 
   it('detects aggregate drift without repairing or creating commissions', async () => {
@@ -283,6 +296,7 @@ integration('MLM PostgreSQL integration', () => {
     await activate('AllProjectionsGrandchild', child.id);
     const direct = await prisma.matrix.findFirstOrThrow({ where: { membreId: root.id, level: { ordre: 1 } } });
     const second = await prisma.matrix.findFirstOrThrow({ where: { membreId: root.id, level: { ordre: 2 } } });
+    const secondCommissions = await prisma.commission.findMany({ where: { matrixId: second.id } });
     const wrongLevel = await prisma.mlmLevel.findFirstOrThrow({ where: { ordre: 2 } });
     const client = new Client({ connectionString: process.env.MLM_TEST_DATABASE_URL, options: '-c default_transaction_read_only=on' });
     try {
@@ -298,6 +312,8 @@ integration('MLM PostgreSQL integration', () => {
         expect.objectContaining({ id: direct.id, storedComplete: true, actualComplete: false }),
       ]));
       await prisma.matrix.update({ where: { id: direct.id }, data: { occupiedPositions: 3, estComplete: true } });
+      await expect(prisma.matrix.delete({ where: { id: second.id } })).rejects.toThrow();
+      await prisma.commission.deleteMany({ where: { matrixId: second.id } });
       await prisma.matrix.delete({ where: { id: second.id } });
       await prisma.membre.update({ where: { id: root.id }, data: { totalDescendants: 999, mlmLevelId: wrongLevel.id } });
       const report: any = await auditMlm(client);
@@ -309,12 +325,13 @@ integration('MLM PostgreSQL integration', () => {
       expect(report.currentRankDrift).toEqual(expect.arrayContaining([expect.objectContaining({ id: root.id, stored: wrongLevel.id, actual: direct.mlmLevelId })]));
       expect((await prisma.matrix.findUniqueOrThrow({ where: { id: direct.id } })).occupiedPositions).toBe(3);
       expect((await prisma.membre.findUniqueOrThrow({ where: { id: root.id } })).totalDescendants).toBe(999);
-      expect(await prisma.commission.count({ where: { membreId: root.id } })).toBe(0);
+      expect(await prisma.commission.count({ where: { membreId: root.id } })).toBe(1);
       expect((await client.query('SHOW default_transaction_read_only')).rows[0].default_transaction_read_only).toBe('on');
     } finally {
       await client.end();
       await prisma.matrix.update({ where: { id: direct.id }, data: { occupiedPositions: direct.occupiedPositions, estComplete: direct.estComplete } });
       await prisma.matrix.upsert({ where: { id: second.id }, update: {}, create: second });
+      for (const commission of secondCommissions) await prisma.commission.upsert({ where: { id: commission.id }, create: commission, update: {} });
       await prisma.membre.update({ where: { id: root.id }, data: { totalDescendants: 2, mlmLevelId: direct.mlmLevelId } });
     }
   }, 60000);
@@ -337,6 +354,7 @@ integration('MLM PostgreSQL integration', () => {
     const current = await prisma.position.findUniqueOrThrow({ where: { filleulId: moved.id } });
     const input = { memberId: moved.id, newParentId: target.id, newPosition: 1, expectedPositionId: current.id, operationId: randomUUID(), reason: 'Capped overlapping paths' };
     await placement.move(input, adminId);
+    const firstCommissions = await prisma.commission.findMany({ where: { membreId: { in: members.map(member => member.id) } }, orderBy: { id: 'asc' } });
     await placement.move(input, adminId);
     const topGeneration = await prisma.matrix.findFirstOrThrow({ where: { membreId: top.id, level: { ordre: 5 } } });
     expect([topGeneration.filleulsValides, topGeneration.occupiedPositions]).toEqual([2, 2]);
@@ -350,7 +368,8 @@ integration('MLM PostgreSQL integration', () => {
       expect(report.currentRankDrift.filter(row => ids.has(row.id))).toEqual([]);
     } finally { await client.end(); }
     expect(await prisma.placementHistory.count({ where: { operationId: input.operationId } })).toBe(1);
-    expect(await prisma.commission.count({ where: { membreId: { in: members.map(member => member.id) } } })).toBe(0);
+    expect(firstCommissions.length).toBeGreaterThan(0);
+    expect(await prisma.commission.findMany({ where: { membreId: { in: members.map(member => member.id) } }, orderBy: { id: 'asc' } })).toEqual(firstCommissions);
   }, 60000);
 
   it('core round1 exposes safe profiles, acquired-rank filters and usable legacy placement APIs', async () => {

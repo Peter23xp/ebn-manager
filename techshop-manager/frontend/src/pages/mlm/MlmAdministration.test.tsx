@@ -8,9 +8,9 @@ import MlmCommissionsPage from './MlmCommissionsPage';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
 import { builder, lot, member, renderMlm, sapphire, treeNode } from './task6.fixtures';
 
-const { get, post, put, auth } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), auth: { user: { role: 'SUPER_ADMIN' } } }));
+const { get, post, put, auth } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), auth: { isAuthenticated: true, sessionVersion: 1, user: { id: 'staff', role: 'SUPER_ADMIN' } } }));
 vi.mock('@/lib/api', () => ({ api: { get, post, put } }));
-vi.mock('@/store/auth.store', () => ({ useAuthStore: (selector: any) => selector(auth) }));
+vi.mock('@/store/auth.store', () => ({ useAuthStore: Object.assign((selector?: any) => selector ? selector(auth) : auth, { getState: () => auth }) }));
 
 const calendar = { year: 2026, holidays: ['2026-01-01'], version: 'v1', source: 'Texte officiel', timezone: 'Africa/Lubumbashi' };
 const target = { ...treeNode, id: 'target', client: { prenom: 'Cible', nom: 'Membre' }, positionId: 'target-slot', position: 3, emptyPositions: [2], hasMore: false };

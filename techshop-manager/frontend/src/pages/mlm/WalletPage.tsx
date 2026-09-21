@@ -13,13 +13,14 @@ import {
   Award,
   Gift,
 } from 'lucide-react';
-import { useWalletTransactions, useMlmMembers } from '@/hooks/useMlm';
-import { useQuery } from '@tanstack/react-query';
+import { useWalletTransactions } from '@/hooks/useMlm';
+import { usePrivateMlmQuery } from '@/hooks/usePrivateMlmQuery';
 import { MlmApi } from '@/lib/mlm.api';
 import { formatDate, formatUSD } from '@/lib/utils';
 import { Pagination } from '@/components/ui/Pagination';
 import { FinancialSummary } from '@/components/mlm/FinancialSummary';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { ProgressiveCommissions } from '@/components/mlm/ProgressiveCommissions';
 import { formatMlmMoney } from '@/lib/mlm-display';
 
 const TRANSACTION_TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode; positive: boolean }> = {
@@ -47,11 +48,11 @@ export default function WalletPage() {
   const meta = (txData as any)?.meta;
 
   // All members for wallet view
-  const { data: membersData, isLoading: membersLoading } = useMlmMembers({ limit: 100 });
+  const { data: membersData, isLoading: membersLoading } = usePrivateMlmQuery({ queryKey: ['mlm-members', { limit: 100 }], queryFn: () => MlmApi.listMembers({ limit: 100 }) });
   const members = (membersData as any)?.membres ?? [];
 
   // Wallet details per member (only for wallets tab)
-  const memberWalletQueries = useQuery({
+  const memberWalletQueries = usePrivateMlmQuery({
     queryKey: ['mlm-all-wallets', members.map((m: any) => m.id)],
     queryFn: async () => {
       if (members.length === 0) return [];
@@ -67,8 +68,8 @@ export default function WalletPage() {
 
   const wallets: any[] = (memberWalletQueries.data ?? []) as any[];
 
-  const stats = useQuery({ queryKey: ['mlm-stats'], queryFn: MlmApi.getNetworkStats });
-  const selectedWallet = useQuery({ queryKey: ['mlm-wallet', filterMember], queryFn: () => MlmApi.getWallet(filterMember), enabled: !!filterMember });
+  const stats = usePrivateMlmQuery({ queryKey: ['mlm-stats'], queryFn: MlmApi.getNetworkStats });
+  const selectedWallet = usePrivateMlmQuery({ queryKey: ['mlm-wallet', filterMember], queryFn: () => MlmApi.getWallet(filterMember), enabled: !!filterMember });
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -139,6 +140,7 @@ export default function WalletPage() {
           <ReinvestLots lots={selectedWallet.data?.reinvestLots} />
         </>}
       </section>}
+      {filterMember && <ProgressiveCommissions key={filterMember} summaries={selectedWallet.data?.progressiveCommissions} isLoading={selectedWallet.isLoading} isError={selectedWallet.isError} onRetry={() => { void selectedWallet.refetch(); }} />}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">

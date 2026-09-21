@@ -1,8 +1,9 @@
 import { Wallet, ArrowRight, ArrowDownRight } from 'lucide-react';
 import type { ReinvestLot } from '@/lib/portal.api';
-import type { FinancialSummary as Summary } from '@/types/mlm';
+import type { FinancialSummary as Summary, ProgressiveCommissionSummary } from '@/types/mlm';
 import { FinancialSummary } from '@/components/mlm/FinancialSummary';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { ProgressiveCommissions } from '@/components/mlm/ProgressiveCommissions';
 
 interface WalletCardProps {
   solde: number; // soldeDisponibleRetrait
@@ -11,11 +12,12 @@ interface WalletCardProps {
   reserve?: number; // montant immobilisé par des demandes de retrait en attente
   lots: ReinvestLot[];
   financialSummary?: Summary;
+  progressiveCommissions?: ProgressiveCommissionSummary[];
   available?: number | string;
   onWithdraw: () => void;
 }
 
-export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lots, financialSummary, available, onWithdraw }: WalletCardProps) {
+export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lots, financialSummary, progressiveCommissions, available, onWithdraw }: WalletCardProps) {
   const fmt = (v: number) =>
     Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -91,6 +93,7 @@ export function WalletCard({ solde, gainsTotaux, soldeReinvesti, reserve = 0, lo
         <FinancialSummary summary={financialSummary} available={available} />
         <ReinvestLots lots={lots} />
       </div>
+      <ProgressiveCommissions summaries={progressiveCommissions} />
     </div>
   );
 }

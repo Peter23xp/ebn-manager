@@ -5,6 +5,8 @@ import { IsBoolean, IsInt, IsOptional, IsString, Matches, Min } from 'class-vali
 import { generationCapacity, generationProgress } from './mlm-generation';
 import { commissionAmounts } from './mlm-finance';
 import { MlmWalletService } from './mlm-wallet.service';
+import { StaffActor } from '../../common/access/staff-access';
+import { requireFinancialMemberAccess } from './mlm-financial-access';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -181,7 +183,8 @@ export class MlmService {
 
   // ── Member progress ─────────────────────────────────────────────────────────
 
-  async getMemberProgress(memberId: string) {
+  async getMemberProgress(memberId: string, actor?: StaffActor) {
+    if (actor) await requireFinancialMemberAccess(this.prisma, memberId, actor);
     const membre = await this.prisma.membre.findUnique({
       where: { id: memberId },
       include: {
@@ -231,6 +234,7 @@ export class MlmService {
           orderBy: { createdAt: 'desc' },
           take: 20,
           include: {
+            reinvestLot: true,
             level: { select: { id: true, ordre: true, nom: true } },
             filleul: {
               include: { client: { select: { id: true, prenom: true, nom: true } } },
@@ -392,10 +396,19 @@ export class MlmService {
       })),
       commissions: membre.commissionsRecues.map((c) => ({
         ...c,
-        montant: Number(c.montant),
+        montant: new Prisma.Decimal(c.montant).toFixed(2),
+        montantSysteme: new Prisma.Decimal(c.montantSysteme ?? 0).toFixed(2),
+        montantRetour: new Prisma.Decimal(c.montantRetour ?? 0).toFixed(2),
+        reinvestLot: c.reinvestLot ? {
+          ...c.reinvestLot,
+          amount: c.reinvestLot.amount.toFixed(2),
+          releaseDate: c.reinvestLot.releaseDate.toISOString(),
+          releasedAt: c.reinvestLot.releasedAt?.toISOString() ?? null,
+        } : null,
       })),
       commissionsByStatut,
       financialSummary,
+      progressiveCommissions: wallet?.progressiveCommissions ?? [],
       reinvestLots,
       directMatrixChildrenCount: directMatrix?.occupiedPositions ?? 0,
       personalRecruitCount: membre._count.filleuls,

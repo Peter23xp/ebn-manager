@@ -9,13 +9,14 @@ import PortalWithdrawalPage from '@/pages/portal/PortalWithdrawalPage';
 import { ReferralTree } from '@/components/portal/ReferralTree';
 import { builder, lot, member, progression, renderMlm, summary, treeNode } from './task6.fixtures';
 
-const { get, auth } = vi.hoisted(() => ({ get: vi.fn(), auth: { user: { role: 'CLIENT', id: 'client-1', prenom: 'Serge', nom: 'Mutombo' }, logout: vi.fn() } }));
+const { get, auth } = vi.hoisted(() => ({ get: vi.fn(), auth: { isAuthenticated: true, sessionVersion: 1, user: { role: 'CLIENT', id: 'client-1', prenom: 'Serge', nom: 'Mutombo' }, logout: vi.fn() } }));
 vi.mock('@/lib/api', () => ({ api: { get }, authApi: { logout: vi.fn() } }));
-vi.mock('@/store/auth.store', () => ({ useAuthStore: (selector: any) => selector(auth) }));
+vi.mock('@/store/auth.store', () => ({ useAuthStore: Object.assign((selector?: any) => selector ? selector(auth) : auth, { getState: () => auth }) }));
 const wallet = { id: 'wallet-1', membreId: member.id, membre: member, soldeDisponible: 9, soldeDisponibleRetrait: 7, soldeReserve: 2, soldeReinvesti: 16, totalGagne: 40, financialSummary: summary, reinvestLots: [lot] };
 
 describe('Task 6 — consommateurs MLM et portail', () => {
   beforeEach(() => {
+    auth.user.role = 'CLIENT';
     get.mockReset();
     get.mockImplementation(async (url: string) => {
       if (url === '/mlm/members') return { data: { membres: [{ ...member, matrixParent: undefined, matrixParentId: 'parent-id', currentLevel: null, progression, personalRecruitCount: 7, directMatrixChildrenCount: 3, totalDescendants: 11 }], meta: { totalPages: 1 } } };
@@ -29,6 +30,7 @@ describe('Task 6 — consommateurs MLM et portail', () => {
   });
 
   it('affiche les totaux réseau du serveur au lieu de sommer une page de portefeuilles', async () => {
+    auth.user.role = 'GERANT';
     renderMlm(<WalletPage />);
     expect(await screen.findByText(/888,88 USD/)).toBeInTheDocument();
     expect(screen.getByText(/777,77 USD/)).toBeInTheDocument();
@@ -36,6 +38,7 @@ describe('Task 6 — consommateurs MLM et portail', () => {
   });
 
   it('affiche les finances et retenues du membre choisi sans sommer ses transactions', async () => {
+    auth.user.role = 'GERANT';
     renderMlm(<WalletPage />);
     await screen.findByRole('option', { name: /Serge Mutombo/ });
     fireEvent.change(screen.getByLabelText('Filtrer les transactions par membre'), { target: { value: 'member-1' } });

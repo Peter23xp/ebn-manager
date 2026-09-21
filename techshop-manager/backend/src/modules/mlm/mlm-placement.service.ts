@@ -2,6 +2,8 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { MlmLevel, Position, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generationCapacity, generationProgress, MATRIX_GENERATIONS } from './mlm-generation';
+import { MlmProgressiveService, ProgressiveEvent } from './mlm-progressive.service';
+import { randomUUID } from 'crypto';
 
 export interface MovePlacement {
   memberId: string;
@@ -68,8 +70,10 @@ export class MlmPlacementService {
       operationType: 'PLACE', operationId: `placement:${memberId}`,
     } });
     await this.updateDescendantTotals(tx, memberId, null, position.matrix.membreId);
-    await this.recalculateAncestors(tx, [position.matrix.membreId], memberId, position.id);
-    await this.settleAscents(tx, [position.matrix.membreId, memberId], `placement:${memberId}`, memberId, actorId);
+    const affected = new Set<string>();
+    await this.recalculateAncestors(tx, [position.matrix.membreId], memberId, position.id, affected);
+    await this.settleAscents(tx, [position.matrix.membreId, memberId], `placement:${memberId}`, memberId, actorId, affected);
+    await this.finalizeGenerations(tx, affected, { id: `placement:${memberId}`, triggerId: memberId, actorId, positionId: position.id, origin: 'PROGRESSIVE' });
     return tx.position.findUniqueOrThrow({ where: { filleulId: memberId }, include: { matrix: true } });
   }
 
@@ -140,8 +144,10 @@ export class MlmPlacementService {
         actorId, reason: input.reason, operationId: input.operationId, operationType: 'MOVE',
       } });
       await this.updateDescendantTotals(tx, member.id, current?.matrix.membreId ?? null, input.newParentId);
-      await this.recalculateAncestors(tx, [current?.matrix.membreId, input.newParentId].filter(Boolean), member.id, destination.id);
-      await this.settleAscents(tx, [input.newParentId, current?.matrix.membreId, member.id].filter(Boolean), input.operationId, member.id, actorId);
+      const affected = new Set<string>();
+      await this.recalculateAncestors(tx, [current?.matrix.membreId, input.newParentId].filter(Boolean), member.id, destination.id, affected);
+      await this.settleAscents(tx, [input.newParentId, current?.matrix.membreId, member.id].filter(Boolean), input.operationId, member.id, actorId, affected);
+      await this.finalizeGenerations(tx, affected, { id: input.operationId, triggerId: member.id, actorId, positionId: destination.id, origin: 'PROGRESSIVE' });
       return [history];
     }, { timeout: 30000, maxWait: 10000 });
   }
@@ -177,13 +183,15 @@ export class MlmPlacementService {
       }
       await this.updateDescendantTotals(tx, first.filleulId, first.matrix.membreId, second.matrix.membreId);
       await this.updateDescendantTotals(tx, second.filleulId, second.matrix.membreId, first.matrix.membreId);
-      await this.recalculateAncestors(tx, [first.matrix.membreId, second.matrix.membreId], input.memberId, second.id);
-      await this.settleAscents(tx, [first.matrix.membreId, second.matrix.membreId, input.memberId, input.otherMemberId], input.operationId, input.memberId, actorId);
+      const affected = new Set<string>();
+      await this.recalculateAncestors(tx, [first.matrix.membreId, second.matrix.membreId], input.memberId, second.id, affected);
+      await this.settleAscents(tx, [first.matrix.membreId, second.matrix.membreId, input.memberId, input.otherMemberId], input.operationId, input.memberId, actorId, affected);
+      await this.finalizeGenerations(tx, affected, { id: input.operationId, triggerId: input.memberId, actorId, positionId: second.id, origin: 'PROGRESSIVE' });
       return tx.placementHistory.findMany({ where: { operationId: input.operationId } });
     }, { timeout: 30000, maxWait: 10000 });
   }
 
-  private async settleAscents(tx: Prisma.TransactionClient, affectedIds: string[], operationId: string, triggeringMemberId: string, actorId?: string) {
+  private async settleAscents(tx: Prisma.TransactionClient, affectedIds: string[], operationId: string, triggeringMemberId: string, actorId?: string, affected = new Set<string>()) {
     const pending = new Set<string>();
     const enqueueNeighborhood = async (memberIds: string[]) => {
       let frontier = [...new Set(memberIds)];
@@ -267,7 +275,7 @@ export class MlmPlacementService {
       } });
       await this.updateDescendantTotals(tx, member.id, parent.id, newParentId);
       if (displaced) await this.updateDescendantTotals(tx, displaced.id, newParentId, parent.id);
-      await this.recalculateAncestors(tx, [parent.id, newParentId], triggeringMemberId, destination.id);
+      await this.recalculateAncestors(tx, [parent.id, newParentId], triggeringMemberId, destination.id, affected);
       await enqueueNeighborhood([member.id, parent.id, newParentId]);
     }
   }
@@ -286,7 +294,10 @@ export class MlmPlacementService {
           oldParentId: position?.matrix.membreId, newParentId: position?.matrix.membreId,
           oldPosition: position?.numeroPosition, newPosition: position?.numeroPosition,
         } });
-        await this.settleAscents(tx, [memberId, position?.matrix.membreId].filter(Boolean), input.operationId, memberId, actorId);
+        const affected = new Set<string>();
+        await this.recalculateAncestors(tx, [memberId, position?.matrix.membreId].filter(Boolean), memberId, position?.id, affected);
+        await this.settleAscents(tx, [memberId, position?.matrix.membreId].filter(Boolean), input.operationId, memberId, actorId, affected);
+        await this.finalizeGenerations(tx, affected, { id: input.operationId, triggerId: memberId, actorId, positionId: position?.id, origin: 'PROGRESSIVE' });
       }
       return tx.placementHistory.findMany({
         where: { OR: [{ operationId: input.operationId }, { operationId: { startsWith: `${input.operationId}:ascend:` } }] },
@@ -315,8 +326,10 @@ export class MlmPlacementService {
     `;
   }
 
-  async recalculateAncestors(tx: Prisma.TransactionClient, memberIds: string[], triggeringMemberId: string, positionId?: string) {
+  async recalculateAncestors(tx: Prisma.TransactionClient, memberIds: string[], triggeringMemberId: string, positionId?: string, deferred?: Set<string>) {
     if (!memberIds.length) return;
+    await this.lock(tx);
+    const affected = deferred ?? new Set<string>();
     const ancestors = await tx.$queryRaw<Array<{ id: string; depth: number; parentId: string | null }>>`
       WITH RECURSIVE ancestors(id, depth) AS (
         SELECT member.id, 0 FROM membres member WHERE member.id IN (${Prisma.join(memberIds)})
@@ -366,29 +379,39 @@ export class MlmPlacementService {
           update: { filleulsValides: count, occupiedPositions: occupiedCount, estComplete: complete, dateComplete: complete ? new Date() : null },
         });
         matrices.push({ ordre: level.ordre, count, occupiedCount });
-        if (complete && level.isActive) {
-          const previousLevelId = levels.find(previous => previous.ordre === member.highestLevelAchieved)?.id ?? 0;
-          await this.completeGeneration(tx, member, level, matrix.id, triggeringMemberId, previousLevelId, positionId);
-        }
-        if (complete) member.highestLevelAchieved = Math.max(member.highestLevelAchieved, level.ordre);
+        affected.add(matrix.id);
       }
       const progression = generationProgress(levels, matrices, member.highestLevelAchieved);
       await tx.membre.update({ where: { id: member.id }, data: {
         mlmLevelId: progression.currentLevel?.id ?? levels[0].id,
-        highestLevelAchieved: Math.max(member.highestLevelAchieved, progression.currentLevel?.ordre ?? 0),
       } });
+    }
+    if (!deferred) await this.finalizeGenerations(tx, affected, { id: `recalculate:${randomUUID()}`, triggerId: triggeringMemberId, positionId, origin: 'PROGRESSIVE' });
+  }
+
+  private async finalizeGenerations(tx: Prisma.TransactionClient, affected: Set<string>, event: ProgressiveEvent) {
+    if (!affected.size) return;
+    const finance = new MlmProgressiveService();
+    const matrices = await tx.matrix.findMany({ where: { id: { in: [...affected] } }, include: { level: true }, orderBy: [{ membreId: 'asc' }, { level: { ordre: 'asc' } }] });
+    const levels = await tx.mlmLevel.findMany({ orderBy: { ordre: 'asc' } });
+    for (const matrix of matrices) {
+      await finance.account(tx, matrix.id, event);
+      if (!matrix.estComplete) continue;
+      const member = await tx.membre.findUniqueOrThrow({ where: { id: matrix.membreId } });
+      if (matrix.level.isActive) {
+        const previousLevelId = levels.find(level => level.ordre === member.highestLevelAchieved)?.id ?? 0;
+        await this.completeGeneration(tx, member, matrix.level, matrix.id, event.triggerId, previousLevelId);
+      }
+      if (matrix.level.ordre > member.highestLevelAchieved) {
+        await tx.membre.update({ where: { id: member.id }, data: { highestLevelAchieved: matrix.level.ordre } });
+      }
     }
   }
 
   private async completeGeneration(tx: Prisma.TransactionClient, member: { id: string; parrainId: string | null; highestLevelAchieved: number }, level: MlmLevel, matrixId: string, triggerId: string, previousLevelId: number, positionId?: string) {
-    const referenceId = `generation:${member.id}:${level.id}`;
-    if (await tx.commission.findUnique({ where: { referenceId } })) return;
-    if (!level.commissionTotale.equals(level.commissionSysteme.plus(level.commissionRetour))) throw new BadRequestException('Montants du niveau incoherents');
-    await tx.commission.create({ data: {
-      membreId: member.id, filleulId: triggerId, mlmLevelId: level.id, matrixId, positionId,
-      montant: level.commissionTotale, montantSysteme: level.commissionSysteme, montantRetour: level.commissionRetour,
-      referenceId, description: `Generation ${level.ordre} complete — ${level.nom}`, statut: 'EN_ATTENTE',
-    } });
+    const matrix = await tx.matrix.findUniqueOrThrow({ where: { id: matrixId } });
+    if (matrix.generationRewardedAt) return;
+    await tx.matrix.update({ where: { id: matrixId }, data: { generationRewardedAt: new Date() } });
     await tx.promotion.create({ data: {
       membreId: member.id, niveauAvantId: previousLevelId, niveauApresId: level.id,
       commissionVersee: 0, declencheParId: triggerId,

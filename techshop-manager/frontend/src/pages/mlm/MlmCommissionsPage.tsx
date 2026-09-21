@@ -10,7 +10,9 @@ import toast from 'react-hot-toast';
 import { getCommissionStatusLabel } from '@/lib/mlm-status';
 import { formatMlmMoney } from '@/lib/mlm-display';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { CommissionProgress } from '@/components/mlm/CommissionProgress';
 import { invalidateMlm } from '@/lib/mlm-query';
+import { usePrivateMlmQuery } from '@/hooks/usePrivateMlmQuery';
 
 const STATUT_CONFIG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
   EN_ATTENTE: {
@@ -47,7 +49,7 @@ export default function MlmCommissionsPage() {
   const [cancelNotes, setCancelNotes] = useState('');
   const [cancelingId, setCancelingId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = usePrivateMlmQuery({
     queryKey: ['mlm-commissions', { page, statut, levelId, dateFrom, dateTo }],
     queryFn: () =>
       MlmApi.listCommissions({
@@ -58,7 +60,7 @@ export default function MlmCommissionsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       }),
-  });
+  }, 'GERANT');
 
   const { data: configData } = useQuery({
     queryKey: ['mlm-config'],
@@ -140,7 +142,7 @@ export default function MlmCommissionsPage() {
                 {cfg.icon} {cfg.label}
               </span>
               <p className="text-2xl font-extrabold text-text">{data.count}</p>
-              <p className="text-xs text-text-muted font-mono">{formatUSD(data.montant)}</p>
+              <p className="text-xs text-text-muted font-mono">{formatMlmMoney(data.montant)}</p>
             </button>
           );
         })}
@@ -180,13 +182,14 @@ export default function MlmCommissionsPage() {
       </div>
 
       {/* Table */}
+      {isError && <div role="alert" className="space-y-3"><p>Commissions indisponibles. Réessayez pour consulter les montants confirmés.</p><button className="btn-secondary" onClick={() => refetch()}>Réessayer les commissions</button></div>}
       <div className="rounded-xl border border-border bg-bg-card shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr>
                 <th className="px-5 py-3.5">Bénéficiaire</th>
-                <th className="px-5 py-3.5">Membre déclencheur</th>
+                <th className="px-5 py-3.5">Origine et progression</th>
                 <th className="px-5 py-3.5">Niveau</th>
                 <th className="px-5 py-3.5">Montant</th>
                 <th className="px-5 py-3.5">Statut</th>
@@ -203,7 +206,7 @@ export default function MlmCommissionsPage() {
                       </td>
                     </tr>
                   ))
-                : commissions.length === 0
+                : isError ? null : commissions.length === 0
                 ? (
                     <tr>
                       <td colSpan={7} className="px-5 py-12 text-center text-text-muted">
@@ -211,7 +214,7 @@ export default function MlmCommissionsPage() {
                       </td>
                     </tr>
                   )
-                : commissions.map((c: any) => {
+                : commissions.map((c) => {
                     const cfg = STATUT_CONFIG[c.statut] ?? STATUT_CONFIG['EN_ATTENTE'];
                     return (
                       <tr key={c.id} className="hover:bg-blue-50/40 transition-colors">
@@ -222,9 +225,7 @@ export default function MlmCommissionsPage() {
                           <p className="text-xs text-text-muted font-mono">{c.membre?.matricule}</p>
                         </td>
                         <td className="px-5 py-3">
-                          <p className="text-sm text-text">
-                            {c.filleul?.client?.prenom} {c.filleul?.client?.nom}
-                          </p>
+                          <CommissionProgress commission={c} />
                         </td>
                         <td className="px-5 py-3">
                           <span className="text-xs font-bold text-text-muted bg-bg px-2 py-1 rounded-full">

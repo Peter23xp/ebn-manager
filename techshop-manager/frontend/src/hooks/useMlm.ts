@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MlmApi } from '@/lib/mlm.api';
+import { usePrivateMlmQuery } from './usePrivateMlmQuery';
 
 export function useMlmMembers(params: {
   page?: number;
@@ -16,7 +17,7 @@ export function useMlmMembers(params: {
 }
 
 export function useMemberProgress(memberId: string) {
-  return useQuery({
+  return usePrivateMlmQuery({
     queryKey: ['mlm-progress', memberId],
     queryFn: () => MlmApi.getMemberProgress(memberId),
     enabled: !!memberId,
@@ -40,7 +41,7 @@ export function useNetworkTree(memberId: string, depth = 3) {
 }
 
 export function useWallet(memberId?: string) {
-  return useQuery({
+  return usePrivateMlmQuery({
     queryKey: ['mlm-wallet', memberId],
     queryFn: () => MlmApi.getWallet(memberId),
   });
@@ -52,14 +53,14 @@ export function useWalletTransactions(params: {
   memberId?: string;
   type?: string;
 }) {
-  return useQuery({
+  return usePrivateMlmQuery({
     queryKey: ['mlm-transactions', params],
     queryFn: () => MlmApi.getTransactions(params),
   });
 }
 
 export function useEarningsByLevel(memberId?: string) {
-  return useQuery({
+  return usePrivateMlmQuery({
     queryKey: ['mlm-earnings', memberId],
     queryFn: () => MlmApi.getEarningsByLevel(memberId),
   });

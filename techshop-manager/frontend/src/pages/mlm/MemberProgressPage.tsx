@@ -21,6 +21,8 @@ import { MatrixGrid } from '@/components/mlm/MatrixGrid';
 import { GenerationProgress } from '@/components/mlm/GenerationProgress';
 import { FinancialSummary } from '@/components/mlm/FinancialSummary';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { ProgressiveCommissions } from '@/components/mlm/ProgressiveCommissions';
+import { CommissionProgress } from '@/components/mlm/CommissionProgress';
 import { formatMlmMoney } from '@/lib/mlm-display';
 import { formatDate, formatUSD } from '@/lib/utils';
 
@@ -142,7 +144,7 @@ export default function MemberProgressPage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Rang MLM actuel</p>
                 <h2 className="text-2xl font-extrabold text-text mt-0.5">{currentLevel?.nom ?? 'Builder en cours'}</h2>
                 <p className="text-xs text-text-muted mt-1">
-                  Commission de génération : <strong className="text-text">{formatMlmMoney((prochainNiveau ?? currentLevel)?.totalAmount ?? (prochainNiveau ?? currentLevel)?.commissionTotale)}</strong> — après accomplissement et validation administrative.
+                  Les commissions sont générées par progression, puis soumises à validation. Le rang reste acquis à la complétion de la génération.
                 </p>
               </div>
               <MlmLevelBadge level={currentLevel?.ordre ?? null} name={currentLevel?.nom} size="lg" />
@@ -209,6 +211,8 @@ export default function MemberProgressPage() {
       </div>
 
       {/* Global Career Progression (8 levels) */}
+      <ProgressiveCommissions summaries={data.progressiveCommissions} />
+
       <div className="rounded-xl border border-border bg-bg-card shadow-card p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-section-title text-primary flex items-center gap-2">
@@ -378,21 +382,26 @@ export default function MemberProgressPage() {
                 <thead className="sticky top-0 bg-bg-card">
                   <tr>
                     <th className="px-3 py-2">Niveau</th>
+                    <th className="px-3 py-2">Origine et progression</th>
                     <th className="px-3 py-2">Montant</th>
                     <th className="px-3 py-2">Statut</th>
                     <th className="px-3 py-2">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {commissions.map((c: any) => {
+                  {commissions.map((c) => {
                     const cfg = COMMISSION_STATUT_LABEL[c.statut] ?? COMMISSION_STATUT_LABEL['EN_ATTENTE'];
                     return (
                       <tr key={c.id}>
                         <td className="px-3 py-2.5 font-semibold text-text">
                           {c.level?.nom}
                         </td>
+                        <td className="px-3 py-2.5"><CommissionProgress commission={c} /></td>
                         <td className="px-3 py-2.5 font-mono font-bold text-text">
-                          {formatUSD(c.montant)}
+                          {formatMlmMoney(c.montant)}
+                          <p className="text-sm font-normal">Immédiat : {formatMlmMoney(c.montantSysteme)}</p>
+                          <p className="text-sm font-normal">Retenu : {formatMlmMoney(c.montantRetour)}</p>
+                          {c.reinvestLot && <details className="mt-2 font-sans font-normal"><summary className="min-h-touch cursor-pointer">Retenue et échéance</summary><ReinvestLots lots={[c.reinvestLot]} /></details>}
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`badge ${cfg.badge}`}>

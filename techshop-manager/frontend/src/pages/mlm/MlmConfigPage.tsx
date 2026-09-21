@@ -57,7 +57,7 @@ export default function MlmConfigPage() {
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
         <ShieldAlert size={18} className="text-warning flex-shrink-0 mt-0.5" />
         <p className="text-sm text-text">
-          Les modifications s'appliquent aux prochaines commissions de génération. Les montants historiques et échéances existantes sont conservés.
+          Le budget de chaque membre et génération est figé dès le début de sa comptabilisation progressive. Les nouveaux montants s'appliquent uniquement aux budgets non encore commencés. Les budgets déjà commencés, les montants historiques et les échéances existantes ne sont pas recalculés.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function MlmConfigPage() {
               <div className="form-group">
                 <p className="text-sm text-text-muted">Total actuel : {formatMlmMoney(editingLevel.totalAmount)}</p>
                 <p className="text-sm text-text-muted">Retenue actuelle : {formatMlmMoney(editingLevel.heldAmount)}</p>
-                <p className="text-xs text-text-muted">Nouveaux montants disponibles après enregistrement serveur.</p>
+                <p className="text-sm text-slate-600">Nouveaux montants disponibles après enregistrement serveur, uniquement pour les budgets non encore commencés. Les budgets déjà figés sont conservés.</p>
               </div>
             </div>
 

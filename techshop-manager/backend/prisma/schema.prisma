@@ -708,6 +708,13 @@ model Matrix {
   mlmLevelId      Int
   filleulsValides Int       @default(0)
   occupiedPositions Int    @default(0)
+  commissionAccountedPositions Int @default(0)
+  commissionBudgetTotal Decimal? @db.Decimal(12, 2)
+  commissionBudgetImmediate Decimal? @db.Decimal(12, 2)
+  commissionBudgetHeld Decimal? @db.Decimal(12, 2)
+  commissionPolicyVersion String?
+  commissionAccountedAt DateTime?
+  generationRewardedAt DateTime?
   estComplete     Boolean   @default(false)
   dateComplete    DateTime?
   createdAt       DateTime  @default(now())
@@ -909,7 +916,7 @@ model BonusRetraite {
 model Commission {
   id               String           @id @default(uuid())
   membreId         String
-  filleulId        String
+  filleulId        String?
   mlmLevelId       Int
   montant          Decimal          @db.Decimal(12, 2)
   // 🆕 Split : partie reçue par le système EBN vs retour automatique au membre
@@ -924,11 +931,17 @@ model Commission {
   matrixId         String?
   positionId       String?
   validatedById    String?
+  progressFrom     Int?
+  progressTo       Int?
+  calculationVersion String?
+  generationEventId String?
+  generationActorId String?
+  origin           String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   membre  Membre   @relation("CommissionBeneficiaire", fields: [membreId], references: [id])
-  filleul Membre   @relation("CommissionFilleul", fields: [filleulId], references: [id])
+  filleul Membre?  @relation("CommissionFilleul", fields: [filleulId], references: [id])
   level   MlmLevel @relation(fields: [mlmLevelId], references: [id])
   matrix Matrix? @relation(fields: [matrixId], references: [id])
   position Position? @relation(fields: [positionId], references: [id])
@@ -936,6 +949,8 @@ model Commission {
 
   @@index([membreId])
   @@index([statut])
+  @@unique([matrixId, progressTo])
+  @@index([membreId, mlmLevelId])
   @@map("commissions")
 }
 

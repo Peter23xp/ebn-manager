@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { MlmWalletService } from './mlm-wallet.service';
 import { MlmPlacementService } from './mlm-placement.service';
+import { money } from './mlm-progressive';
 import { generationCapacity, generationProgress, MATRIX_GENERATIONS } from './mlm-generation';
 
 @Injectable()
@@ -215,7 +216,9 @@ export class MlmMatrixService {
     return {
       commissions: commissions.map((c) => ({
         ...c,
-        montant: Number(c.montant),
+        montant: c.montant.toFixed(2),
+        montantSysteme: c.montantSysteme.toFixed(2),
+        montantRetour: c.montantRetour.toFixed(2),
       })),
       summary,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -232,6 +235,9 @@ export class MlmMatrixService {
       const commission = await tx.commission.findUnique({ where: { id: commissionId } });
       if (commission.statut === 'VALIDEE' || commission.statut === 'PAYEE') return commission;
       if (commission.statut !== 'EN_ATTENTE') throw new BadRequestException('Commission annulee');
+      money(commission.montant);
+      money(commission.montantSysteme);
+      money(commission.montantRetour);
       if (!commission.montant.equals(commission.montantSysteme.plus(commission.montantRetour))) throw new BadRequestException('Montants de commission incoherents');
       const validatedAt = new Date();
       const transition = await tx.commission.updateMany({
@@ -240,8 +246,8 @@ export class MlmMatrixService {
       });
       if (transition.count !== 1) throw new BadRequestException('Commission deja traitee');
       const level = await tx.mlmLevel.findUnique({ where: { id: commission.mlmLevelId } });
-      await this.walletService.creditWalletInTx(tx, commission.membreId, commission.montantSysteme, 'COMMISSION', commission.description, commission.referenceId);
-      await this.walletService.creditReinvestInTx(tx, commission.membreId, commission.montantRetour, commission.id, level.nom, validatedAt);
+      if (commission.montantSysteme.gt(0)) await this.walletService.creditWalletInTx(tx, commission.membreId, commission.montantSysteme, 'COMMISSION', commission.description, commission.referenceId);
+      if (commission.montantRetour.gt(0)) await this.walletService.creditReinvestInTx(tx, commission.membreId, commission.montantRetour, commission.id, level.nom, validatedAt);
       return tx.commission.findUnique({ where: { id: commissionId }, include: { reinvestLot: true } });
     }, { timeout: 30000, maxWait: 10000 });
   }

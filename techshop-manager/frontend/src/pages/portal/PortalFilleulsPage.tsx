@@ -222,7 +222,7 @@ function HowReferralWorks() {
   const steps = [
     { icon: Share2, title: 'Donnez votre code', desc: 'Partagez votre matricule avec vos futurs partenaires.' },
     { icon: UserPlus, title: 'Votre ami s\'inscrit', desc: 'Il utilise votre matricule lors de son inscription au réseau EBN.' },
-    { icon: Gift, title: 'Vous recevez votre récompense', desc: 'Une génération complète crée une commission en attente. Après validation, le montant immédiat est crédité et la retenue suit un délai de 30 jours ouvrables avant restitution administrative.' },
+    { icon: Gift, title: 'Vous recevez votre récompense', desc: 'Chaque progression matricielle valide peut créer une tranche de commission en attente. Les huit générations rapportent indépendamment. Après validation, la part immédiate est créditée ; la retenue devient restituable après 30 jours ouvrables, du lundi au samedi, hors jours fériés RDC. Le rang et les bonus restent liés à la complétion.' },
   ];
 
   return (

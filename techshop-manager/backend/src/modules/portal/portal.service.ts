@@ -120,6 +120,7 @@ export class PortalService {
           totalGagne: 0,
         },
         reinvestLots: [],
+        progressiveCommissions: [],
         reinvestLotsMeta: { total: 0, page: 1, limit: 100, totalPages: 0 },
         financialSummary: {
           generatedTotal: '0.00', validatedTotal: '0.00', immediateAmount: '0.00',
@@ -144,6 +145,7 @@ export class PortalService {
         totalGagne: snapshot.totalGagne,
       },
       financialSummary: snapshot.financialSummary,
+      progressiveCommissions: snapshot.progressiveCommissions ?? [],
       reinvestLots: snapshot.reinvestLots,
       reinvestLotsMeta: snapshot.reinvestLotsMeta,
       stats: {

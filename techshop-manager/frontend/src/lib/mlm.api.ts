@@ -1,6 +1,21 @@
 import { api } from './api';
 import { withPaymentAvailability } from './mobile-money';
-import type { CalendarYear, MatrixTreeNode, MoveMemberInput, PlacementHistory, SwapMembersInput } from '@/types/mlm';
+import type { CalendarYear, MatrixTreeNode, MlmCommission, MoveMemberInput, PlacementHistory, ProgressiveCommissionSummary, SwapMembersInput } from '@/types/mlm';
+
+export interface MemberProgressResponse extends Record<string, any> {
+  progressiveCommissions?: ProgressiveCommissionSummary[];
+  commissions?: MlmCommission[];
+}
+
+export interface MlmWalletResponse extends Record<string, any> {
+  progressiveCommissions?: ProgressiveCommissionSummary[];
+}
+
+export interface CommissionsResponse {
+  commissions: MlmCommission[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+  summary?: Record<string, { count: number; montant: string }>;
+}
 
 export const MlmApi = {
   // ── Stats & Dashboard ───────────────────────────────────────────────────────
@@ -29,7 +44,7 @@ export const MlmApi = {
     const { data } = await api.get('/mlm/members', { params });
     return data;
   },
-  getMemberProgress: async (memberId: string) => {
+  getMemberProgress: async (memberId: string): Promise<MemberProgressResponse> => {
     const { data } = await api.get(`/mlm/members/${memberId}/progress`);
     return data;
   },
@@ -90,8 +105,8 @@ export const MlmApi = {
     levelId?: number;
     dateFrom?: string;
     dateTo?: string;
-  }) => {
-    const { data } = await api.get('/mlm/commissions', { params });
+  }): Promise<CommissionsResponse> => {
+    const { data } = await api.get<CommissionsResponse>('/mlm/commissions', { params });
     return data;
   },
   validateCommission: async (commissionId: string) => {
@@ -148,7 +163,7 @@ export const MlmApi = {
   },
 
   // ── Wallet ──────────────────────────────────────────────────────────────────
-  getWallet: async (memberId?: string) => {
+  getWallet: async (memberId?: string): Promise<MlmWalletResponse> => {
     const url = memberId ? `/mlm/wallet/${memberId}` : '/mlm/wallet';
     const { data } = await api.get(url);
     return data;

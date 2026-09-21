@@ -7,6 +7,9 @@ import { KpayWebhookService } from '../kpay/kpay-webhook.service';
 import { MlmCalendarService } from './mlm-calendar.service';
 import { assertMobileMoneyAvailable, isMobileMoneyMethod } from '../../common/payments/mobile-money.policy';
 import { excludeHeldReleaseTransfers, walletJournalKind } from './mlm-wallet-journal';
+import { readProgressiveSummaries } from './mlm-progressive-summary';
+import { StaffActor } from '../../common/access/staff-access';
+import { requireFinancialMemberAccess } from './mlm-financial-access';
 
 @Injectable()
 export class MlmWalletService implements OnModuleInit {
@@ -27,7 +30,8 @@ export class MlmWalletService implements OnModuleInit {
 
   // ── Get wallet ──────────────────────────────────────────────────────────────
 
-  async getWallet(memberId: string, params: { page?: number; limit?: number } = {}) {
+  async getWallet(memberId: string, params: { page?: number; limit?: number } = {}, actor?: StaffActor) {
+    if (actor) await requireFinancialMemberAccess(this.prisma, memberId, actor);
     const page = params.page ?? 1;
     const requestedLimit = params.limit ?? 100;
     if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(requestedLimit) || requestedLimit < 1) {
@@ -50,7 +54,7 @@ export class MlmWalletService implements OnModuleInit {
       });
       if (!wallet) throw new NotFoundException(`Portefeuille introuvable pour membre ${memberId}`);
 
-      const [financialSummary, lots, total] = await Promise.all([
+      const [financialSummary, lots, total, progressiveCommissions] = await Promise.all([
         this.getFinancialSummary(memberId, tx),
         tx.reinvestLote.findMany({
           where: { membreId: memberId },
@@ -63,6 +67,7 @@ export class MlmWalletService implements OnModuleInit {
           take: limit,
         }),
         tx.reinvestLote.count({ where: { membreId: memberId } }),
+        readProgressiveSummaries(tx, memberId),
       ]);
 
       return {
@@ -76,6 +81,7 @@ export class MlmWalletService implements OnModuleInit {
         membre: wallet.membre,
         updatedAt: wallet.updatedAt,
         financialSummary,
+        progressiveCommissions,
         reinvestLots: lots.map((lot) => ({
           ...lot,
           amount: lot.amount.toFixed(2),

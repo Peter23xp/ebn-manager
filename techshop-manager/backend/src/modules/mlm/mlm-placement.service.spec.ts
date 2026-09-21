@@ -73,22 +73,42 @@ describe('core round1 promotion history', () => {
       commissionTotale: new Prisma.Decimal(40), commissionSysteme: new Prisma.Decimal(24), commissionRetour: new Prisma.Decimal(16),
       salaireActif: false, bonusDescription: null,
     }));
+    const member = { id: 'root', statut: 'ACTIF', parrainId: null, highestLevelAchieved, mlmLevelId: 101 };
+    const matrices = new Map<string, any>();
+    const commissions: any[] = highestLevelAchieved === 1 ? [{
+      id: 'existing', membreId: 'root', mlmLevelId: 101, matrixId: 'matrix-101',
+      referenceId: 'generation:root:101', progressFrom: null, progressTo: null,
+      montant: new Prisma.Decimal(40), montantSysteme: new Prisma.Decimal(24), montantRetour: new Prisma.Decimal(16), createdAt: new Date(),
+    }] : [];
     const transaction: any = {
+      $executeRaw: jest.fn<any>().mockResolvedValue(1),
       $queryRaw: jest.fn<any>().mockResolvedValue([{ id: 'root', depth: 0 }]),
       mlmLevel: { findMany: jest.fn<any>().mockResolvedValue(levels) },
       membre: {
-        findUnique: jest.fn<any>().mockResolvedValue({ id: 'root', statut: 'ACTIF', parrainId: null, highestLevelAchieved }),
-        update: jest.fn<any>(),
+        findUnique: jest.fn<any>().mockResolvedValue(member),
+        findUniqueOrThrow: jest.fn<any>().mockResolvedValue(member),
+        update: jest.fn<any>(async ({ data }) => Object.assign(member, data)),
       },
       position: { findMany: jest.fn<any>().mockResolvedValue(Array.from({ length: 4 }, () => ({
         estValide: true, filleul: { statut: 'ACTIF', totalDescendants: 4, matrices: [{ level: { ordre: 1 }, filleulsValides: 4, occupiedPositions: 4 }] },
       }))) },
-      matrix: { upsert: jest.fn<any>(async ({ create }) => ({ id: `matrix-${create.mlmLevelId}`, ...create })) },
-      commission: {
-        findUnique: jest.fn<any>(async ({ where }) => highestLevelAchieved === 1 && where.referenceId === 'generation:root:101' ? { id: 'existing' } : null),
-        create: jest.fn<any>(),
+      matrix: {
+        upsert: jest.fn<any>(async ({ create }) => {
+          const matrix = { id: `matrix-${create.mlmLevelId}`, ...create, level: levels.find(level => level.id === create.mlmLevelId),
+            commissionPolicyVersion: null, commissionAccountedPositions: 0, commissionBudgetTotal: null, commissionBudgetImmediate: null, commissionBudgetHeld: null, generationRewardedAt: null };
+          matrices.set(matrix.id, matrix);
+          return matrix;
+        }),
+        findMany: jest.fn<any>(async () => [...matrices.values()]),
+        findUniqueOrThrow: jest.fn<any>(async ({ where }) => matrices.get(where.id)),
+        update: jest.fn<any>(async ({ where, data }) => Object.assign(matrices.get(where.id), data)),
       },
-      promotion: { create: jest.fn<any>() },
+      commission: {
+        findMany: jest.fn<any>(async ({ where }) => commissions.filter(row => row.mlmLevelId === where.mlmLevelId)),
+        create: jest.fn<any>(async ({ data }) => { commissions.push(data); return data; }),
+      },
+      promotion: { create: jest.fn<any>(), findMany: jest.fn<any>(async ({ where }) => highestLevelAchieved === 1 && where.niveauApresId === 101 ? [{ id: 'prior' }] : []) },
+      bonusAttribue: { findMany: jest.fn<any>().mockResolvedValue([]) },
     };
     await new MlmPlacementService({} as never).recalculateAncestors(transaction, ['root'], 'trigger');
     const history = transaction.promotion.create.mock.calls.map(([input]) => input.data);
@@ -96,6 +116,6 @@ describe('core round1 promotion history', () => {
       expect.objectContaining({ niveauAvantId: 0, niveauApresId: 101 }),
       expect.objectContaining({ niveauAvantId: 101, niveauApresId: 102 }),
     ] : [expect.objectContaining({ niveauAvantId: 101, niveauApresId: 102 })]);
-    expect(transaction.membre.update).toHaveBeenCalledWith({ where: { id: 'root' }, data: { mlmLevelId: 102, highestLevelAchieved: 2 } });
+    expect(member).toMatchObject({ mlmLevelId: 102, highestLevelAchieved: 2 });
   });
 });

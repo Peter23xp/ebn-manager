@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
 import { withPaymentAvailability } from './mobile-money';
-import type { FinancialSummary, MatrixTreeNode, ReinvestLot } from '@/types/mlm';
+import type { FinancialSummary, MatrixTreeNode, ProgressiveCommissionSummary, ReinvestLot } from '@/types/mlm';
 export type { ReinvestLot } from '@/types/mlm';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -138,6 +138,7 @@ export interface PortalWalletResponse {
   };
   reinvestLots: ReinvestLot[];
   financialSummary?: FinancialSummary;
+  progressiveCommissions?: ProgressiveCommissionSummary[];
   stats: { gainsTotaux: number };
 }
 

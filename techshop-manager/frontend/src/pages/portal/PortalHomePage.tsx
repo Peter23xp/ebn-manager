@@ -34,7 +34,7 @@ export default function PortalHomePage() {
   } = usePortalHome();
 
   // Données MLM (portefeuille et gains)
-  const { wallet, stats, lots, financialSummary, isLoading: isMlmLoading, error: mlmError, retryWallet } = usePortalMlm();
+  const { wallet, stats, lots, financialSummary, progressiveCommissions, isLoading: isMlmLoading, error: mlmError, retryWallet } = usePortalMlm();
 
   const displayName = user
     ? `${user.prenom ?? user.name?.split(' ')[0] ?? 'Partenaire'}`
@@ -103,6 +103,7 @@ export default function PortalHomePage() {
               reserve={wallet?.soldeReserve ?? 0}
               lots={lots}
               financialSummary={financialSummary}
+              progressiveCommissions={progressiveCommissions}
               available={wallet?.soldeDisponible}
               onWithdraw={() => navigate('/portal/commissions')}
             />

@@ -14,6 +14,7 @@ import type { PortalWalletTransaction } from '@/lib/portal.api';
 import { portalApi } from '@/lib/portal.api';
 import { FinancialSummary } from '@/components/mlm/FinancialSummary';
 import { ReinvestLots } from '@/components/mlm/ReinvestLots';
+import { ProgressiveCommissions } from '@/components/mlm/ProgressiveCommissions';
 
 const TX_LABEL: Record<string, string> = {
   COMMISSION:       'Commission MLM',
@@ -75,7 +76,7 @@ const FILTERS: { value: WalletTxFilter; label: string }[] = [
 export default function PortalPointsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { wallet, financialSummary, lots, error: walletError, isLoading: walletLoading, retryWallet } = usePortalMlm();
+  const { wallet, financialSummary, progressiveCommissions, lots, error: walletError, isLoading: walletLoading, retryWallet } = usePortalMlm();
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('243');
   const [provider, setProvider] = useState<'VODACOM_MPESA_COD' | 'AIRTEL_COD' | 'ORANGE_COD'>('VODACOM_MPESA_COD');
@@ -131,6 +132,8 @@ export default function PortalPointsPage() {
           <FinancialSummary summary={financialSummary} available={wallet?.soldeDisponible} />
           <ReinvestLots lots={lots} />
         </div>
+
+        <div className="mb-5"><ProgressiveCommissions summaries={progressiveCommissions} isLoading={walletLoading} isError={!!walletError} onRetry={() => { void retryWallet(); }} /></div>
 
         {/* Retrait */}
         <div className="mb-5 rounded-2xl border border-border bg-bg-card p-4 shadow-card">

@@ -176,7 +176,8 @@ integration('automatic matrix branch ascent', () => {
     const generation = await matrix.getNetworkGeneration(members.G.id, 2);
     expect(generation.meta.total).toBe(6);
     expect(generation.items.map(member => member.id)).toEqual(expect.arrayContaining([members.C1.id, members.C2.id, members.C3.id, fourth.id]));
-    expect(await prisma.commission.count({ where: { membreId: members.B.id } })).toBe(1);
+    const builderTranches = await prisma.commission.findMany({ where: { membreId: members.B.id }, orderBy: { progressTo: 'asc' } });
+    expect(builderTranches.map(row => row.montant.toFixed(2))).toEqual(['30.00', '10.00']);
     await expectConsistentGraph(members);
   }, 30000);
 
@@ -214,6 +215,7 @@ integration('automatic matrix branch ascent', () => {
     const members = await graph(base);
     const newcomer = await client('Rollback');
     const before = await incoming(members.B);
+    const beforeCommissions = await prisma.commission.findMany({ where: { membreId: members.B.id }, orderBy: { id: 'asc' } });
     await expect(prisma.$transaction(async tx => {
       const createHistory = tx.placementHistory.create.bind(tx.placementHistory);
       tx.placementHistory.create = jest.fn<any>(input => {
@@ -224,7 +226,7 @@ integration('automatic matrix branch ascent', () => {
     }, { timeout: 30000 })).rejects.toThrow('synthetic history failure');
     expect((await incoming(members.B)).id).toBe(before.id);
     expect(await prisma.membre.findUnique({ where: { clientId: newcomer.id } })).toBeNull();
-    expect(await prisma.commission.count({ where: { membreId: members.B.id } })).toBe(0);
+    expect(await prisma.commission.findMany({ where: { membreId: members.B.id }, orderBy: { id: 'asc' } })).toEqual(beforeCommissions);
     expect(await prisma.placementHistory.count({ where: { memberId: members.B.id, operationType: 'AUTO_ASCEND' } })).toBe(0);
   }, 30000);
 
@@ -261,7 +263,8 @@ integration('automatic matrix branch ascent', () => {
     const recruits = await Promise.all([activateUnder(members.B, 'Concurrent fourth'), activateUnder(members.B, 'Concurrent fifth')]);
     expect((await incoming(members.B)).matrix.membreId).toBe(members.G.id);
     expect(await prisma.placementHistory.count({ where: { memberId: members.B.id, operationType: 'AUTO_ASCEND' } })).toBe(1);
-    expect(await prisma.commission.count({ where: { membreId: members.B.id } })).toBe(1);
+    expect(await prisma.commission.count({ where: { membreId: members.B.id, level: { ordre: 1 } } })).toBe(2);
+    expect(await prisma.commission.count({ where: { membreId: members.B.id, level: { ordre: 2 } } })).toBe(1);
     expect(recruits.every(member => member.parrainId === members.B.id)).toBe(true);
     const positions = await Promise.all(recruits.map(incoming));
     expect(positions.filter(position => position.matrix.membreId === members.B.id)).toHaveLength(1);
@@ -441,6 +444,7 @@ integration('automatic matrix branch ascent', () => {
     const members = await graph([...base, ['G2', 'G'], ['G3', 'G'], ['G4', 'G']]);
     const newcomer = await client('Exchange rollback');
     const before = await Promise.all([members.B, members.G2].map(incoming));
+    const beforeCommissions = await prisma.commission.findMany({ where: { membreId: members.B.id }, orderBy: { id: 'asc' } });
     await expect(prisma.$transaction(async tx => {
       const createHistory = tx.placementHistory.create.bind(tx.placementHistory);
       tx.placementHistory.create = jest.fn<any>(input => {
@@ -451,7 +455,7 @@ integration('automatic matrix branch ascent', () => {
     }, { timeout: 30000 })).rejects.toThrow('synthetic downward history failure');
     expect((await Promise.all([members.B, members.G2].map(incoming))).map(slot => slot.id)).toEqual(before.map(slot => slot.id));
     expect(await prisma.membre.findUnique({ where: { clientId: newcomer.id } })).toBeNull();
-    expect(await prisma.commission.count({ where: { membreId: members.B.id } })).toBe(0);
+    expect(await prisma.commission.findMany({ where: { membreId: members.B.id }, orderBy: { id: 'asc' } })).toEqual(beforeCommissions);
     expect(await prisma.placementHistory.count({ where: { memberId: { in: [members.B.id, members.G2.id] } } })).toBe(0);
     await expectConsistentGraph(members);
   }, 30000);
@@ -472,7 +476,7 @@ integration('automatic matrix branch ascent', () => {
     expect(result.filter(row => row.operationType === 'AUTO_ASCEND')).toHaveLength(2);
     expect(result.filter(row => row.operationType === 'AUTO_DESCEND')).toHaveLength(1);
     const commissions = await prisma.commission.findMany({ where: { membreId: { in: [members.B.id, members.D.id, members.P.id] } }, orderBy: { id: 'asc' } });
-    expect(commissions).toHaveLength(3);
+    expect(commissions.filter(row => row.mlmLevelId === levelId).reduce((total, row) => total.plus(row.montant), new Prisma.Decimal(0)).toFixed(2)).toBe('120.00');
     expect(await placement.reconcileAscents(members.B.id, input, adminId)).toEqual(result);
     expect(await prisma.commission.findMany({ where: { membreId: { in: [members.B.id, members.D.id, members.P.id] } }, orderBy: { id: 'asc' } })).toEqual(commissions);
     expect(await placement.reconcileAscents(members.B.id, { ...input, operationId: randomUUID() }, adminId)).toHaveLength(1);

@@ -60,6 +60,48 @@ export interface FinancialSummary {
   releasedAmount: string;
 }
 
+export interface ProgressiveCommissionSummary {
+  matrixId: string | null;
+  generation: number;
+  levelName: string;
+  capacity: number;
+  currentValidPositions: number;
+  accountedPositions: number | null;
+  budgetTotal: string | null;
+  budgetImmediate: string | null;
+  budgetHeld: string | null;
+  generatedTotal: string;
+  pendingTotal: string;
+  validatedTotal: string;
+  cancelledTotal: string;
+  immediateCredited: string;
+  heldAmount: string;
+  releasableAmount: string;
+  releasedAmount: string;
+  remainingTotal: string | null;
+  suspendedReason: string | null;
+}
+
+export interface CommissionProgressMetadata {
+  progressFrom?: number | null;
+  progressTo?: number | null;
+  origin?: 'PROGRESSIVE' | 'CATCH_UP' | null;
+  calculationVersion?: string | null;
+  filleul?: MemberIdentity | null;
+}
+
+export interface MlmCommission extends CommissionProgressMetadata {
+  id: string;
+  membre?: MemberIdentity;
+  level?: GenerationLevel;
+  montant: string;
+  montantSysteme?: string;
+  montantRetour?: string;
+  statut: string;
+  createdAt: string;
+  reinvestLot?: ReinvestLot | null;
+}
+
 export interface ReinvestLot {
   id: string;
   amount: string;

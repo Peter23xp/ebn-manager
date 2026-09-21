@@ -4,12 +4,13 @@ import MemberProgressPage from './MemberProgressPage';
 import { MatrixGrid } from '@/components/mlm/MatrixGrid';
 import { WalletCard } from '@/components/portal/WalletCard';
 import { builder, lot, progressData, renderMlm, sapphire, summary } from './task6.fixtures';
+import { useAuthStore } from '@/store/auth.store';
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api: { get } }));
 
 describe('Task 6 — progression et finances serveur', () => {
-  beforeEach(() => { get.mockReset(); get.mockResolvedValue({ data: progressData }); });
+  beforeEach(() => { useAuthStore.getState().setAuth({ id: 'staff', name: 'Staff', role: 'GERANT' }, 'synthetic'); get.mockReset(); get.mockResolvedValue({ data: progressData }); });
 
   it('affiche Builder en cours avant 4/4 malgré le niveau technique Builder', async () => {
     renderMlm(<MemberProgressPage />);
@@ -45,7 +46,7 @@ describe('Task 6 — progression et finances serveur', () => {
     expect(screen.getByText('Immédiat crédité (historique)').parentElement).toHaveTextContent('24');
     expect(screen.getByText('Retenu non échu').parentElement).toHaveTextContent('16');
     expect(screen.getByText('Disponible courant').parentElement).toHaveTextContent('9');
-    expect(screen.getByText(/Source : serveur/)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Synthèse financière' })).getByText(/Source : serveur/)).toBeInTheDocument();
   });
 
   it('ne matérialise pas de cases physiques pour une génération agrégée', () => {

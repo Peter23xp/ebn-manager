@@ -225,7 +225,7 @@ async function assertFingerprint(client: Client, sourceUrl: string, fingerprint:
   requireSafe(fingerprint && fingerprint === await targetFingerprint(client, sourceUrl, sourcePolicy), 'TARGET_FINGERPRINT_MISMATCH');
 }
 
-async function readCatalog(client: Client): Promise<Catalog> {
+export async function readCatalog(client: Client): Promise<Catalog> {
   const tables = (await client.query(`SELECT relname AS name FROM pg_class JOIN pg_namespace ON relnamespace=pg_namespace.oid
     WHERE nspname='public' AND relkind='r' ORDER BY relname COLLATE "C"`)).rows.map(row => row.name);
   const foreignKeys = (await client.query(`SELECT source_ns.nspname AS "sourceSchema", source.relname AS source,
@@ -350,7 +350,7 @@ function assertOutsideGit(directory: string) {
   }
 }
 
-function restrictDirectory(directory: string, create = false) {
+export function restrictDirectory(directory: string, create = false) {
   assertOutsideGit(directory);
   if (create && !fs.existsSync(directory)) {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -366,7 +366,7 @@ function restrictDirectory(directory: string, create = false) {
 
 export const WINDOWS_PRIVATE_ACL_POLICY = "if($acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -notin $allowed) {exit 2}; if($acl.Access.Count -eq 0) {exit 2}; foreach($rule in $acl.Access) {if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value -notin $allowed) {exit 2}}";
 
-function assertPrivatePath(filename: string, recursive = false) {
+export function assertPrivatePath(filename: string, recursive = false) {
   if (process.platform === 'win32') {
     try {
       execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
@@ -466,7 +466,7 @@ async function snapshot(client: Client, sourceUrl: string, pgBin: string) {
   return { data, ...await schemaState(client) };
 }
 
-async function schemaState(client: Client) {
+export async function schemaState(client: Client) {
   const sequences: Record<string, unknown> = {};
   for (const sequence of (await client.query(`SELECT sequencename FROM pg_sequences WHERE schemaname='public' ORDER BY sequencename`)).rows) {
     sequences[sequence.sequencename] = (await client.query(`SELECT last_value::text, is_called FROM ${tableName(sequence.sequencename)}`)).rows[0];

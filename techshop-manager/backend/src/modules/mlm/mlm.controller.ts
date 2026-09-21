@@ -96,8 +96,8 @@ export class MlmController {
 
   @Get('members/:memberId/progress')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
-  getMemberProgress(@Param('memberId') memberId: string) {
-    return this.mlmService.getMemberProgress(memberId);
+  getMemberProgress(@Param('memberId') memberId: string, @CurrentUser() user: any) {
+    return this.mlmService.getMemberProgress(memberId, user);
   }
 
   @Get('members/:memberId/filleuls')
@@ -243,8 +243,9 @@ export class MlmController {
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT', 'AGENT')
   getWallet(@Param('memberId') memberId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number) {
-    return this.walletService.getWallet(memberId, { page, limit });
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
+    @CurrentUser() user: any) {
+    return this.walletService.getWallet(memberId, { page, limit }, user);
   }
 
   @Post('wallet/:memberId/payouts')

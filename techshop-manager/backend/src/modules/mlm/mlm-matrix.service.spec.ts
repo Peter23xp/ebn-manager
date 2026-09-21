@@ -31,6 +31,27 @@ function fixture(statut = 'EN_ATTENTE') {
 }
 
 describe('generation commissions', () => {
+  it.each([[12, -2], [-2, 12]])('rejects a malformed legacy split %i/%i before any credit', async (immediate, held) => {
+    const { service, wallet, commission, transaction } = fixture();
+    commission.matrixId = null;
+    commission.montant = new Prisma.Decimal(10);
+    commission.montantSysteme = new Prisma.Decimal(immediate);
+    commission.montantRetour = new Prisma.Decimal(held);
+    await expect(service.validateCommission('commission', 'admin')).rejects.toThrow();
+    expect(transaction.commission.updateMany).not.toHaveBeenCalled();
+    expect(wallet.creditWalletInTx).not.toHaveBeenCalled();
+    expect(wallet.creditReinvestInTx).not.toHaveBeenCalled();
+  });
+  it.each([[10, 0], [0, 10]])('does not create a zero pocket when validating %i immediate and %i held', async (immediate, held) => {
+    const { service, wallet, commission } = fixture();
+    commission.montant = new Prisma.Decimal(10);
+    commission.montantSysteme = new Prisma.Decimal(immediate);
+    commission.montantRetour = new Prisma.Decimal(held);
+    await service.validateCommission('commission', 'admin');
+    expect(wallet.creditWalletInTx).toHaveBeenCalledTimes(immediate > 0 ? 1 : 0);
+    expect(wallet.creditReinvestInTx).toHaveBeenCalledTimes(held > 0 ? 1 : 0);
+  });
+
   it('validates both pockets using captured Decimal amounts and the same validation instant', async () => {
     const { service, wallet, transaction } = fixture();
     await service.validateCommission('commission', 'admin');
