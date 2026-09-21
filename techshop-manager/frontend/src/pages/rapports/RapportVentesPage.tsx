@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, ShoppingCart, Percent, Receipt, Download, AlertCircle, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Percent, Receipt, Download, AlertCircle, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
 import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { ReportSiteFilter } from '@/components/reports/ReportSiteFilter';
+import { ReportPageLayout } from '@/components/reports/ReportPageLayout';
+import { ReportMetric } from '@/components/reports/ReportMetric';
 import { readReportFilters, reportExportUrl, reportErrorMessage } from '@/lib/reportExport.utils';
 import { useSalesDetailReport } from '@/hooks/useSalesDetailReport';
 import { PeriodSelector } from '@/components/reports/PeriodSelector';
@@ -47,47 +49,6 @@ function initialFilters(params: URLSearchParams): SalesFilters {
 
 // ── Stat card avec trend ──────────────────────────────────────────────────────
 
-function StatCard({
-  label, value, trend, icon, isLoading,
-}: {
-  label: string;
-  value: string;
-  trend?: number;
-  icon: React.ReactNode;
-  isLoading: boolean;
-}) {
-  return (
-    <div className="stat-card">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          {isLoading ? (
-            <>
-              <div className="skeleton h-6 w-28 rounded mb-1" />
-              <div className="skeleton h-3 w-20 rounded" />
-            </>
-          ) : (
-            <>
-              <p className="text-lg font-bold text-primary leading-tight">{value}</p>
-              <p className="text-xs text-text-muted mt-0.5">{label}</p>
-            </>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/8 text-primary">
-            {icon}
-          </div>
-          {trend !== undefined && !isLoading && trend !== 0 && (
-            <span className={cn('flex items-center gap-0.5 text-xs font-semibold', trend > 0 ? 'text-success' : 'text-danger')}>
-              {trend > 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-              {Math.abs(trend)}%
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Filtres ───────────────────────────────────────────────────────────────────
 
 function FiltersPanel({
@@ -102,20 +63,27 @@ function FiltersPanel({
     + (draft.preset !== 'this_month' ? 1 : 0);
 
   return (
-    <div className="card space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="report-filters space-y-3" role="group" aria-label="Filtres des ventes">
+      <div className="report-fields">
+        <ReportSiteFilter value={draft.siteId} onChange={siteId => setDraft({ ...draft, siteId })} />
+        <div className="report-filter-field">
+          <label htmlFor="period-selector">Période</label>
         <PeriodSelector
           value={draft.preset}
           onChange={(p, r) => setDraft({ ...draft, preset: p, dateRange: p === 'custom' ? draft.dateRange : r })}
         />
+        </div>
         {draft.preset === 'custom' && (
+          <div className="report-filter-field report-custom-range">
+            <label htmlFor="date-range-picker-trigger">Dates personnalisées</label>
           <DateRangePicker
             value={draft.dateRange}
             onChange={(r) => setDraft({ ...draft, dateRange: r, preset: 'custom' })}
             maxDate={new Date()}
           />
+          </div>
         )}
-        <ReportSiteFilter value={draft.siteId} onChange={siteId => setDraft({ ...draft, siteId })} />
+        <label className="report-filter-field">Mode de paiement
         <select
           value={draft.modePaiement}
           onChange={(e) => setDraft({ ...draft, modePaiement: e.target.value })}
@@ -123,25 +91,35 @@ function FiltersPanel({
           aria-label="Mode de paiement"
         >
           <option value="">Tous paiements</option>
-          <option value="CASH">Cash</option>
+          <option value="CASH">Espèces</option>
           <option value="MPESA">M-Pesa</option>
           <option value="AIRTEL_MONEY">Airtel Money</option>
           <option value="VIREMENT">Virement</option>
         </select>
+        </label>
+        <label className="report-filter-field">Recherche
         <input aria-label="Rechercher une vente" value={draft.search} onChange={event => setDraft({ ...draft, search: event.target.value })}
           placeholder="Numéro ou nom du client" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
+        </label>
+        <label className="report-filter-field">Catégorie
         <input aria-label="Catégorie" value={draft.categorie} onChange={event => setDraft({ ...draft, categorie: event.target.value })}
           placeholder="Toutes catégories" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
+        </label>
+        <label className="report-filter-field">Agent (identifiant)
         <input aria-label="Agent (identifiant)" value={draft.agentId} onChange={event => setDraft({ ...draft, agentId: event.target.value })}
           placeholder="Tous les agents" className="min-h-11 w-full rounded-lg border border-border px-3 text-sm sm:w-auto" />
+        </label>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+        <p className="max-w-prose text-xs text-text-muted">Appliquez vos filtres pour mettre à jour les résultats.</p>
+        <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onApply} className="btn-primary min-h-11 text-sm px-4">
           Appliquer {activeCount > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5">{activeCount}</span>}
         </button>
-        <button type="button" onClick={onReset} className="btn-secondary min-h-11 text-sm px-3">
+        <button type="button" onClick={onReset} className="btn-ghost min-h-11 text-sm px-3">
           Réinitialiser
         </button>
+        </div>
       </div>
     </div>
   );
@@ -164,7 +142,7 @@ function SalesDetailTable({
 
   if (isLoading) {
     return (
-      <div className="card p-0 overflow-hidden" role="status" aria-label="Chargement des ventes">
+      <div className="report-data-panel" role="status" aria-label="Chargement des ventes">
         <div className="p-4 border-b">
           <div className="skeleton h-5 w-40 rounded" />
         </div>
@@ -188,26 +166,26 @@ function SalesDetailTable({
   };
 
   return (
-    <div className="card p-0 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b">
+    <div className="report-data-panel">
+      <div className="report-data-heading">
         <h2 className="text-sm font-bold text-primary">
           Détail des ventes
-          {isFetching && <span className="ml-2 inline-flex items-center gap-1 text-xs text-primary-accent"><RefreshCw size={10} className="animate-spin" />Chargement…</span>}
+          {isFetching && <span className="ml-2 inline-flex items-center gap-1 text-xs text-text-muted"><RefreshCw size={12} className="motion-safe:animate-spin" aria-hidden="true" />Chargement…</span>}
         </h2>
         <span className="text-xs text-text-muted">{meta.total} résultat{meta.total !== 1 ? 's' : ''}</span>
       </div>
       <div className="overflow-x-auto" role="region" aria-label="Détail des ventes, défilement horizontal" tabIndex={0}>
-        <table className="w-full text-sm" aria-label="Détail des ventes" aria-busy={isFetching}>
+        <table className="report-sales-table w-full text-sm" aria-label="Détail des ventes" aria-busy={isFetching}>
           <thead>
-            <tr style={{ background: '#1E3A5F' }}>
-              {['N° Vente', 'Date', 'Client', 'Produit(s)', 'Agent', 'Site', 'Montant', 'Paiement', 'Remise', 'Points', 'Statut'].map((h) => (
+            <tr>
+              {['N° Vente', 'Date', 'Client', 'Produit(s)', 'Agent', 'Site', 'Montant (USD)', 'Paiement', 'Remise (USD)', 'Points', 'Statut'].map((h) => (
                 <th
                   key={h}
-                  className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white whitespace-nowrap"
+                  className="whitespace-nowrap px-4 py-3 text-left"
                   scope="col"
                   aria-sort={h === 'Date' ? sortDir === 'asc' ? 'ascending' : 'descending' : undefined}
                 >
-                  {h === 'Date' ? <button type="button" aria-label="Trier par date" onClick={onSort} className="flex min-h-11 items-center gap-1 focus-visible:ring-2 focus-visible:ring-white">
+                  {h === 'Date' ? <button type="button" aria-label="Trier par date" onClick={onSort} className="flex min-h-11 items-center gap-1">
                     Date {sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
                   </button> : h}
                 </th>
@@ -247,11 +225,11 @@ function SalesDetailTable({
                   <td className="px-3 py-2.5 text-xs text-text-muted whitespace-nowrap">
                     {formatDateTime(v.createdAt)}
                   </td>
-                  <td className="px-3 py-2.5 text-xs">
-                    {v.client ? `${v.client.prenom} ${v.client.nom}`.slice(0, 18) : 'Anonyme'}
+                  <td className="px-3 py-2.5 text-xs" title={v.client ? `${v.client.prenom} ${v.client.nom}` : undefined}>
+                    {v.client ? `${v.client.prenom} ${v.client.nom}` : 'Anonyme'}
                   </td>
                   <td className="px-3 py-2.5 text-xs">
-                    {firstProduit.slice(0, 18)}
+                    {firstProduit}
                     {extraCount > 0 && <span className="ml-1 text-text-muted">+{extraCount}</span>}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-text-muted">{v.agent?.nom ?? '—'}</td>
@@ -260,7 +238,7 @@ function SalesDetailTable({
                     {formatUSD(Number(v.montantNet ?? 0))}
                   </td>
                   <td className="px-3 py-2.5 text-xs">
-                    <span className="badge badge-info">{v.modePaiement}</span>
+                    <span className="badge badge-info">{{ CASH: 'Espèces', MPESA: 'M-Pesa', AIRTEL_MONEY: 'Airtel Money', VIREMENT: 'Virement' }[v.modePaiement] ?? v.modePaiement}</span>
                   </td>
                   <td className="px-3 py-2.5 text-xs">
                     {remise > 0
@@ -274,7 +252,7 @@ function SalesDetailTable({
                   </td>
                   <td className="px-3 py-2.5">
                     <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', STATUT_STYLE[v.statut] ?? 'badge-gray')}>
-                      {v.statut}
+                      {{ VALIDE: 'Validée', RETOURNEE: 'Retournée', RETOURNEE_PARTIELLE: 'Retour partiel', ANNULEE: 'Annulée' }[v.statut] ?? v.statut}
                     </span>
                   </td>
                 </tr>
@@ -306,7 +284,7 @@ function AgentPerformanceTable({ data, isLoading, onAgentClick }: {
 }) {
   if (isLoading) {
     return (
-      <div className="card p-0 overflow-hidden">
+      <div className="report-data-panel">
         <div className="p-4 border-b"><div className="skeleton h-5 w-48 rounded" /></div>
         <div className="divide-y">
           {[...Array(4)].map((_, i) => <div key={i} className="px-4 py-3"><div className="skeleton h-4 w-full rounded" /></div>)}
@@ -325,16 +303,16 @@ function AgentPerformanceTable({ data, isLoading, onAgentClick }: {
   };
 
   return (
-    <div className="card p-0 overflow-hidden">
-      <div className="px-4 py-3 border-b">
+    <div className="report-data-panel">
+      <div className="report-data-heading">
         <h2 className="text-sm font-bold text-primary">Performance par agent</h2>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto" role="region" aria-label="Performance des agents, défilement horizontal" tabIndex={0}>
+        <table className="report-agents-table w-full text-sm" aria-label="Performance par agent">
           <thead>
-            <tr style={{ background: '#1E3A5F' }}>
-              {['Agent', 'Site', 'Nb ventes', 'CA total', 'CA moyen', 'Remises'].map((h) => (
-                <th key={h} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white">{h}</th>
+            <tr>
+              {['Agent', 'Site', 'Ventes', 'CA total (USD)', 'CA moyen (USD)', 'Remises (USD)'].map((h) => (
+                <th key={h} scope="col" className="px-4 py-3 text-left">{h}</th>
               ))}
             </tr>
           </thead>
@@ -347,15 +325,15 @@ function AgentPerformanceTable({ data, isLoading, onAgentClick }: {
                 <td className="px-4 py-2.5 font-semibold text-primary"><button type="button" onClick={() => onAgentClick(a.agentId)} className="min-h-11 text-left hover:underline" aria-label={`Filtrer par agent ${a.agentNom}`}>{a.agentNom}</button></td>
                 <td className="px-4 py-2.5 text-text-muted text-xs">{a.siteNom}</td>
                 <td className="px-4 py-2.5 tabular-nums">{a.nbVentes}</td>
-                <td className="px-4 py-2.5 font-bold text-success tabular-nums">{formatUSD(a.caTotal)}</td>
+                <td className="px-4 py-2.5 font-semibold text-primary tabular-nums">{formatUSD(a.caTotal)}</td>
                 <td className="px-4 py-2.5 text-text-muted tabular-nums">{formatUSD(a.caMoyen)}</td>
                 <td className="px-4 py-2.5 tabular-nums text-danger">{a.remisesAccordees > 0 ? formatUSD(a.remisesAccordees) : '—'}</td>
               </tr>
             ))}
-            <tr className="border-t-2 border-primary/30 bg-slate-50">
+            <tr className="border-t border-border-strong bg-slate-50">
               <td className="px-4 py-2.5 font-bold text-primary" colSpan={2}>TOTAL</td>
               <td className="px-4 py-2.5 font-bold tabular-nums">{totals.nbVentes}</td>
-              <td className="px-4 py-2.5 font-bold text-success tabular-nums">{formatUSD(totals.caTotal)}</td>
+              <td className="px-4 py-2.5 font-bold text-primary tabular-nums">{formatUSD(totals.caTotal)}</td>
               <td className="px-4 py-2.5 text-text-muted">—</td>
               <td className="px-4 py-2.5 font-bold text-danger tabular-nums">{totals.remisesAccordees > 0 ? formatUSD(totals.remisesAccordees) : '—'}</td>
             </tr>
@@ -420,27 +398,16 @@ function SalesContent() {
   const exportUrl = filtersUrl(applied);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <button type="button" aria-label="Retour aux rapports" onClick={() => navigate('/reports')} className="btn-ghost min-h-11 min-w-11 rounded-lg">
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="text-page-title text-primary">Rapport Ventes Détaillé</h1>
-            <p className="text-xs text-text-muted">Analyse ligne par ligne des transactions</p>
-          </div>
-        </div>
-        <button
+    <ReportPageLayout active="sales" title="Ventes détaillées" description="Transactions, remises et performance de vos agents." exportUrl={exportUrl}
+      action={<button
           type="button"
           onClick={() => navigate(exportUrl)}
-          className="btn-secondary min-h-11 text-sm flex items-center gap-1.5"
+          className="btn-primary gap-2"
         >
-          <Download size={13} />
+          <Download size={16} aria-hidden="true" />
           Export CSV/XLSX
-        </button>
-      </div>
+        </button>}
+    >
 
       {/* Filtres */}
       <FiltersPanel draft={draft} setDraft={setDraft} onApply={handleApply} onReset={handleReset} />
@@ -453,12 +420,14 @@ function SalesContent() {
       {!error && <>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="CA Total" value={resume ? formatUSD(resume.totalCA) : '—'} trend={resume?.trends?.ca} icon={<TrendingUp size={16} />} isLoading={isLoading} />
-        <StatCard label="Nb ventes" value={resume ? String(resume.nbVentes) : '—'} trend={resume?.trends?.ventes} icon={<ShoppingCart size={16} />} isLoading={isLoading} />
-        <StatCard label="Remises accordées" value={resume ? formatUSD(resume.remisesAccordees) : '—'} icon={<Percent size={16} />} isLoading={isLoading} />
-        <StatCard label="Ticket moyen" value={resume ? formatUSD(resume.ticketMoyen) : '—'} icon={<Receipt size={16} />} isLoading={isLoading} />
-      </div>
+      <section aria-label="Indicateurs des ventes" aria-busy={isLoading}>
+        <dl className="report-summary report-summary-four">
+          <ReportMetric label="Chiffre d’affaires" value={resume ? formatUSD(resume.totalCA) : '—'} trend={resume?.trends?.ca} icon={<TrendingUp size={16} />} isLoading={isLoading} />
+          <ReportMetric label="Nombre de ventes" value={resume ? resume.nbVentes.toLocaleString('fr-CD') : '—'} trend={resume?.trends?.ventes} icon={<ShoppingCart size={16} />} isLoading={isLoading} />
+          <ReportMetric label="Remises accordées" value={resume ? formatUSD(resume.remisesAccordees) : '—'} icon={<Percent size={16} />} isLoading={isLoading} />
+          <ReportMetric label="Ticket moyen" value={resume ? formatUSD(resume.ticketMoyen) : '—'} icon={<Receipt size={16} />} isLoading={isLoading} />
+        </dl>
+      </section>
 
       {/* Tableau ventes */}
       <SalesDetailTable
@@ -478,7 +447,7 @@ function SalesContent() {
         onAgentClick={handleAgentClick}
       />
       </>}
-    </div>
+    </ReportPageLayout>
   );
 }
 

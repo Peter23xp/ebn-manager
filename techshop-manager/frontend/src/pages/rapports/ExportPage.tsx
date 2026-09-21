@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, FileSpreadsheet, ShieldCheck, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useExportJob } from '@/hooks/useExportJob';
 import { useReportScope } from '@/hooks/useReportScope';
 import { reportsApi, type ExportType, type ExportFormat, type ExportJobDto } from '@/lib/reports.api';
 import { ReportSiteFilter } from '@/components/reports/ReportSiteFilter';
+import { ReportPageLayout } from '@/components/reports/ReportPageLayout';
 import { exportFilters, readReportFilters, reportErrorMessage, MAX_EXPORT_ROWS, type ReportFilters } from '@/lib/reportExport.utils';
 
 const EXPORT_TYPES: Array<{ value: ExportType; label: string }> = [
@@ -31,7 +32,6 @@ const filterOptions: Record<string, Array<[string, string]>> = {
 };
 
 function ExportContent() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const scope = useReportScope();
   const [type, setType] = useState<ExportType | ''>(() => EXPORT_TYPES.find(item => item.value === searchParams.get('type'))?.value ?? '');
@@ -63,67 +63,86 @@ function ExportContent() {
   const expired = !!job.status?.expiresAt && Date.parse(job.status.expiresAt) <= Date.now();
   const jobError = job.pollingError || (job.status?.statut === 'ERROR' ? new Error(job.status.errorMsg ?? 'La génération a échoué.') : null);
 
-  return <div className="space-y-5">
-    <div className="page-header">
-      <div className="flex min-w-0 items-center gap-3">
-        <button type="button" aria-label="Retour aux rapports" onClick={() => navigate('/reports')} className="btn-ghost min-h-11 min-w-11"><ArrowLeft size={18} /></button>
-        <div><h1 className="text-page-title text-primary">Export de rapports</h1><p className="text-sm text-text-muted">Fichiers CSV ou Excel, réservés à votre session.</p></div>
-      </div>
-    </div>
-    <div className="card mx-auto max-w-2xl space-y-5">
+  return <ReportPageLayout active="export" title="Export de rapports" description="Préparez un fichier CSV ou Excel à partir des données autorisées de votre réseau.">
+    <div className="report-export-grid">
+    <div className="card min-w-0 space-y-5">
       {job.jobId || job.isStarting ? <>
-        <div role="status" aria-live="polite">
-          <h2 className="font-semibold text-primary">{jobError ? 'Export interrompu' : job.status?.statut === 'READY' ? 'Export prêt' : 'Génération en cours…'}</h2>
-          <p className="text-sm text-text-muted">{type} — {format}</p>
+        <div role="status" aria-live="polite" className="space-y-2">
+          <div className="flex items-center gap-2">
+            {jobError || expired ? <AlertCircle size={20} className="shrink-0 text-danger" aria-hidden="true" /> : job.status?.statut === 'READY' ? <CheckCircle2 size={20} className="shrink-0 text-success" aria-hidden="true" /> : <RefreshCw size={20} className="shrink-0 text-primary-accent motion-safe:animate-spin" aria-hidden="true" />}
+            <h2>{jobError ? 'Export interrompu' : expired ? 'Export expiré' : job.status?.statut === 'READY' ? 'Export prêt' : 'Génération en cours…'}</h2>
+          </div>
+          <p className="text-sm text-text-muted">{EXPORT_TYPES.find(item => item.value === type)?.label ?? 'Rapport'} — {format}</p>
           {(job.isStarting || job.isPolling) && <p className="mt-2 text-sm">Préparation du fichier. Le suivi s’arrête après deux minutes.</p>}
         </div>
         {jobError && <p role="alert" className="text-sm text-danger">{reportErrorMessage(jobError, 'Impossible de suivre l’export.')}</p>}
-        {job.status?.statut === 'READY' && <div className="space-y-3">
-          <p className="break-words font-medium">{job.status.fileName ?? 'Fichier prêt'}</p>
+        {job.status?.statut === 'READY' && <div className="space-y-4 border-t border-border pt-5">
+          <p className="break-words text-base font-semibold text-primary">{job.status.fileName ?? 'Fichier prêt'}</p>
           <p className="text-sm text-text-muted">{job.status.rowCount != null && `${job.status.rowCount.toLocaleString('fr-FR')} lignes`}{job.status.fileSize != null && ` · ${(job.status.fileSize / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Ko`}</p>
           {job.status.expiresAt && <p className="text-sm">Disponible jusqu’au {new Date(job.status.expiresAt).toLocaleString('fr-FR')}</p>}
           {expired && <p role="alert" className="text-sm text-danger">Cet export a expiré. Générez un nouvel export.</p>}
-          <button type="button" disabled={expired || job.isDownloading} onClick={() => void job.download()} className="btn-primary flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50">
+          <button type="button" disabled={expired || job.isDownloading} onClick={() => void job.download()} className="btn-primary flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto">
             <Download size={18} />{job.isDownloading ? 'Téléchargement…' : 'Télécharger maintenant'}
           </button>
           {job.downloadError && <p role="alert" className="text-sm text-danger">{job.downloadError}</p>}
         </div>}
-        <button type="button" onClick={job.reset} className="btn-secondary flex min-h-11 w-full items-center justify-center gap-2"><RefreshCw size={16} />{job.isStarting || job.isPolling ? 'Annuler le suivi / Réinitialiser' : 'Générer un autre export'}</button>
+        <button type="button" onClick={job.reset} className="btn-secondary flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto"><RefreshCw size={16} />{job.isStarting || job.isPolling ? 'Annuler le suivi / Réinitialiser' : 'Générer un autre export'}</button>
         {(job.isStarting || job.isPolling) && <p className="text-sm text-text-muted">Arrêter le suivi ne supprime pas le travail déjà envoyé au serveur.</p>}
       </> : <form onSubmit={event => { event.preventDefault(); if (canSubmit && scope.isCurrent()) void job.startJob(body); }} className="space-y-5">
-        <h2 className="font-semibold text-primary">Configuration de l’export</h2>
-        <fieldset className="space-y-2"><legend className="text-sm font-medium">Type de rapport</legend>
-          <div className="flex flex-wrap gap-x-5 gap-y-1">{EXPORT_TYPES.map(item => <label key={item.value} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-            <input type="radio" name="export-type" value={item.value} checked={type === item.value} onChange={() => { job.reset(); setType(item.value); }} className="h-4 w-4 accent-primary" />{item.label}
+        <div className="report-panel-heading">
+          <h2>Configuration de l’export</h2>
+          <p>Choisissez les données à récupérer, puis précisez leur périmètre.</p>
+        </div>
+        <fieldset className="space-y-3"><legend className="text-sm font-semibold text-primary">Type de rapport</legend>
+          <div className="grid gap-2 sm:grid-cols-2">{EXPORT_TYPES.map(item => <label key={item.value} className="report-export-choice">
+            <input type="radio" name="export-type" value={item.value} checked={type === item.value} onChange={() => { job.reset(); setType(item.value); }} />{item.label}
           </label>)}</div>
         </fieldset>
-        <fieldset><legend className="text-sm font-medium">Format</legend><div className="flex gap-6">{(['XLSX', 'CSV'] as const).map(value => <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-          <input type="radio" name="export-format" value={value} checked={format === value} onChange={() => { job.reset(); setFormat(value); }} className="h-4 w-4 accent-primary" />{value === 'XLSX' ? 'XLSX (Excel)' : 'CSV'}
+        <fieldset className="report-export-section"><legend>Format du fichier</legend><div className="grid grid-cols-2 gap-2">{(['XLSX', 'CSV'] as const).map(value => <label key={value} className="report-export-choice">
+          <input type="radio" name="export-format" value={value} checked={format === value} onChange={() => { job.reset(); setFormat(value); }} />{value === 'XLSX' ? 'XLSX (Excel)' : 'CSV'}
         </label>)}</div></fieldset>
+        <fieldset className="report-export-section space-y-3"><legend>Périmètre des données</legend>
         <ReportSiteFilter value={filtres.siteId ?? ''} onChange={value => updateFilter('siteId', value)} />
-        {type && type !== 'STOCKS' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {type && type !== 'STOCKS' && <div className="report-fields !grid-cols-1 sm:!grid-cols-2">
           <label className="space-y-1 text-sm">Date de début<input type="date" value={filters.dateDebut ?? ''} onChange={event => updateFilter('dateDebut', event.target.value)} className={inputClass} /></label>
           <label className="space-y-1 text-sm">Date de fin<input type="date" value={filters.dateFin ?? ''} onChange={event => updateFilter('dateFin', event.target.value)} className={inputClass} /></label>
         </div>}
         {type === 'STOCKS' && <p className="text-sm text-text-muted">Inventaire actuel, sans filtre de période.</p>}
-        {type && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{optionalFilters[type].map(key => <label key={key} className="block min-w-0 space-y-1 text-sm">{filterLabels[key]}
+        {type && <div className="report-fields !grid-cols-1 sm:!grid-cols-2">{optionalFilters[type].map(key => <label key={key} className="block min-w-0 space-y-1 text-sm">{filterLabels[key]}
           {filterOptions[key] ? <select value={filters[key] ?? ''} onChange={event => updateFilter(key, event.target.value)} className={inputClass}>
             {filters[key] && !filterOptions[key].some(([value]) => value === filters[key]) && <option value={filters[key]}>{filters[key]}</option>}
             {filterOptions[key].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select> : <input value={filters[key] ?? ''} onChange={event => updateFilter(key, event.target.value)} className={inputClass} />}
         </label>)}</div>}
+        </fieldset>
         {dateError && <p role="alert" className="text-sm text-danger">La date de début doit précéder la date de fin.</p>}
-        {type && !dateError && <div aria-live="polite" className="text-sm">
+        {type && !dateError && <div aria-live="polite" className="border-t border-border pt-4 text-sm">
           {estimate.isFetching && <p role="status">Estimation du nombre de lignes…</p>}
           {estimate.error && <div role="alert" className="space-y-2 text-danger"><p>Estimation impossible : {reportErrorMessage(estimate.error, 'Réessayez.')}</p><button type="button" className="btn-secondary min-h-11" onClick={() => { if (scope.isCurrent()) void estimate.refetch(); }}>Réessayer l’estimation</button></div>}
           {!estimate.isFetching && !estimate.error && rows !== undefined && <p>{rows === 0 ? 'Aucune ligne à exporter pour ces filtres.' : rows > MAX_EXPORT_ROWS ? 'L’export dépasse 10 000 lignes. Réduisez la période ou les filtres.' : `${rows.toLocaleString('fr-FR')} lignes estimées`}</p>}
         </div>}
         {job.startError && <div role="alert" className="space-y-2 text-sm text-danger"><p>{reportErrorMessage(job.startError, 'Impossible de créer l’export.')}</p><button type="button" className="btn-secondary min-h-11" onClick={job.reset}>Réinitialiser</button></div>}
-        <button type="submit" disabled={!canSubmit} className="btn-primary flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50"><Download size={18} />Générer l’export</button>
-        <p className="text-sm text-text-muted">Maximum 10 000 lignes. La disponibilité du fichier est limitée dans le temps.</p>
+        <button type="submit" disabled={!canSubmit} className="btn-primary flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto"><Download size={18} aria-hidden="true" />Générer l’export</button>
       </form>}
     </div>
-  </div>;
+    <aside className="min-w-0 px-1" aria-label="Informations sur les exports">
+      <h2 className="text-section-title">Un fichier adapté à vos besoins</h2>
+      <div className="report-export-note">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-primary"><FileSpreadsheet size={16} aria-hidden="true" />Excel ou CSV</h3>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">Excel pour consulter et analyser vos tableaux. CSV pour réutiliser les données dans un autre outil.</p>
+      </div>
+      <div className="report-export-note">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-primary"><ShieldCheck size={16} aria-hidden="true" />Accès protégé</h3>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">L’export respecte vos droits et les sites autorisés. Le téléchargement nécessite votre session.</p>
+      </div>
+      <div className="report-export-note">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-primary"><Clock size={16} aria-hidden="true" />Disponibilité limitée</h3>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">Téléchargez le fichier avant la date d’expiration affichée. Au-delà, générez un nouvel export.</p>
+      </div>
+      <p className="pt-4 text-xs leading-relaxed text-text-muted">Maximum 10 000 lignes par fichier. Affinez les filtres pour limiter le volume de données.</p>
+    </aside>
+    </div>
+  </ReportPageLayout>;
 }
 
 export default function ExportPage() {

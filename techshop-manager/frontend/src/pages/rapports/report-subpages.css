@@ -1,0 +1,180 @@
+.report-subpage .report-fields {
+  @apply grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3;
+}
+
+.report-subpage .report-fields > * {
+  @apply min-w-0;
+}
+
+.report-subpage .report-fields label,
+.report-subpage .report-fields > div > p:first-child {
+  @apply text-xs font-semibold text-text;
+}
+
+.report-subpage .report-fields :is(input, select) {
+  @apply min-w-0 max-w-full font-normal;
+}
+
+.reports-dashboard.report-subpage input::placeholder {
+  @apply text-text-muted;
+  opacity: 1;
+}
+
+.report-subpage .report-summary {
+  @apply grid overflow-hidden rounded-xl border border-border bg-white;
+}
+
+.report-subpage .report-summary-three {
+  @apply grid-cols-2 sm:grid-cols-3;
+}
+
+.report-subpage .report-summary-four {
+  @apply grid-cols-2 xl:grid-cols-4;
+}
+
+.report-subpage .report-summary-metric {
+  @apply min-w-0 border-border p-4 sm:p-5;
+  overflow-wrap: anywhere;
+}
+
+.report-subpage .report-summary-three > * + * {
+  @apply sm:border-l;
+}
+
+.report-subpage .report-summary-three > :first-child {
+  @apply col-span-2 border-b sm:col-span-1 sm:border-b-0;
+}
+
+.report-subpage .report-summary-three > :last-child {
+  @apply border-l;
+}
+
+.report-subpage .report-summary-four > *:nth-child(even) {
+  @apply border-l;
+}
+
+.report-subpage .report-summary-four > *:nth-child(n+3) {
+  @apply border-t xl:border-l xl:border-t-0;
+}
+
+.report-subpage .report-data-panel {
+  @apply min-w-0 overflow-hidden rounded-xl border border-border bg-white;
+}
+
+.report-subpage .report-data-heading {
+  @apply flex flex-wrap items-center justify-between gap-2 border-b border-border p-4 sm:px-5;
+}
+
+.report-subpage .report-data-panel table {
+  @apply text-sm;
+}
+
+.report-subpage .report-data-panel th {
+  @apply text-xs font-semibold normal-case tracking-normal text-text-muted;
+}
+
+.report-subpage .report-data-panel td {
+  @apply text-sm;
+}
+
+.report-subpage .report-data-panel button {
+  @apply rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent;
+}
+
+.report-subpage .report-data-panel [role="region"] {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-accent;
+}
+
+.report-subpage .report-data-panel .badge {
+  @apply text-xs tracking-normal;
+}
+
+.report-subpage .report-data-panel .badge-warning {
+  @apply text-amber-800;
+}
+
+.report-subpage .report-data-panel .badge-info {
+  @apply text-blue-700;
+}
+
+.report-subpage .report-sales-table {
+  min-width: 1400px;
+}
+
+.report-subpage .report-sales-table td:first-child {
+  @apply whitespace-nowrap;
+}
+
+.report-subpage .report-sales-table td:nth-child(5),
+.report-subpage .report-sales-table td:nth-child(6) {
+  min-width: 150px;
+}
+
+.report-subpage .report-sales-table :is(th, td):is(:nth-child(7), :nth-child(9), :nth-child(10)),
+.report-subpage .report-agents-table th:nth-child(n+3),
+.report-subpage .report-agents-table tbody tr:not(:last-child) td:nth-child(n+3),
+.report-subpage .report-agents-table tbody tr:last-child td:not(:first-child) {
+  @apply whitespace-nowrap text-right tabular-nums;
+}
+
+.report-subpage .report-sales-table td:nth-child(3),
+.report-subpage .report-sales-table td:nth-child(4) {
+  min-width: 140px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.report-subpage .report-agents-table {
+  min-width: 660px;
+}
+
+.report-subpage .report-export-grid {
+  @apply grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_280px];
+}
+
+.report-subpage .report-export-choice {
+  @apply flex min-h-11 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-border p-3 text-sm;
+  @apply hover:border-border-strong focus-within:ring-2 focus-within:ring-primary-accent;
+}
+
+.report-subpage .report-export-choice:has(input:checked) {
+  @apply border-primary-accent bg-blue-50 text-blue-800;
+}
+
+.report-subpage .report-export-choice input {
+  @apply min-h-4 h-4 w-4 shrink-0 accent-primary-accent;
+}
+
+.report-subpage .report-export-section {
+  @apply min-w-0 border-t border-border pt-5;
+}
+
+.report-subpage .report-export-section > legend {
+  @apply float-left mb-3 w-full text-sm font-semibold text-primary;
+}
+
+.report-subpage .report-export-section > legend + * {
+  clear: both;
+}
+
+.report-subpage .report-export-note {
+  @apply min-w-0 border-b border-border py-4 last:border-b-0;
+}
+
+@media (max-width: 639px) {
+  .report-subpage .report-summary-four > :first-child {
+    @apply col-span-2 border-b;
+  }
+
+  .report-subpage .report-summary-four > :nth-child(2) {
+    @apply border-l-0;
+  }
+
+  .report-subpage .report-summary-four > :nth-child(3) {
+    @apply border-l border-t-0;
+  }
+
+  .report-subpage .report-summary-four > :last-child {
+    @apply col-span-2 border-l-0;
+  }
+}

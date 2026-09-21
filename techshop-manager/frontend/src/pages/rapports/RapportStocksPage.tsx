@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Package, MapPin, BarChart2, AlertTriangle, Download, RefreshCw } from 'lucide-react';
+import { Package, MapPin, BarChart2, AlertTriangle, Download } from 'lucide-react';
 import { useStocksReport } from '@/hooks/useStocksReport';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatUSD, cn } from '@/lib/utils';
 import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { ReportSiteFilter } from '@/components/reports/ReportSiteFilter';
+import { ReportPageLayout } from '@/components/reports/ReportPageLayout';
+import { ReportMetric } from '@/components/reports/ReportMetric';
 import { reportExportUrl, reportErrorMessage } from '@/lib/reportExport.utils';
 import type { StocksReportResponse } from '@/lib/reports.api';
 
@@ -16,39 +18,6 @@ function abbreviateCDF(amount: number): string {
 }
 
 // ── Stat card stocks ──────────────────────────────────────────────────────────
-
-function StockValueCard({ label, value, sub, icon: Icon, isLoading, color = '#2E86C1' }: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: React.ElementType;
-  isLoading?: boolean;
-  color?: string;
-}) {
-  return (
-    <div className="stat-card">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ background: color + '18' }}>
-          <Icon size={20} style={{ color }} />
-        </div>
-        <div className="min-w-0">
-          {isLoading ? (
-            <>
-              <div className="skeleton h-6 w-28 rounded mb-1" />
-              <div className="skeleton h-3 w-20 rounded" />
-            </>
-          ) : (
-            <>
-              <p className="text-lg font-bold text-primary leading-tight">{value}</p>
-              <p className="text-xs text-text-muted">{label}</p>
-              {sub && <p className="text-[11px] text-text-muted">{sub}</p>}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Tableau stocks consolidés ─────────────────────────────────────────────────
 
@@ -127,7 +96,7 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
 
   if (isLoading) {
     return (
-      <div className="card p-0 overflow-hidden" role="status" aria-label="Chargement des stocks">
+      <div className="report-data-panel" role="status" aria-label="Chargement des stocks">
         <div className="p-4 border-b"><div className="skeleton h-5 w-56 rounded" /></div>
         <div className="divide-y">
           {[...Array(6)].map((_, i) => (
@@ -142,26 +111,32 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
   }
 
   return (
-    <div className="card p-0 overflow-hidden">
+    <section className="report-data-panel" aria-labelledby="report-inventory-title">
+      <div className="report-data-heading">
+        <h2 id="report-inventory-title">Inventaire par produit</h2>
+        <p className="text-xs text-text-muted">{filtered.length.toLocaleString('fr-CD')} produit(s) · Ruptures affichées en premier</p>
+      </div>
       {/* Desktop: Table normale avec scroll horizontal */}
       <div className="hidden md:block overflow-x-auto" role="region" aria-label="Stocks par site, défilement horizontal" tabIndex={0}>
         <table className="w-full text-sm" style={{ minWidth: '700px' }} aria-label="Stocks par site">
           <thead>
-            <tr style={{ background: '#1E3A5F' }}>
+            <tr>
               <th
-                className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white sticky left-0 bg-[#1E3A5F] min-w-[100px] cursor-pointer"
+                className="sticky left-0 z-10 min-w-[160px] bg-slate-50 px-4 py-3 text-left"
+                scope="col"
                 aria-sort={sortField === 'nom' ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}
               ><button type="button" className="min-h-11" onClick={() => toggleSort('nom')}>SKU / Nom</button></th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white">Catégorie</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-white">P. Achat</th>
+              <th scope="col" className="px-4 py-3 text-left">Catégorie</th>
+              <th scope="col" className="px-4 py-3 text-right">Prix d’achat (USD)</th>
               {sites.map((s) => (
-                <th key={s.id} className="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-white">{s.nom}</th>
+                <th key={s.id} scope="col" className="min-w-24 px-4 py-3 text-center">{s.nom}</th>
               ))}
               <th
-                className="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-white cursor-pointer"
+                className="px-4 py-3 text-center"
+                scope="col"
                 aria-sort={sortField === 'total' ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}
               ><button type="button" className="min-h-11" onClick={() => toggleSort('total')}>Total</button></th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide text-white">Valeur</th>
+              <th scope="col" className="px-4 py-3 text-right">Valeur (USD)</th>
             </tr>
           </thead>
           <tbody>
@@ -174,16 +149,16 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
                 className={cn('border-b border-border/60', idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white')}
               >
                 <td className="px-3 py-2.5 sticky left-0 bg-inherit">
-                  <p className="font-mono text-[11px] text-text-muted">{p.sku}</p>
+                  <p className="font-mono text-xs text-text-muted">{p.sku}</p>
                   <button type="button"
                     className="min-h-11 text-left font-semibold text-primary text-sm hover:underline"
                     onClick={() => navigate(`/stocks/${p.id}`)}
                   >
-                    {p.nom.length > 22 ? p.nom.slice(0, 22) + '…' : p.nom}
+                    {p.nom}
                   </button>
                 </td>
                 <td className="px-3 py-2.5 text-xs text-text-muted">{p.categorie}</td>
-                <td className="px-3 py-2.5 text-xs tabular-nums">{formatUSD(Number(p.prixAchat ?? 0))}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{formatUSD(Number(p.prixAchat ?? 0))}</td>
                 {sites.map((s) => {
                   const qty = p.stockParSite[s.id] ?? 0;
                   return (
@@ -194,24 +169,24 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
                         qty === 0 ? 'bg-red-100 text-red-700' : 'text-text',
                       )}
                     >
-                      {qty === 0 ? '🔴 0' : qty}
+                      {qty === 0 ? <span aria-label="Rupture de stock : 0 unité">0<span className="block text-xs font-medium">Rupture</span></span> : qty}
                     </td>
                   );
                 })}
-                <td className="px-3 py-2.5 text-center font-black tabular-nums text-primary">{p.totalStock}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-xs tabular-nums text-success">
+                <td className="px-3 py-2.5 text-center font-semibold tabular-nums text-primary">{p.totalStock}</td>
+                <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums text-primary">
                   {abbreviateCDF(p.valeurTotale)}
                 </td>
               </tr>
             ))}
             {/* TOTAL row */}
-            <tr className="border-t-2 border-primary/30 bg-slate-100">
+            <tr className="border-t border-border-strong bg-slate-100">
               <td className="px-3 py-2.5 font-bold text-primary sticky left-0 bg-slate-100" colSpan={3}>TOTAL</td>
               {sites.map((s) => (
                 <td key={s.id} className="px-3 py-2.5 text-center font-bold tabular-nums">{totals[s.id] ?? 0}</td>
               ))}
-              <td className="px-3 py-2.5 text-center font-black tabular-nums text-primary">{totals.all}</td>
-              <td className="px-3 py-2.5 text-right font-mono font-bold tabular-nums text-success">
+              <td className="px-3 py-2.5 text-center font-bold tabular-nums text-primary">{totals.all}</td>
+              <td className="whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums text-primary">
                 {abbreviateCDF(filtered.reduce((s: number, p: any) => s + p.valeurTotale, 0))}
               </td>
             </tr>
@@ -227,38 +202,38 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
           </div>
         ) : (
           filtered.map((p: any) => (
-            <div key={p.id} className="px-4 py-3 space-y-2">
+            <div key={p.id} className="min-w-0 space-y-3 p-4">
               {/* Nom + SKU */}
               <div>
-                <p className="text-[13px] font-semibold text-text leading-snug">{p.nom}</p>
-                <p className="text-[11px] text-text-muted font-mono">{p.sku}</p>
+                <p className="break-words text-sm font-semibold leading-snug text-primary">{p.nom}</p>
+                <p className="mt-1 break-words font-mono text-xs text-text-muted">{p.sku}</p>
               </div>
 
               {/* Stock total + valeur */}
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] text-text-muted uppercase tracking-wide">Stock total</p>
-                  <p className="text-[16px] font-black text-primary font-mono">{p.totalStock}</p>
+                  <p className="text-xs text-text-muted">Stock total</p>
+                  <p className="text-base font-bold tabular-nums text-primary">{p.totalStock}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wide">Valeur</p>
-                  <p className="text-[14px] font-bold text-success font-mono">{abbreviateCDF(p.valeurTotale)}</p>
+                  <p className="text-xs text-text-muted">Valeur</p>
+                  <p className="text-sm font-semibold tabular-nums text-primary">{abbreviateCDF(p.valeurTotale)}</p>
                 </div>
               </div>
 
               {/* Par site */}
               {sites.length > 0 && (
                 <div className="pt-2 border-t border-border/50">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wide mb-1.5">Par site</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <p className="mb-2 text-xs text-text-muted">Par site</p>
+                  <div className="space-y-2">
                     {sites.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between text-xs">
-                        <span className="text-text-muted">{s.nom}</span>
+                      <div key={s.id} className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0 break-words text-text-muted">{s.nom}</span>
                         <span className={cn(
-                          'font-mono font-semibold tabular-nums',
+                          'shrink-0 font-semibold tabular-nums',
                           p.stockParSite[s.id] === 0 ? 'text-danger' : 'text-text'
                         )}>
-                          {p.stockParSite[s.id] ?? 0}
+                          {p.stockParSite[s.id] === 0 ? '0 · Rupture' : p.stockParSite[s.id] ?? 0}
                         </span>
                       </div>
                     ))}
@@ -269,7 +244,7 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
           ))
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -317,54 +292,56 @@ function StocksContent() {
   }, [rawData]);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <button type="button" aria-label="Retour aux rapports" onClick={() => navigate('/reports')} className="btn-ghost min-h-11 min-w-11 rounded-lg">
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="text-page-title text-primary">Rapport Stocks Multi-Sites</h1>
-            <p className="text-xs text-text-muted">Inventaire consolidé par site</p>
-          </div>
-        </div>
-        <button
+    <ReportPageLayout active="stocks" title="Stocks et inventaire" description="Disponibilités, ruptures et valorisation de votre inventaire."
+      exportUrl={reportExportUrl('STOCKS', { siteId, categorie, search: searchInput })}
+      action={<button
           type="button"
           onClick={() => navigate(reportExportUrl('STOCKS', { siteId, categorie, search: searchInput }))}
-          className="btn-secondary min-h-11 text-sm flex items-center gap-1.5"
+          className="btn-primary gap-2"
         >
-          <Download size={13} />
+          <Download size={16} aria-hidden="true" />
           Export CSV/XLSX
-        </button>
+        </button>}
+    >
+      <div className="report-filters space-y-3" role="group" aria-label="Filtres du stock">
+        <div className="report-fields">
+          <ReportSiteFilter value={siteId} onChange={value => updateFilters({ siteId: value, categorie, search: searchInput })} />
+          <label className="report-filter-field">Recherche
+            <input type="text" value={searchInput} onChange={event => updateFilters({ siteId, categorie, search: event.target.value })}
+              aria-label="Rechercher par nom ou SKU" placeholder="Nom du produit ou SKU" />
+          </label>
+          <label className="report-filter-field">Catégorie
+            <select value={categorie} onChange={event => updateFilters({ siteId, categorie: event.target.value, search: searchInput })} aria-label="Filtrer par catégorie">
+              <option value="">Toutes catégories</option>
+              {categorie && !['Smartphones', 'Accessoires', 'Audio', 'Informatique'].includes(categorie) && <option value={categorie}>{categorie}</option>}
+              <option value="Smartphones">Smartphones</option>
+              <option value="Accessoires">Accessoires</option>
+              <option value="Audio">Audio</option>
+              <option value="Informatique">Informatique</option>
+            </select>
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <p className="text-xs text-text-muted">Inventaire actuel · Indépendant du filtre de dates</p>
+          <button type="button" className="btn-ghost" onClick={() => updateFilters({ siteId: '', categorie: '', search: '' })}>Réinitialiser</button>
+        </div>
       </div>
 
       {/* KPI cards */}
-      {!error && <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StockValueCard label="Sites actifs" value={String(summary.nbSites)} icon={MapPin} isLoading={isLoading} color="#1E3A5F" />
-        <StockValueCard
-          label="Produits référencés"
-          value={String(summary.nbProduits)}
-          sub={summary.nbAvecAlerte > 0 ? `${summary.nbAvecAlerte} avec alerte/rupture` : undefined}
-          icon={Package}
-          isLoading={isLoading}
-          color={summary.nbAvecAlerte > 0 ? '#E65100' : '#1A6B3A'}
-        />
-        <StockValueCard
-          label="Valeur totale inventaire"
-          value={isLoading ? '…' : abbreviateCDF(summary.valeurTotale)}
-          icon={BarChart2}
-          isLoading={isLoading}
-          color="#2E86C1"
-        />
-      </div>}
+      {!error && <section aria-label="Indicateurs du stock" aria-busy={isLoading}>
+        <dl className="report-summary report-summary-three">
+          <ReportMetric label="Valeur totale inventaire" value={abbreviateCDF(summary.valeurTotale)} icon={<BarChart2 size={16} />} isLoading={isLoading} />
+          <ReportMetric label="Produits référencés" value={summary.nbProduits.toLocaleString('fr-CD')} note={summary.nbAvecAlerte > 0 ? `${summary.nbAvecAlerte} alerte(s) produit/site` : undefined} icon={<Package size={16} />} isLoading={isLoading} />
+          <ReportMetric label="Sites actifs" value={summary.nbSites.toLocaleString('fr-CD')} icon={<MapPin size={16} />} isLoading={isLoading} />
+        </dl>
+      </section>}
 
       {/* Alert ruptures */}
       {rupturesProduits.length > 0 && !isLoading && !error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle size={18} className="text-danger" />
-            <h2 className="text-sm font-bold text-danger">
+          <div className="flex items-start gap-2 mb-3">
+            <AlertTriangle size={18} className="shrink-0 text-red-700" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-red-800">
               Produits nécessitant attention — {rupturesProduits.length} produit{rupturesProduits.length !== 1 ? 's' : ''} en rupture partielle ou totale
             </h2>
           </div>
@@ -374,42 +351,15 @@ function StocksContent() {
                 key={item.produit.id}
                 type="button"
                 onClick={() => navigate(`/stocks/${item.produit.id}`)}
-                className="bg-white border border-red-200 rounded-lg px-3 py-1.5 text-left hover:border-red-400 transition-colors"
+                className="min-w-0 max-w-full rounded-lg px-2 py-1.5 text-left text-red-800 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
               >
-                <p className="font-mono text-[11px] text-text-muted">{item.produit.sku}</p>
-                <p className="text-xs font-semibold text-danger">{item.produit.nom}</p>
+                <span className="block break-words text-sm font-semibold">{item.produit.nom}</span>
+                <span className="block break-words font-mono text-xs">{item.produit.sku}</span>
               </button>
             ))}
           </div>
         </div>
       )}
-
-      {/* Filtres */}
-      <div className="flex flex-wrap items-center gap-3">
-        <ReportSiteFilter value={siteId} onChange={value => updateFilters({ siteId: value, categorie, search: searchInput })} />
-        <input
-          type="text"
-          value={searchInput}
-          onChange={event => updateFilters({ siteId, categorie, search: event.target.value })}
-          aria-label="Rechercher par nom ou SKU"
-          placeholder="Rechercher par nom ou SKU…"
-          className="min-h-11 w-full min-w-0 rounded-lg border border-border bg-white px-3 text-sm sm:w-auto focus:outline-none focus:ring-2 focus:ring-primary-accent/30"
-        />
-        <select
-          value={categorie}
-          onChange={event => updateFilters({ siteId, categorie: event.target.value, search: searchInput })}
-          className="min-h-11 max-w-full rounded-lg border border-border bg-white px-3 text-sm"
-          aria-label="Filtrer par catégorie"
-        >
-          <option value="">Toutes catégories</option>
-          {categorie && !['Smartphones', 'Accessoires', 'Audio', 'Informatique'].includes(categorie) && <option value={categorie}>{categorie}</option>}
-          <option value="Smartphones">Smartphones</option>
-          <option value="Accessoires">Accessoires</option>
-          <option value="Audio">Audio</option>
-          <option value="Informatique">Informatique</option>
-        </select>
-        <button type="button" className="btn-secondary min-h-11 text-sm" onClick={() => updateFilters({ siteId: '', categorie: '', search: '' })}>Réinitialiser</button>
-      </div>
 
       {error && <div role="alert" className="card space-y-2 text-sm text-danger">
         <p>Impossible de charger le rapport stocks. {reportErrorMessage(error, 'Réessayez.')}</p>
@@ -424,7 +374,7 @@ function StocksContent() {
         categorie={categorie}
         isLoading={isLoading}
       />}
-    </div>
+    </ReportPageLayout>
   );
 }
 

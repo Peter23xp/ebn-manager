@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -235,6 +235,48 @@ describe('private export flow', () => {
 });
 
 describe('detail report navigation', () => {
+  it.each([
+    ['/reports/sales', 'Ventes détaillées'],
+    ['/reports/stocks', 'Stocks et inventaire'],
+    ['/reports/export?type=STOCKS', 'Exports'],
+  ])('identifies the current report and keeps the other authorized sections reachable on %s', async (path, current) => {
+    mount(path);
+    const navigation = screen.getByRole('navigation', { name: 'Rapports disponibles' });
+    expect(within(navigation).getByRole('link', { name: current })).toHaveAttribute('aria-current', 'page');
+    expect(within(navigation).getByRole('link', { name: 'Vue d’ensemble' })).toHaveAttribute('href', '/reports');
+    expect(within(navigation).getByRole('link', { name: 'Ventes détaillées' })).toHaveAttribute('href', '/reports/sales');
+    expect(within(navigation).getByRole('link', { name: 'Stocks et inventaire' })).toHaveAttribute('href', '/reports/stocks');
+  });
+
+  it('does not expose regional reports through the new export navigation for a manager', () => {
+    mount('/reports/export?type=VENTES', manager);
+    const navigation = screen.getByRole('navigation', { name: 'Rapports disponibles' });
+    expect(within(navigation).queryByRole('link', { name: 'Ventes détaillées' })).not.toBeInTheDocument();
+    expect(within(navigation).queryByRole('link', { name: 'Stocks et inventaire' })).not.toBeInTheDocument();
+    expect(within(navigation).getByRole('link', { name: 'Exports' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it.each([
+    ['/reports/stocks', '/rapports/stocks', 'Indicateurs du stock', 'Produits référencés'],
+    ['/reports/sales', '/rapports/ventes/detail', 'Indicateurs des ventes', 'Remises accordées'],
+  ])('keeps named indicators visible without false totals while %s loads', (path, endpoint, region, label) => {
+    get.mockImplementation((url: string) => url === endpoint ? new Promise(() => {}) : Promise.resolve(response(url)));
+    mount(path);
+    const summary = screen.getByRole('region', { name: region });
+    expect(summary).toHaveAttribute('aria-busy', 'true');
+    expect(within(summary).getByText(label)).toBeInTheDocument();
+    expect(within(summary).queryByText(/^0/)).not.toBeInTheDocument();
+  });
+
+  it('names the generated report in plain language rather than its internal export code', async () => {
+    mount('/reports/export?type=VENTES_DETAIL');
+    await waitFor(() => expect(screen.getByRole('button', { name: /Générer l.export/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /Générer l.export/ }));
+    await screen.findByRole('button', { name: /Télécharger/ });
+    expect(screen.getByRole('status')).toHaveTextContent('Ventes détaillées');
+    expect(screen.getByRole('status')).not.toHaveTextContent('VENTES_DETAIL');
+  });
+
   it.each(['/reports/sales', '/reports/stocks'])('keeps filters and retry available after failure on %s', async path => {
     get.mockImplementation(async (url: string) => {
       if (url === '/rapports/ventes/detail' || url === '/rapports/stocks') throw new Error('Réseau indisponible');

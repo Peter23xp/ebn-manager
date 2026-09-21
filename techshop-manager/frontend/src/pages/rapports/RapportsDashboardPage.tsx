@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  BarChart2, AlertCircle, RefreshCw, Building2,
-  TrendingUp, ShoppingCart, Users, Download, Package,
+  AlertCircle, RefreshCw, TrendingUp, ShoppingCart, Users, Download,
 } from 'lucide-react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -23,6 +22,7 @@ import { DoughnutSiteChart } from '@/components/reports/DoughnutSiteChart';
 import { SitesSummaryTable } from '@/components/reports/SitesSummaryTable';
 import { TopProductsBarChart } from '@/components/reports/TopProductsBarChart';
 import { OperationalSummary } from '@/components/reports/OperationalSummary';
+import { ReportNavigation } from '@/components/reports/ReportNavigation';
 import { useSites } from '@/hooks/useSites';
 import { toISODate } from '@/lib/dateRange.utils';
 import './reports-dashboard.css';
@@ -157,7 +157,6 @@ function CALineChart({
 
 export default function RapportsDashboardPage() {
   const { user, hasRole } = useAuth();
-  const navigate = useNavigate();
 
   const isGerant          = hasRole('GERANT') && !hasRole('DIRECTEUR_REGIONAL');
   const isRegionalOrAbove = hasRole('DIRECTEUR_REGIONAL');
@@ -236,17 +235,7 @@ export default function RapportsDashboardPage() {
         </Link>
       </header>
 
-      <nav aria-label="Rapports disponibles" className="report-navigation">
-        <Link to={`/reports?${reportParams}`} aria-current="page"><BarChart2 size={16} aria-hidden="true" />Vue d’ensemble</Link>
-        {isRegionalOrAbove && <Link to={`/reports/sales?${reportParams}`}><ShoppingCart size={16} aria-hidden="true" />Ventes détaillées</Link>}
-        {isRegionalOrAbove && <Link to={`/reports/stocks?${selectedSite ? new URLSearchParams({ siteId: selectedSite }) : ''}`}><Package size={16} aria-hidden="true" />Stocks et inventaire</Link>}
-        <Link to="/clients"><Users size={16} aria-hidden="true" />Liste des clients</Link>
-        {isRegionalOrAbove && (
-          <button type="button" onClick={() => navigate('/dashboard/regional')} className="xl:ml-auto">
-            <Building2 size={16} aria-hidden="true" />Vue régionale
-          </button>
-        )}
-      </nav>
+      <ReportNavigation active="overview" overviewUrl={`/reports?${reportParams}`} salesUrl={`/reports/sales?${reportParams}`} stocksUrl={`/reports/stocks?${selectedSite ? new URLSearchParams({ siteId: selectedSite }) : ''}`} exportUrl={`/reports/export?type=VENTES&${reportParams}`} />
 
       <div className="report-filters" role="group" aria-label="Filtres du rapport">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-end">
