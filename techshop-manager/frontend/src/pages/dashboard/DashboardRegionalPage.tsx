@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { RefreshCw, Download, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { RefreshCw, Download, ArrowLeft, ShoppingCart, Users, AlertTriangle, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRegionalDashboard } from '@/hooks/useRegionalDashboard';
 import { SitesComparisonTable } from '@/components/dashboard/SitesComparisonTable';
@@ -8,7 +8,9 @@ import { RevenueLineChart } from '@/components/dashboard/RevenueLineChart';
 import { TopProductsList } from '@/components/dashboard/TopProductsList';
 import { TopParrainsList } from '@/components/dashboard/TopParrainsList';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { cn, formatUSD } from '@/lib/utils';
+import { KpiCard } from '@/components/dashboard/KpiCard';
+import './dashboard.css';
 
 type Period = 'month' | 'quarter' | 'year';
 
@@ -19,7 +21,6 @@ const periodLabel: Record<Period, string> = {
 };
 
 export default function DashboardRegionalPage() {
-  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('month');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -69,112 +70,57 @@ export default function DashboardRegionalPage() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Vue Régionale</h1>
-          <p className="text-sm text-text-muted mt-1">Comparatif de performance par site</p>
-        </div>
+  const totals = comparison.data?.totaux;
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Period selector */}
-          <div className="period-toggle" role="group" aria-label="Période">
-            {(['month', 'quarter', 'year'] as Period[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPeriod(p)}
-                className={cn('period-btn', period === p && 'active')}
-              >
-                {periodLabel[p]}
-              </button>
+  return (
+    <div className="operations-dashboard">
+      <header className="dashboard-header">
+        <div>
+          <Link to="/dashboard" className="dashboard-text-action -ml-2 mb-1"><ArrowLeft size={16} aria-hidden />Vue principale</Link>
+          <h1 className="text-page-title text-primary">Vue régionale</h1>
+          <p className="mt-1 text-sm text-text-muted">Comparez les sites et identifiez les points d’attention du réseau.</p>
+        </div>
+        <button type="button" onClick={handleExport} disabled={isExporting} className="btn-primary">
+          {isExporting ? <RefreshCw size={16} className="animate-spin" aria-hidden /> : <Download size={16} aria-hidden />}
+          {isExporting ? 'Génération…' : 'Export PDF'}
+        </button>
+      </header>
+
+      <div className="dashboard-toolbar">
+        <div className="min-w-0 max-w-full">
+          <p className="mb-2 text-xs font-semibold text-text">Période de comparaison</p>
+          <div className="dashboard-period" role="group" aria-label="Période régionale">
+            {(['month', 'quarter', 'year'] as Period[]).map(option => (
+              <button key={option} type="button" onClick={() => setPeriod(option)} aria-pressed={period === option}>{periodLabel[option]}</button>
             ))}
           </div>
-
-          <button
-            type="button"
-            onClick={refetchAll}
-            disabled={isAnyLoading}
-            className={cn(
-              'p-1.5 rounded-lg border border-border text-text-muted transition-colors',
-              'hover:border-border-strong hover:text-text',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
-            title="Actualiser"
-            aria-label="Actualiser les données"
-          >
-            <RefreshCw size={16} className={cn(isAnyLoading && 'animate-spin')} aria-hidden />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150',
-              'bg-primary-accent text-white hover:bg-blue-700',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent focus-visible:ring-offset-2',
-              'disabled:opacity-60 disabled:cursor-not-allowed',
-            )}
-          >
-            {isExporting ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" aria-hidden />
-                Génération...
-              </>
-            ) : (
-              <>
-                <Download size={14} aria-hidden />
-                Export PDF
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            className={cn(
-              'flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-primary transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent rounded',
-            )}
-            onClick={() => navigate('/dashboard')}
-          >
-            <ArrowLeft size={14} aria-hidden />
-            Vue principale
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-text-muted">Tous les sites actifs</span>
+          <button type="button" onClick={refetchAll} disabled={isAnyLoading} className="btn-secondary" aria-label="Actualiser les données">
+            <RefreshCw size={16} className={cn(isAnyLoading && 'animate-spin')} aria-hidden />Actualiser
           </button>
         </div>
       </div>
 
-      {error && (
-        <div
-          className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4"
-          role="alert"
-          aria-live="assertive"
-        >
-          <p className="text-sm text-danger">Impossible de charger les données régionales.</p>
-          <button
-            type="button"
-            onClick={refetchAll}
-            className={cn(
-              'flex items-center gap-1.5 text-sm font-medium text-danger hover:underline',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger rounded',
-            )}
-          >
-            <RefreshCw size={14} aria-hidden />
-            Réessayer
-          </button>
+      {error && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+        <p className="text-sm text-red-700">{comparison.data ? 'L’actualisation a échoué. Les dernières données chargées restent affichées.' : 'Impossible de charger les données régionales.'}</p>
+        <button type="button" onClick={refetchAll} className="btn-secondary"><RefreshCw size={16} aria-hidden />Réessayer</button>
+      </div>}
+      {(!error || comparison.data) && <>
+        <section className="dashboard-metrics" aria-label="Indicateurs régionaux" aria-busy={isAnyLoading}>
+          <KpiCard variant="summary" title="Chiffre d’affaires" value={totals ? formatUSD(totals.ca) : '—'} icon={DollarSign} isLoading={isAnyLoading} note="Sur la période sélectionnée" />
+          <KpiCard variant="summary" title="Ventes validées" value={totals?.nbVentes.toLocaleString('fr') ?? '—'} icon={ShoppingCart} isLoading={isAnyLoading} note="Sur la période sélectionnée" />
+          <KpiCard variant="summary" title="Clients actifs" value={totals?.nbClientsActifs.toLocaleString('fr') ?? '—'} icon={Users} isLoading={isAnyLoading} note="Situation actuelle" />
+          <KpiCard variant="summary" title="Alertes stock" value={totals?.alertesStock.toLocaleString('fr') ?? '—'} icon={AlertTriangle} isLoading={isAnyLoading} note="Situation actuelle" />
+        </section>
+        <RevenueLineChart data={revenueChart.data} isLoading={revenueChart.isLoading} />
+        <SitesComparisonTable data={comparison.data} isLoading={comparison.isLoading} />
+        <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2">
+          <TopProductsList data={topProducts.data} isLoading={topProducts.isLoading} />
+          <TopParrainsList data={topParrains.data} isLoading={topParrains.isLoading} />
         </div>
-      )}
-
-      <SitesComparisonTable data={comparison.data} isLoading={comparison.isLoading} />
-
-      <RevenueLineChart data={revenueChart.data} isLoading={revenueChart.isLoading} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TopProductsList data={topProducts.data} isLoading={topProducts.isLoading} />
-        <TopParrainsList data={topParrains.data} isLoading={topParrains.isLoading} />
-      </div>
+      </>}
     </div>
   );
 }

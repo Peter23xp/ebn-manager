@@ -1,0 +1,212 @@
+.operations-dashboard {
+  @apply min-w-0 space-y-5;
+}
+
+.operations-dashboard :is(h1, h2) {
+  text-wrap: balance;
+}
+
+.operations-dashboard .dashboard-header {
+  @apply flex flex-wrap items-start justify-between gap-3;
+}
+
+.operations-dashboard .dashboard-toolbar {
+  @apply flex min-w-0 flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-white p-4;
+}
+
+.operations-dashboard .dashboard-period {
+  @apply flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-slate-100 p-1;
+}
+
+.operations-dashboard .dashboard-period button {
+  @apply min-h-11 rounded-md px-3 text-sm font-medium text-text-muted transition-colors;
+  flex: 1 0 auto;
+}
+
+.operations-dashboard .dashboard-period button:hover {
+  @apply text-primary;
+}
+
+.operations-dashboard .dashboard-period button[aria-pressed="true"] {
+  @apply bg-white text-blue-700 shadow-sm;
+}
+
+.operations-dashboard :is(button, a):focus-visible {
+  @apply outline-none ring-2 ring-inset ring-primary-accent;
+}
+
+.operations-dashboard .dashboard-metrics {
+  @apply grid min-w-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border xl:grid-cols-4;
+}
+
+.operations-dashboard .dashboard-metrics-agent {
+  @apply sm:grid-cols-3;
+}
+
+.operations-dashboard .dashboard-metric {
+  @apply flex min-w-0 flex-col items-start justify-start bg-white p-4 text-left sm:p-5;
+  overflow-wrap: anywhere;
+}
+
+.operations-dashboard button.dashboard-metric:hover {
+  @apply bg-slate-50;
+}
+
+.operations-dashboard .dashboard-metric-label {
+  @apply flex items-start gap-2 text-sm font-medium leading-snug text-text-muted;
+}
+
+.operations-dashboard .dashboard-metric-label svg {
+  @apply mt-0.5 shrink-0;
+}
+
+.operations-dashboard .dashboard-metric-value {
+  @apply my-2.5 block text-2xl font-bold leading-tight tracking-tight text-primary tabular-nums;
+}
+
+.operations-dashboard .dashboard-metric-detail {
+  @apply flex flex-wrap items-center gap-1 text-xs font-medium leading-relaxed;
+}
+
+.operations-dashboard .dashboard-panel {
+  @apply h-full min-w-0 rounded-xl border border-border bg-white p-4 sm:p-5;
+}
+
+.operations-dashboard .dashboard-panel-heading {
+  @apply mb-4 flex min-w-0 flex-wrap items-start justify-between gap-2;
+}
+
+.operations-dashboard .dashboard-panel-heading h2 {
+  @apply text-section-title text-primary;
+}
+
+.operations-dashboard .dashboard-panel-heading p {
+  @apply mt-1 text-xs leading-relaxed text-text-muted;
+}
+
+.operations-dashboard .dashboard-text-action {
+  @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50;
+}
+
+.operations-dashboard .dashboard-empty {
+  @apply flex min-h-48 flex-col items-center justify-center gap-2 px-3 py-6 text-center text-sm leading-relaxed text-text-muted;
+}
+
+.operations-dashboard .dashboard-list > li + li {
+  @apply border-t border-border;
+}
+
+.operations-dashboard .dashboard-list-row {
+  @apply grid w-full min-w-0 items-start gap-x-3 gap-y-1 rounded-lg py-3 text-left;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+}
+
+.operations-dashboard button.dashboard-list-row:hover {
+  @apply bg-slate-50;
+}
+
+.operations-dashboard .dashboard-list-name {
+  @apply break-words text-sm font-semibold leading-snug text-text;
+  overflow-wrap: anywhere;
+}
+
+.operations-dashboard .dashboard-list-meta {
+  @apply mt-1 break-words text-xs leading-relaxed text-text-muted;
+  overflow-wrap: anywhere;
+}
+
+.operations-dashboard .dashboard-list-value {
+  @apply flex min-w-0 flex-col items-end gap-1 text-right text-sm font-semibold tabular-nums;
+}
+
+.operations-dashboard .dashboard-badge {
+  @apply inline-flex w-fit max-w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium leading-snug;
+}
+
+.operations-dashboard .dashboard-rank {
+  @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-text-muted tabular-nums;
+}
+
+.operations-dashboard .dashboard-chart {
+  @apply relative min-w-0;
+  height: 280px;
+}
+
+.operations-dashboard .dashboard-legend {
+  @apply mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-muted;
+}
+
+.operations-dashboard .dashboard-legend li {
+  @apply flex min-w-0 items-center gap-2;
+  overflow-wrap: anywhere;
+}
+
+.operations-dashboard .dashboard-table {
+  @apply w-full text-sm;
+  min-width: 680px;
+}
+
+.operations-dashboard .dashboard-table thead th {
+  @apply bg-slate-50 text-xs font-semibold normal-case tracking-normal text-text-muted;
+}
+
+.operations-dashboard .dashboard-table :is(th, td) {
+  @apply px-4 py-3 text-right tabular-nums;
+}
+
+.operations-dashboard .dashboard-table :is(th, td):first-child {
+  @apply text-left;
+  min-width: 170px;
+}
+
+.operations-dashboard .dashboard-table tbody tr:hover {
+  @apply bg-slate-50;
+}
+
+.operations-dashboard .dashboard-table tfoot :is(th, td) {
+  @apply border-t border-border bg-slate-50 font-semibold text-text;
+}
+
+.operations-dashboard .dashboard-legend-interactive {
+  @apply gap-x-2 gap-y-1;
+}
+
+.operations-dashboard .dashboard-legend-interactive button {
+  @apply flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-border bg-slate-50 px-3 py-2 text-left;
+}
+
+.operations-dashboard .dashboard-legend-interactive button[aria-pressed="false"] {
+  @apply bg-white line-through;
+}
+
+.operations-dashboard .dashboard-panel [role="alert"] {
+  @apply text-red-700;
+}
+
+@media (max-width: 639px) {
+  .operations-dashboard .dashboard-list-row {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .operations-dashboard .dashboard-list-value {
+    @apply col-start-2 flex-row flex-wrap items-center justify-between gap-2 text-left;
+  }
+  .operations-dashboard .dashboard-metric-value {
+    @apply text-xl;
+  }
+  .operations-dashboard .dashboard-metrics-agent > :last-child {
+    @apply col-span-2;
+  }
+  .operations-dashboard .dashboard-period {
+    @apply w-full;
+  }
+  .operations-dashboard .dashboard-period button {
+    @apply px-2 text-xs;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operations-dashboard *, .operations-dashboard *::before, .operations-dashboard *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

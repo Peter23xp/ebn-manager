@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { formatUSD } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import { ArrowUpRight, Building2, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatUSD, cn } from '@/lib/utils';
 import { useUIStore } from '@/store/ui.store';
 import type { ComparisonData } from '@/hooks/useRegionalDashboard';
 
@@ -12,123 +11,52 @@ interface SitesComparisonTableProps {
 
 export function SitesComparisonTable({ data, isLoading }: SitesComparisonTableProps) {
   const navigate = useNavigate();
-  const setSelectedSiteId = useUIStore((s) => s.setSelectedSiteId);
-
+  const setSelectedSiteId = useUIStore(state => state.setSelectedSiteId);
   const handleSiteClick = (siteId: string) => {
     setSelectedSiteId(siteId);
     navigate('/dashboard');
   };
 
   return (
-    <div className="rounded-xl shadow-card border border-border bg-white overflow-hidden">
-      <div className="px-5 py-4 border-b border-border">
-        <h2 className="text-section-title text-primary">Performance par site</h2>
+    <section className="min-w-0 rounded-xl border border-border bg-white" aria-label="Comparatif des sites" aria-busy={isLoading}>
+      <div className="dashboard-panel-heading px-4 pt-4 sm:px-5 sm:pt-5">
+        <div>
+          <h2>Performance par site</h2>
+          <p>Sélectionnez un site pour consulter son tableau de bord. Clients et stocks : situation actuelle.</p>
+        </div>
       </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left">
-              <th className="px-5 py-3">Site</th>
-              <th className="px-5 py-3 text-right">CA</th>
-              <th className="px-5 py-3 text-right">Variation</th>
-              <th className="px-5 py-3 text-right">Ventes</th>
-              <th className="px-5 py-3 text-right">Clients actifs</th>
-              <th className="px-5 py-3 text-right">Alertes</th>
-            </tr>
-          </thead>
+      <div className="overflow-x-auto rounded-b-xl" role="region" aria-label="Tableau des performances défilable" tabIndex={0}>
+        <table className="dashboard-table" aria-label="Performance par site">
+          <thead><tr>
+            <th scope="col">Site</th><th scope="col">CA · USD</th><th scope="col">Variation</th>
+            <th scope="col">Ventes</th><th scope="col">Clients actifs</th><th scope="col">Alertes</th>
+          </tr></thead>
           <tbody>
-            {isLoading ? (
-              [...Array(4)].map((_, i) => (
-                <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                  {[...Array(6)].map((_, j) => (
-                    <td key={j} className="px-5 py-3">
-                      <div className="skeleton h-4 w-full rounded" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <>
-                {(data?.sites ?? []).map((site, i) => (
-                  <tr
-                    key={site.siteId}
-                    className={cn(
-                      'cursor-pointer transition-colors duration-100',
-                      'hover:bg-blue-50/60',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-accent',
-                    )}
-                    style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}
-                    onClick={() => handleSiteClick(site.siteId)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleSiteClick(site.siteId);
-                      }
-                    }}
-                  >
-                    <td className="px-5 py-3 font-semibold text-text">{site.siteNom}</td>
-                    <td className="px-5 py-3 text-right font-bold text-success font-mono">
-                      {formatUSD(site.ca)}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      {site.caVariation !== 0 ? (
-                        <span className={cn(
-                          'flex items-center justify-end gap-1 font-semibold',
-                          site.caVariation > 0 ? 'text-success' : 'text-danger',
-                        )}>
-                          {site.caVariation > 0
-                            ? <TrendingUp size={13} aria-hidden />
-                            : <TrendingDown size={13} aria-hidden />}
-                          {Math.abs(site.caVariation)}%
-                        </span>
-                      ) : (
-                        <span className="text-text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-right text-text-muted">{site.nbVentes}</td>
-                    <td className="px-5 py-3 text-right text-text-muted">{site.nbClientsActifs}</td>
-                    <td className="px-5 py-3 text-right">
-                      <span className={cn(
-                        'inline-block px-2 py-0.5 rounded-full text-[11px] font-bold',
-                        site.alertesStock > 0
-                          ? 'bg-red-100 text-danger'
-                          : 'bg-green-100 text-success',
-                      )}>
-                        {site.alertesStock}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-
-                {data && (
-                  <tr className="font-bold border-t border-border bg-slate-50">
-                    <td className="px-5 py-3 text-text uppercase text-[12px] tracking-wide">TOTAL</td>
-                    <td className="px-5 py-3 text-right text-success font-mono">
-                      {formatUSD(data.totaux.ca)}
-                    </td>
-                    <td className="px-5 py-3" />
-                    <td className="px-5 py-3 text-right text-text-muted">{data.totaux.nbVentes}</td>
-                    <td className="px-5 py-3 text-right text-text-muted">{data.totaux.nbClientsActifs}</td>
-                    <td className="px-5 py-3 text-right">
-                      <span className={cn(
-                        'inline-block px-2 py-0.5 rounded-full text-[11px] font-bold',
-                        data.totaux.alertesStock > 0
-                          ? 'bg-red-100 text-danger'
-                          : 'bg-green-100 text-success',
-                      )}>
-                        {data.totaux.alertesStock}
-                      </span>
-                    </td>
-                  </tr>
-                )}
-              </>
-            )}
+            {isLoading ? Array.from({ length: 3 }, (_, rowIndex) => <tr key={rowIndex}>
+              {Array.from({ length: 6 }, (_, columnIndex) => <td key={columnIndex}><div className="skeleton h-8 rounded" /></td>)}
+            </tr>) : data?.sites.map(site => <tr key={site.siteId}>
+              <th scope="row">
+                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-3 rounded text-left font-semibold text-blue-700" onClick={() => handleSiteClick(site.siteId)}>
+                  <span>{site.siteNom}<span className="block text-xs font-normal text-text-muted">{site.siteVille}</span></span>
+                  <ArrowUpRight size={16} className="shrink-0" aria-hidden />
+                </button>
+              </th>
+              <td className="whitespace-nowrap font-semibold">{formatUSD(site.ca)}</td>
+              <td><span className={cn('inline-flex items-center gap-1 whitespace-nowrap', site.caVariation > 0 ? 'text-success' : site.caVariation < 0 ? 'text-red-700' : 'text-text-muted')}>
+                {site.caVariation > 0 ? <TrendingUp size={14} aria-hidden /> : site.caVariation < 0 ? <TrendingDown size={14} aria-hidden /> : null}
+                {site.caVariation === 0 ? 'Stable' : `${site.caVariation > 0 ? '+' : ''}${site.caVariation} %`}
+              </span></td>
+              <td>{site.nbVentes.toLocaleString('fr')}</td><td>{site.nbClientsActifs.toLocaleString('fr')}</td>
+              <td><span className={cn('dashboard-badge', site.alertesStock > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-text-muted')}>{site.alertesStock}</span></td>
+            </tr>)}
           </tbody>
+          {!isLoading && !!data?.sites.length && <tfoot><tr>
+            <th scope="row">Total du réseau</th><td className="whitespace-nowrap">{formatUSD(data.totaux.ca)}</td><td>—</td>
+            <td>{data.totaux.nbVentes.toLocaleString('fr')}</td><td>{data.totaux.nbClientsActifs.toLocaleString('fr')}</td><td>{data.totaux.alertesStock}</td>
+          </tr></tfoot>}
         </table>
       </div>
-    </div>
+      {!isLoading && !data?.sites.length && <div className="dashboard-empty" role="status"><Building2 size={24} aria-hidden /><p>Aucun site à comparer</p></div>}
+    </section>
   );
 }

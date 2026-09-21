@@ -18,6 +18,8 @@ export interface KpiCardProps {
   badge?: string;
   badgeVariant?: 'success' | 'warning' | 'danger';
   accent?: 'primary' | 'success' | 'warning' | 'danger';
+  variant?: 'card' | 'summary';
+  note?: string;
 }
 
 const accentMap: Record<string, {
@@ -73,6 +75,8 @@ export function KpiCard({
   badge,
   badgeVariant = 'warning',
   accent = 'primary',
+  variant = 'card',
+  note,
 }: KpiCardProps) {
   const a = accentMap[accent];
 
@@ -81,6 +85,21 @@ export function KpiCard({
   const isNeutral = trend && trend.value === 0;
   const trendColor = isUp ? a.trend.up : isDown ? a.trend.down : a.trend.neutral;
   const TrendIcon  = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
+
+  if (variant === 'summary') {
+    const SummaryTag = onClick && !isLoading ? 'button' : 'div';
+    return (
+      <SummaryTag className="dashboard-metric" type={SummaryTag === 'button' ? 'button' : undefined} onClick={isLoading ? undefined : onClick} aria-busy={isLoading}>
+        <span className="dashboard-metric-label"><Icon size={16} aria-hidden />{title}</span>
+        {isLoading ? <span className="skeleton my-3 block h-8 w-24 max-w-full rounded" aria-hidden /> : <span className="dashboard-metric-value">{value}</span>}
+        {!isLoading && trend && <span className={cn('dashboard-metric-detail', isUp ? 'text-success' : isDown ? 'text-red-700' : 'text-text-muted')}>
+          <TrendIcon size={14} aria-hidden />{isNeutral ? 'Stable' : `${isUp ? '+' : ''}${trend.value} %`} <span className="text-text-muted">{trend.label}</span>
+        </span>}
+        {!isLoading && badge && <span className={cn('dashboard-badge', badgeVariant === 'danger' ? 'bg-red-100 text-red-700' : badgeVariant === 'success' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800')}>{badge}</span>}
+        {note && <span className="mt-1 block text-xs leading-relaxed text-text-muted">{note}</span>}
+      </SummaryTag>
+    );
+  }
 
   if (isLoading) {
     return (
