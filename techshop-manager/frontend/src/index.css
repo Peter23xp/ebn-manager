@@ -137,10 +137,16 @@
 
   /* ── Sidebar ─────────────────────────────────────────────────── */
   .sidebar {
-    width: 240px;
+    width: min(85vw, 280px);
     height: 100%;
     @apply bg-white flex flex-col flex-shrink-0;
     border-right: 1px solid #e2e8f0;
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar {
+      width: 260px;
+    }
   }
 
   .sidebar-link {

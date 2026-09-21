@@ -31,7 +31,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Keys:', list\\(d.keys\\(\\)\\)\\); p=d.get\\('produits',[]\\); print\\('Count:', len\\(p\\)\\); print\\('First:', json.dumps\\(p[0], indent=2\\) if p else 'empty'\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); p=d.get\\('produits',[]\\); print\\('Count:', len\\(p\\)\\); [print\\(x['sku'], x['nom'], 'stock:', x['stockDisponible'], 'statut:', x['statut']\\) for x in p]\")",
       "Bash(npx prisma *)",
-      "Bash(set \"PRISMA_HIDE_UPDATE_MESSAGE=1\")"
+      "Bash(set \"PRISMA_HIDE_UPDATE_MESSAGE=1\")",
+      "Skill(impeccable:*)",
+      "Bash(xargs cat)"
     ]
   }
 }

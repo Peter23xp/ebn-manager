@@ -631,7 +631,7 @@ export default function OnboardingActivationPage() {
               <label className="text-[12px] font-bold text-text-muted uppercase tracking-wide">
                 Mode de paiement
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {MODE_PAIEMENT.map(({ value, label }) => (
                   <button
                     key={value}

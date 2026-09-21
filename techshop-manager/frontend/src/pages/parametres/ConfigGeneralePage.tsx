@@ -411,7 +411,7 @@ function OperationsSection({ config, onSaved }: { config: AppConfig; onSaved: (m
           </div>
 
           {/* Résumé visuel */}
-          <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-bg-inset border border-border p-3 text-center">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 rounded-xl bg-bg-inset border border-border p-3 text-center">
             {[
               { label: 'Session', value: `${watch('dureeSectionHeures')}h` },
               { label: 'Retour sous', value: `${watch('delaiRetourJours')} j` },
@@ -702,7 +702,7 @@ function ParrainageSection({ config, onSaved }: { config: AppConfig; onSaved: (m
 
           <div className="form-group">
             <label className="form-label">Déclenchement de la récompense</label>
-            <div className="grid grid-cols-2 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
               {([
                 { v: 'ACTIVATION', label: 'À l\'activation', desc: 'Dès que le filleul est activé' },
                 { v: 'PREMIER_ACHAT', label: 'Premier achat', desc: 'Après le premier achat du filleul' },

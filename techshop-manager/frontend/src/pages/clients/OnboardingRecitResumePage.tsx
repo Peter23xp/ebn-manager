@@ -211,7 +211,7 @@ export default function OnboardingRecitResumePage() {
           {/* Mode paiement */}
           <div className="form-group">
             <p className="form-label">Mode de paiement *</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {([{ value: 'CASH', label: 'Cash' }, { value: 'KPAY', label: 'Paiement mobile' }] as const).map((m) => (
                 <label
                   key={m.value}

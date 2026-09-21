@@ -695,7 +695,7 @@ export default function POSPage() {
             <select
               value={selectedSiteId ?? ''}
               onChange={e => setSelectedSiteId(e.target.value)}
-              className="text-[12px] font-semibold text-white bg-transparent border border-blue-400/40 rounded px-2 py-0.5 focus:outline-none focus:border-blue-300 min-h-0 max-w-[180px]"
+              className="text-[12px] font-semibold text-white bg-transparent border border-blue-400/40 rounded px-2 py-0.5 focus:outline-none focus:border-blue-300 min-h-0 w-full sm:max-w-[180px]"
             >
               <option value="" className="text-black">Choisir un site…</option>
               {sites.map(s => <option key={s.id} value={s.id} className="text-black">{s.nom}</option>)}

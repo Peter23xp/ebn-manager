@@ -73,7 +73,7 @@ export function NotificationBell() {
       >
         <Bell size={15} aria-hidden />
         {total > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] flex items-center justify-center rounded-full bg-danger text-white text-[9px] font-bold px-1 tabular-nums">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1 tabular-nums">
             {total > 99 ? '99+' : total}
           </span>
         )}

@@ -42,7 +42,7 @@ export function Pagination({
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1 || isLoading}
           className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted',
+            'flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-border text-text-muted',
             'hover:border-border-strong hover:text-text transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent',
             'disabled:opacity-40 disabled:cursor-not-allowed',
@@ -80,7 +80,7 @@ export function Pagination({
             onClick={() => onPageChange(p)}
             disabled={isLoading}
             className={cn(
-              'flex h-8 min-w-[32px] px-2 items-center justify-center rounded-lg border text-[12px] font-medium transition-all duration-150',
+              'flex h-10 min-w-[44px] px-2 items-center justify-center rounded-lg border text-[12px] font-medium transition-all duration-150',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent',
               'disabled:cursor-not-allowed',
               p === page
@@ -119,7 +119,7 @@ export function Pagination({
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages || isLoading}
           className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg border border-border text-text-muted',
+            'flex h-10 min-w-[44px] items-center justify-center rounded-lg border border-border text-text-muted',
             'hover:border-border-strong hover:text-text transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent',
             'disabled:opacity-40 disabled:cursor-not-allowed',

@@ -126,7 +126,7 @@ export function EditClientModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Prénom */}
               <div className="form-group">
                 <label htmlFor="edit-prenom" className="form-label">Prénom *</label>

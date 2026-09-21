@@ -151,7 +151,7 @@ export default function LoginPage() {
 
         {/* ── Panneau gauche : identité EBN ── */}
         <div
-          className="lg-brand hidden lg:flex flex-col justify-between w-[420px] xl:w-[480px] flex-shrink-0 px-12 xl:px-14 py-14 text-white"
+          className="lg-brand hidden lg:flex flex-col justify-between w-full lg:w-[420px] xl:w-[480px] flex-shrink-0 px-12 xl:px-14 py-14 text-white"
           style={{ background: 'linear-gradient(160deg, #0A1628 0%, #122540 55%, #16305a 100%)' }}
         >
           {/* Logo */}
@@ -219,7 +219,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="w-full max-w-[400px]">
+          <div className="w-full max-w-[400px] md:max-w-[480px]">
 
             {/* Titre */}
             <div className="flex items-start justify-between mb-8">

@@ -225,7 +225,7 @@ function SiteCard({ site, onEdit, onToggle }: {
 
         {/* Stats */}
         {site._count && (
-          <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/60">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-3 border-y border-border/60">
             <div className="text-center">
               <p className="text-xl font-black text-primary leading-none">{site._count.utilisateurs}</p>
               <p className="text-[10px] text-text-muted mt-0.5 flex items-center justify-center gap-1">
@@ -357,7 +357,7 @@ export default function SitesPage() {
                   <div className="skeleton h-3 w-1/2 rounded-full" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="skeleton h-12 rounded-lg" />
                 <div className="skeleton h-12 rounded-lg" />
               </div>

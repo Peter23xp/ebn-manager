@@ -39,7 +39,7 @@ export function DeveloperCard() {
           <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">v1.0</p>
         </div>
       </div>
-      <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-3 text-center">
+      <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
         {[
           { label: 'Écrans',  value: '42' },
           { label: 'Modules', value: '10' },

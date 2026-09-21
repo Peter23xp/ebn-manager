@@ -349,7 +349,7 @@ export default function ImportMatriculesPage() {
           </div>
 
           {/* 3 stat cards */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {[
               { label: 'Importés',      value: result.imported, classes: 'border-green-200 bg-green-50',  text: 'text-success' },
               { label: 'Introuvables',  value: result.notFound,  classes: 'border-amber-200 bg-amber-50', text: 'text-warning' },

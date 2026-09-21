@@ -144,8 +144,9 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
 
   return (
     <div className="card p-0 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
+      {/* Desktop: Table normale avec scroll horizontal */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: '700px' }}>
           <thead>
             <tr style={{ background: '#1E3A5F' }}>
               <th
@@ -217,6 +218,57 @@ function ConsolidatedStockTable({ rawData, search, categorie, isLoading }: {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: Cards empilées */}
+      <div className="md:hidden divide-y divide-border">
+        {filtered.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-text-muted">
+            Aucun produit trouvé
+          </div>
+        ) : (
+          filtered.map((p: any) => (
+            <div key={p.id} className="px-4 py-3 space-y-2">
+              {/* Nom + SKU */}
+              <div>
+                <p className="text-[13px] font-semibold text-text leading-snug">{p.nom}</p>
+                <p className="text-[11px] text-text-muted font-mono">{p.sku}</p>
+              </div>
+
+              {/* Stock total + valeur */}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide">Stock total</p>
+                  <p className="text-[16px] font-black text-primary font-mono">{p.totalStock}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide">Valeur</p>
+                  <p className="text-[14px] font-bold text-success font-mono">{abbreviateCDF(p.valeurTotale)}</p>
+                </div>
+              </div>
+
+              {/* Par site */}
+              {sites.length > 0 && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide mb-1.5">Par site</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {sites.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between text-xs">
+                        <span className="text-text-muted">{s.nom}</span>
+                        <span className={cn(
+                          'font-mono font-semibold tabular-nums',
+                          p.stockParSite[s.id] === 0 ? 'text-danger' : 'text-text'
+                        )}>
+                          {p.stockParSite[s.id] ?? 0}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

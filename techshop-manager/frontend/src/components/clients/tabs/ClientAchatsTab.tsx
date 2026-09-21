@@ -148,7 +148,7 @@ export function ClientAchatsTab({ client }: ClientAchatsTabProps) {
           </div>
 
           {/* Stats résumées */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-xl bg-bg border border-border px-4 py-3 text-center">
               <p className="text-[22px] font-extrabold font-mono text-text">{filtered.length}</p>
               <p className="text-[11px] text-text-muted mt-0.5">achat{filtered.length !== 1 ? 's' : ''}</p>

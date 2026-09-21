@@ -131,7 +131,7 @@ function LevelCard({ level }: { level: any }) {
       <p className="text-xs text-text-muted mt-0.5">{level.requiredPositions ?? '—'} positions requises</p>
 
       {/* Details */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div className="rounded-lg border border-border bg-bg p-3">
           <p className="text-xs font-semibold text-text-muted">Immédiat</p>
           <p className="text-lg font-black text-text font-mono mt-0.5">
@@ -148,7 +148,7 @@ function LevelCard({ level }: { level: any }) {
 
       {/* Split Système 60% / Auto-réinvestissement 40% */}
       {(level.immediateAmount != null || level.heldAmount != null) && (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-blue-50/70 border border-blue-100 p-2 text-center">
             <span className="text-xs font-semibold text-text-muted block">Immédiat validé</span>
             <span className="font-bold text-slate-800 font-mono text-xs">{formatMlmMoney(level.immediateAmount)}</span>
