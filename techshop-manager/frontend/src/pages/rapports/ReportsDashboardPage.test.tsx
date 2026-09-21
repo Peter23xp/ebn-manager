@@ -4,7 +4,7 @@
  * charts (skeleton / empty states), sites summary table, and auto-granularity.
  */
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -105,6 +105,7 @@ function renderPage(user = DR_USER) {
 let RapportsDashboardPage: React.ComponentType;
 beforeEach(async () => {
   vi.clearAllMocks();
+  mockGetVentesReport.mockReset();
   const mod = await import('@/pages/rapports/RapportsDashboardPage');
   RapportsDashboardPage = mod.default;
 });
@@ -113,6 +114,44 @@ beforeEach(async () => {
 // 1. Accès et affichage
 // ═══════════════════════════════════════════════════════════════════════════════
 describe('ReportsDashboardPage', () => {
+  test('les filtres regroupés conservent le site et la période dans les liens de consultation et d’export', async () => {
+    mockGetVentesReport.mockResolvedValue(BASE_DATA);
+    renderPage(DR_USER);
+    const filters = screen.getByRole('group', { name: 'Filtres du rapport' });
+    await userEvent.selectOptions(within(filters).getByRole('combobox', { name: 'Site du rapport' }), 'bkv');
+    await userEvent.selectOptions(within(filters).getByRole('combobox', { name: /sélectionner une période/i }), 'last_month');
+    await waitFor(() => expect(mockGetVentesReport).toHaveBeenLastCalledWith(expect.objectContaining({ siteId: 'bkv' })));
+    const navigation = screen.getByRole('navigation', { name: 'Rapports disponibles' });
+    expect(within(navigation).getByRole('link', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-current', 'page');
+    const sales = new URL(screen.getByRole('link', { name: /ventes détaillées/i }).getAttribute('href')!, 'http://localhost');
+    const exported = new URL(screen.getByRole('link', { name: /exporter/i }).getAttribute('href')!, 'http://localhost');
+    expect(sales.searchParams.get('siteId')).toBe('bkv');
+    expect(exported.searchParams.get('siteId')).toBe('bkv');
+    expect(exported.searchParams.get('dateDebut')).toBe(sales.searchParams.get('dateDebut'));
+    expect(exported.searchParams.get('dateFin')).toBe(sales.searchParams.get('dateFin'));
+  });
+
+  test('les indicateurs gardent leurs libellés et signalent leur chargement sans afficher de faux zéros', () => {
+    mockGetVentesReport.mockReturnValue(new Promise(() => {}));
+    renderPage(DR_USER);
+    const summary = screen.getByRole('region', { name: 'Indicateurs de la période' });
+    expect(summary).toHaveAttribute('aria-busy', 'true');
+    expect(within(summary).getByText('Chiffre d’affaires total')).toBeInTheDocument();
+    expect(within(summary).getByText('Ventes validées')).toBeInTheDocument();
+    expect(within(summary).getByText('Nouveaux clients')).toBeInTheDocument();
+    expect(within(summary).queryByText(/^0/)).not.toBeInTheDocument();
+  });
+
+  test('la répartition expose un total lisible sans canvas et le met à jour après filtrage', async () => {
+    mockGetVentesReport.mockResolvedValueOnce(BASE_DATA).mockResolvedValueOnce({ ...BASE_DATA, totalCA: 1100000, parSite: [BASE_DATA.parSite[1]] });
+    renderPage(DR_USER);
+    const distribution = await screen.findByRole('region', { name: 'Répartition par site' });
+    await waitFor(() => expect(within(distribution).getByText(/4\s*000\s*000/)).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Site du rapport' }), 'bkv');
+    await waitFor(() => expect(within(distribution).getByText(/1\s*100\s*000/)).toBeInTheDocument());
+    expect(within(distribution).queryByText(/4\s*000\s*000/)).not.toBeInTheDocument();
+  });
+
   test('la synthèse présente les remboursements, les encaissements CDF et les liens de rapports', async () => {
     mockGetVentesReport.mockResolvedValue({ ...BASE_DATA, activity: {
       generatedAt: '2026-09-21T12:00:00Z', refunds: { count: 1, amount: 20 },

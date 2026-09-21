@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BarChart2, AlertCircle, RefreshCw, Building2,
-  TrendingUp, ShoppingCart, Users, ExternalLink, Download, Package,
+  TrendingUp, ShoppingCart, Users, Download, Package,
 } from 'lucide-react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -25,50 +25,36 @@ import { TopProductsBarChart } from '@/components/reports/TopProductsBarChart';
 import { OperationalSummary } from '@/components/reports/OperationalSummary';
 import { useSites } from '@/hooks/useSites';
 import { toISODate } from '@/lib/dateRange.utils';
+import './reports-dashboard.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
 // ── Brand colours per site ────────────────────────────────────────────────────
 const SITE_COLORS: Record<string, string> = {
-  Goma: '#2E86C1',
-  Bukavu: '#1A6B3A',
-  Kinshasa: '#E65100',
+  Goma: '#2563eb',
+  Bukavu: '#15803d',
+  Kinshasa: '#b45309',
 };
-const FALLBACK_COLORS = ['#2E86C1', '#1A6B3A', '#E65100', '#4A148C', '#B71C1C'];
+const FALLBACK_COLORS = ['#2563eb', '#15803d', '#b45309', '#7c3aed', '#dc2626'];
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({
-  icon, label, value, isLoading, color = '#2E86C1',
+  icon, label, value, isLoading,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   isLoading: boolean;
-  color?: string;
 }) {
   return (
-    <div className="stat-card">
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: color + '18' }}
-        >
-          <span style={{ color }}>{icon}</span>
-        </div>
-        <div className="min-w-0">
-          {isLoading ? (
-            <>
-              <div className="skeleton h-6 w-32 rounded mb-1" />
-              <div className="skeleton h-3 w-20 rounded" />
-            </>
-          ) : (
-            <>
-              <p className="text-xl font-bold text-primary leading-tight">{value}</p>
-              <p className="text-xs text-text-muted">{label}</p>
-            </>
-          )}
-        </div>
-      </div>
+    <div className="report-metric">
+      <dt className="flex items-center gap-2 text-sm text-text-muted">
+        <span className="shrink-0" aria-hidden="true">{icon}</span>
+        {label}
+      </dt>
+      <dd className="mt-2 text-xl font-bold leading-tight tabular-nums text-primary sm:text-2xl">
+        {isLoading ? <div className="skeleton h-7 w-28 max-w-full rounded" aria-hidden="true" /> : value}
+      </dd>
     </div>
   );
 }
@@ -94,12 +80,13 @@ function CALineChart({
     return (
       <div
         data-testid="ca-chart-empty"
-        className="flex items-center justify-center rounded-xl border border-border bg-bg-card"
+        className="flex items-center justify-center"
         style={{ height: 280 }}
       >
         <div className="text-center text-text-muted">
-          <TrendingUp size={32} className="mx-auto mb-2 opacity-30" />
+          <TrendingUp size={28} className="mx-auto mb-3" aria-hidden="true" />
           <p className="text-sm">Aucune vente sur la période</p>
+          <p className="mt-1 text-xs">Essayez une autre période ou un autre site.</p>
         </div>
       </div>
     );
@@ -116,21 +103,22 @@ function CALineChart({
       data: seriesCA.map((p) => p.values[site] ?? 0),
       borderColor: color,
       backgroundColor: color + '18',
-      fill: true,
-      tension: 0.4,
-      pointRadius: labels.length <= 14 ? 4 : 2,
+      fill: false,
+      tension: 0.25,
+      pointRadius: labels.length <= 14 ? 3 : 0,
       pointHoverRadius: 6,
       borderWidth: 2,
     };
   });
 
   const options = {
+    animation: false as const,
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
-        labels: { font: { size: 12 }, usePointStyle: true, pointStyleWidth: 10 },
+        labels: { color: '#64748b', font: { size: 12, family: '"Plus Jakarta Sans", sans-serif' }, usePointStyle: true, pointStyleWidth: 8, boxHeight: 6, padding: 16 },
       },
       tooltip: {
         callbacks: {
@@ -144,18 +132,15 @@ function CALineChart({
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: 11 }, maxRotation: 45 },
+        ticks: { color: '#64748b', font: { size: 12 }, maxRotation: 0, maxTicksLimit: 6 },
       },
       y: {
-        grid: { color: '#f0f4f8' },
+        border: { display: false },
+        grid: { color: '#e2e8f0' },
         ticks: {
-          font: { size: 11 },
-          callback: (v: number | string) => {
-            const n = Number(v);
-            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + ' M';
-            if (n >= 1_000) return (n / 1_000).toFixed(0) + ' k';
-            return String(n);
-          },
+          color: '#64748b',
+          font: { size: 12 },
+          callback: (value: number | string) => Number(value).toLocaleString('fr-CD', { notation: 'compact', maximumFractionDigits: 1 }),
         },
       },
     },
@@ -163,7 +148,7 @@ function CALineChart({
 
   return (
     <div style={{ height: 280 }}>
-      <Line data={{ labels, datasets }} options={options} />
+      <Line data={{ labels, datasets }} options={options} role="img" aria-label="Évolution du chiffre d’affaires en USD par site sur la période sélectionnée" />
     </div>
   );
 }
@@ -240,143 +225,105 @@ export default function RapportsDashboardPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
-
-      {/* ── Header ── */}
-      <div className="page-header">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%)' }}
-          >
-            <BarChart2 size={20} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-page-title text-primary">Rapports</h1>
-            <p className="text-xs text-text-muted">
-              Vue d'ensemble des performances commerciales
-              {isFetching && !isLoading && (
-                <span className="ml-2 inline-flex items-center gap-1 text-primary-accent">
-                  <RefreshCw size={10} className="animate-spin" />
-                  Actualisation…
-                </span>
-              )}
-            </p>
-          </div>
+    <div className="reports-dashboard min-w-0 space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-page-title text-primary">Rapports</h1>
+          <p className="mt-1 text-sm text-text-muted">Vue d'ensemble des performances commerciales</p>
         </div>
+        <Link to={`/reports/export?type=VENTES&${reportParams}`} className="btn-primary gap-2">
+          <Download size={16} aria-hidden="true" />Exporter les données
+        </Link>
+      </header>
 
-        {/* Controls */}
-        <div className="flex min-w-0 w-full max-w-full flex-wrap items-center gap-2 xl:w-auto">
+      <nav aria-label="Rapports disponibles" className="report-navigation">
+        <Link to={`/reports?${reportParams}`} aria-current="page"><BarChart2 size={16} aria-hidden="true" />Vue d’ensemble</Link>
+        {isRegionalOrAbove && <Link to={`/reports/sales?${reportParams}`}><ShoppingCart size={16} aria-hidden="true" />Ventes détaillées</Link>}
+        {isRegionalOrAbove && <Link to={`/reports/stocks?${selectedSite ? new URLSearchParams({ siteId: selectedSite }) : ''}`}><Package size={16} aria-hidden="true" />Stocks et inventaire</Link>}
+        <Link to="/clients"><Users size={16} aria-hidden="true" />Liste des clients</Link>
+        {isRegionalOrAbove && (
+          <button type="button" onClick={() => navigate('/dashboard/regional')} className="xl:ml-auto">
+            <Building2 size={16} aria-hidden="true" />Vue régionale
+          </button>
+        )}
+      </nav>
+
+      <div className="report-filters" role="group" aria-label="Filtres du rapport">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-end">
           {isRegionalOrAbove && (
-            <select aria-label="Site du rapport" value={siteId} onChange={event => setSiteId(event.target.value)} disabled={sitesLoading} className="input-field min-w-0 !w-full max-w-full min-h-11 sm:!w-auto sm:max-w-xs">
-              <option value="">Tous les sites</option>
-              {sites.map(site => <option key={site.id} value={site.id}>{site.nom}</option>)}
-            </select>
+            <label className="report-filter-field xl:w-64">
+              <span>Site du rapport</span>
+              <select aria-label="Site du rapport" value={siteId} onChange={event => setSiteId(event.target.value)} disabled={sitesLoading} className="min-w-0 w-full max-w-full">
+                <option value="">Tous les sites</option>
+                {sites.map(site => <option key={site.id} value={site.id}>{site.nom}</option>)}
+              </select>
+            </label>
           )}
-          <PeriodSelector
-            value={preset}
-            onChange={handlePresetChange}
-          />
-
+          <div className="report-filter-field xl:w-48">
+            <label htmlFor="period-selector">Période</label>
+            <PeriodSelector value={preset} onChange={handlePresetChange} />
+          </div>
           {preset === 'custom' && (
-            <DateRangePicker
-              value={dateRange}
-              onChange={handleRangeChange}
-              maxDate={new Date()}
-            />
+            <div className="report-filter-field report-custom-range sm:col-span-2">
+              <label htmlFor="date-range-picker-trigger">Dates personnalisées</label>
+              <DateRangePicker value={dateRange} onChange={handleRangeChange} maxDate={new Date()} />
+            </div>
           )}
-
-          {/* Regional view link */}
-          {isRegionalOrAbove && (
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/regional')}
-              className="btn-secondary !min-h-0 h-9 text-xs flex items-center gap-1.5"
-              aria-label="Vue régionale"
-            >
-              <Building2 size={13} />
-              Vue régionale
-              <ExternalLink size={11} />
-            </button>
-          )}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-3 text-xs text-text-muted">
+          <p>Du {dateRange.from.toLocaleDateString('fr-CD')} au {dateRange.to.toLocaleDateString('fr-CD')} · Journées complètes en UTC</p>
+          <p className="min-w-0 break-words">{isGerant ? user?.siteName ?? user?.site?.nom ?? 'Votre site' : sites.find(site => site.id === siteId)?.nom ?? 'Tous les sites'}</p>
+          {isFetching && !isLoading && <span role="status" className="inline-flex items-center gap-1.5"><RefreshCw size={12} className="motion-safe:animate-spin" aria-hidden="true" />Actualisation…</span>}
         </div>
       </div>
 
-      <nav aria-label="Rapports disponibles" className="flex flex-wrap gap-2">
-        {isRegionalOrAbove && <Link to={`/reports/sales?${reportParams}`} className="btn-secondary min-h-11 gap-2"><ShoppingCart size={16} />Ventes détaillées</Link>}
-        {isRegionalOrAbove && <Link to={`/reports/stocks?${selectedSite ? new URLSearchParams({ siteId: selectedSite }) : ''}`} className="btn-secondary min-h-11 gap-2"><Package size={16} />Stocks et inventaire</Link>}
-        <Link to={`/reports/export?type=VENTES&${reportParams}`} className="btn-primary min-h-11 gap-2"><Download size={16} />Exporter les données</Link>
-        <Link to="/clients" className="btn-secondary min-h-11 gap-2"><Users size={16} />Liste des clients</Link>
-      </nav>
-      <p className="text-xs text-text-muted">Du {dateRange.from.toLocaleDateString('fr-CD')} au {dateRange.to.toLocaleDateString('fr-CD')} · Journées complètes en UTC · {isGerant ? user?.siteName ?? user?.site?.nom ?? 'Votre site' : sites.find(site => site.id === siteId)?.nom ?? 'Tous les sites'}</p>
-
-      {/* ── KPI stat cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section aria-label="Indicateurs de la période" aria-busy={isLoading}>
+        <dl className="report-metrics">
         <StatCard
-          icon={<TrendingUp size={20} />}
-          label="Chiffre d'affaires total"
+          icon={<TrendingUp size={16} />}
+          label="Chiffre d’affaires total"
           value={formatUSD(data?.totalCA ?? 0)}
           isLoading={isLoading}
-          color="#2E86C1"
         />
         <StatCard
-          icon={<ShoppingCart size={20} />}
+          icon={<ShoppingCart size={16} />}
           label="Ventes validées"
-          value={String(data?.nbVentes ?? 0)}
+          value={(data?.nbVentes ?? 0).toLocaleString('fr-CD')}
           isLoading={isLoading}
-          color="#1A6B3A"
         />
         <StatCard
-          icon={<Users size={20} />}
+          icon={<Users size={16} />}
           label="Nouveaux clients"
-          value={String((data?.parSite ?? []).reduce((s, r) => s + r.nbNouveauxClients, 0))}
-          isLoading={isLoading}
-          color="#E65100"
-        />
-      </div>
-
-      <OperationalSummary activity={data?.activity} isLoading={isLoading} />
-
-      {/* ── CA Evolution Line Chart ── */}
-      <div className="card">
-        <h2 className="text-sm font-bold text-primary mb-4">
-          Évolution du CA — par site
-        </h2>
-        <CALineChart
-          seriesCA={data?.seriesCA ?? []}
+          value={(data?.parSite ?? []).reduce((total, site) => total + site.nbNouveauxClients, 0).toLocaleString('fr-CD')}
           isLoading={isLoading}
         />
-      </div>
+        </dl>
+      </section>
 
-      {/* ── Doughnut + Summary Table ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Doughnut — hidden for GERANT (single site, no comparison) */}
-        {!isGerant && (
-          <DoughnutSiteChart
-            data={doughnutData}
-            totalCA={data?.totalCA ?? 0}
-            isLoading={isLoading}
-          />
-        )}
-
-        <div className={isGerant ? 'lg:col-span-2' : ''}>
-          <div className="card h-full flex flex-col gap-4">
-            <h2 className="text-sm font-bold text-primary">Résumé par site</h2>
-            <SitesSummaryTable
-              data={data?.parSite ?? []}
-              isLoading={isLoading}
-              hideTotalRow={isGerant}
-            />
+      <div className={`grid min-w-0 gap-5 ${!isGerant ? 'xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]' : ''}`}>
+        <section className="card min-w-0" aria-labelledby="reports-evolution-title">
+          <div className="report-panel-heading">
+            <h2 id="reports-evolution-title">Évolution du CA — par site</h2>
+            <p>Chiffre d’affaires en USD sur la période sélectionnée</p>
           </div>
-        </div>
+          <CALineChart seriesCA={data?.seriesCA ?? []} isLoading={isLoading} />
+        </section>
+        {!isGerant && (
+          <DoughnutSiteChart data={doughnutData} totalCA={data?.totalCA ?? 0} isLoading={isLoading} />
+        )}
       </div>
 
-      {/* ── Top 5 Products ── */}
-      <TopProductsBarChart
-        data={data?.topProduits ?? []}
-        isLoading={isLoading}
-      />
-
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <section className="card min-w-0" aria-labelledby="reports-sites-title">
+          <div className="report-panel-heading">
+            <h2 id="reports-sites-title">Résumé par site</h2>
+            <p>Ventes et nouveaux clients sur la période · Alertes de stock actuelles</p>
+          </div>
+          <SitesSummaryTable data={data?.parSite ?? []} isLoading={isLoading} hideTotalRow={isGerant} />
+        </section>
+        <TopProductsBarChart data={data?.topProduits ?? []} isLoading={isLoading} />
+      </div>
+      <OperationalSummary activity={data?.activity} isLoading={isLoading} />
     </div>
   );
 }

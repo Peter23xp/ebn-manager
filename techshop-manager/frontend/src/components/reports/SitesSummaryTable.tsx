@@ -16,11 +16,11 @@ export function SitesSummaryTable({ data, isLoading, hideTotalRow = false }: Sit
   if (isLoading) {
     return (
       <div className="table-container">
-        <table className="w-full text-sm">
+        <table className="report-table w-full text-sm" aria-label="Synthèse des sites en cours de chargement">
           <thead>
-            <tr style={{ background: '#1E3A5F' }}>
+            <tr>
               {['Site', 'CA ($)', 'Ventes', 'Nvx clients', 'Alertes'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
+                <th key={h} scope="col" className="px-4 py-3 text-text-muted">
                   {h}
                 </th>
               ))}
@@ -58,15 +58,15 @@ export function SitesSummaryTable({ data, isLoading, hideTotalRow = false }: Sit
   const totalAlertes = data.reduce((s, r) => s + r.alertesStock, 0);
 
   return (
-    <div className="table-container">
-      <table className="w-full text-sm">
+    <div className="table-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent" role="region" aria-label="Résumé des sites, tableau défilant" tabIndex={0}>
+      <table className="report-table w-full text-sm" aria-label="Résultats par site">
         <thead>
-          <tr style={{ background: '#1E3A5F' }}>
-            {['Site', 'CA ($)', 'Ventes', 'Nvx clients', 'Alertes stock'].map((h) => (
+          <tr>
+            {['Site', 'CA (USD)', 'Ventes', 'Nouveaux clients', 'Alertes stock'].map((h) => (
               <th
                 key={h}
-                className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide"
-                style={{ color: '#FFFFFF' }}
+                scope="col"
+                className="px-4 py-3 text-text-muted"
               >
                 {h}
               </th>
@@ -89,7 +89,7 @@ export function SitesSummaryTable({ data, isLoading, hideTotalRow = false }: Sit
                   {row.siteNom}
                 </button>
               </td>
-              <td className="px-4 py-3 font-bold text-success tabular-nums">{formatUSD(row.ca)}</td>
+              <td className="px-4 py-3 font-semibold text-primary tabular-nums">{formatUSD(row.ca)}</td>
               <td className="px-4 py-3 text-text tabular-nums">{row.nbVentes}</td>
               <td className="px-4 py-3 text-text tabular-nums">{row.nbNouveauxClients}</td>
               <td className="px-4 py-3">
@@ -106,9 +106,9 @@ export function SitesSummaryTable({ data, isLoading, hideTotalRow = false }: Sit
           ))}
 
           {!hideTotalRow && (
-            <tr className="border-t-2 border-primary/30 bg-slate-50">
+            <tr className="border-t border-border-strong bg-slate-50">
               <td className="px-4 py-3 font-bold text-primary">TOTAL</td>
-              <td className="px-4 py-3 font-bold text-success tabular-nums">{formatUSD(totalCA)}</td>
+              <td className="px-4 py-3 font-bold text-primary tabular-nums">{formatUSD(totalCA)}</td>
               <td className="px-4 py-3 font-bold text-text tabular-nums">{totalVentes}</td>
               <td className="px-4 py-3 font-bold text-text tabular-nums">{totalClients}</td>
               <td className="px-4 py-3">

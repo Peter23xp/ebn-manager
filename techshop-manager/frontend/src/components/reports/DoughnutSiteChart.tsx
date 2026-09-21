@@ -1,4 +1,3 @@
-import { useRef, useEffect } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { formatUSD } from '@/lib/utils';
@@ -6,11 +5,11 @@ import { formatUSD } from '@/lib/utils';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const SITE_COLORS: Record<string, string> = {
-  Goma: '#2E86C1',
-  Bukavu: '#1A6B3A',
-  Kinshasa: '#E65100',
+  Goma: '#2563eb',
+  Bukavu: '#15803d',
+  Kinshasa: '#b45309',
 };
-const FALLBACK_COLORS = ['#2E86C1', '#1A6B3A', '#E65100', '#4A148C', '#B71C1C'];
+const FALLBACK_COLORS = ['#2563eb', '#15803d', '#b45309', '#7c3aed', '#dc2626'];
 
 interface DoughnutSiteChartProps {
   data: Array<{ siteNom: string; ca: number; pourcentage: number }>;
@@ -18,94 +17,41 @@ interface DoughnutSiteChartProps {
   isLoading: boolean;
 }
 
-/** Custom centre-text plugin for the doughnut */
-function useCentrePlugin(totalCA: number) {
-  return useRef({
-    id: 'centreText',
-    beforeDraw(chart: ChartJS) {
-      const { ctx, chartArea } = chart;
-      if (!chartArea) return;
-      const cx = (chartArea.left + chartArea.right) / 2;
-      const cy = (chartArea.top + chartArea.bottom) / 2;
-      ctx.save();
-
-      // Main value
-      ctx.font = 'bold 13px Inter, system-ui, sans-serif';
-      ctx.fillStyle = '#1E3A5F';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Total', cx, cy - 10);
-
-      ctx.font = 'bold 12px "Roboto Mono", monospace';
-      ctx.fillStyle = '#2E86C1';
-      const shortVal =
-        totalCA >= 1_000_000
-          ? (totalCA / 1_000_000).toFixed(1) + ' M $'
-          : formatUSD(totalCA);
-      ctx.fillText(shortVal, cx, cy + 8);
-
-      ctx.restore();
-    },
-  }).current;
-}
-
 export function DoughnutSiteChart({ data, totalCA, isLoading }: DoughnutSiteChartProps) {
-  const centrePlugin = useCentrePlugin(totalCA);
-
-  if (isLoading) {
-    return (
-      <div className="card h-full flex flex-col gap-3">
-        <div className="skeleton h-5 w-32 rounded" />
-        <div className="skeleton h-4 w-24 rounded" />
-        <div className="flex justify-center mt-2">
-          <div className="skeleton rounded-full" style={{ width: 180, height: 180 }} />
-        </div>
-        <div className="space-y-2 mt-2">
-          {[1, 2, 3].map((i) => <div key={i} className="skeleton h-4 w-full rounded" />)}
-        </div>
-      </div>
-    );
-  }
-
-  const isEmpty = !data || data.length === 0;
-
   const chartData = {
-    labels: data.map((s) => s.siteNom),
-    datasets: [
-      {
-        data: data.map((s) => s.ca),
-        backgroundColor: data.map((s, i) =>
-          (SITE_COLORS[s.siteNom] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length]) + 'CC',
-        ),
-        borderColor: data.map((s, i) =>
-          SITE_COLORS[s.siteNom] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length],
-        ),
-        borderWidth: 2,
-        hoverOffset: 8,
-      },
-    ],
+    labels: data.map(site => site.siteNom),
+    datasets: [{
+      data: data.map(site => site.ca),
+      backgroundColor: data.map((site, index) => SITE_COLORS[site.siteNom] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length]),
+      borderColor: '#ffffff',
+      borderWidth: 3,
+      hoverOffset: 4,
+    }],
   };
 
   const options = {
+    animation: false as const,
     responsive: true,
-    maintainAspectRatio: true,
-    cutout: '65%',
+    maintainAspectRatio: false,
+    cutout: '72%',
     plugins: {
       legend: {
-        position: 'right' as const,
+        position: 'bottom' as const,
         labels: {
-          font: { size: 12 },
-          padding: 12,
+          color: '#64748b',
+          font: { size: 12, family: '"Plus Jakarta Sans", sans-serif' },
+          padding: 16,
           usePointStyle: true,
-          pointStyleWidth: 10,
+          pointStyleWidth: 8,
+          boxHeight: 6,
         },
       },
       tooltip: {
         callbacks: {
-          label: (ctx: import('chart.js').TooltipItem<'doughnut'>) => {
-            const val = typeof ctx.raw === 'number' ? ctx.raw : 0;
-            const pct = data[ctx.dataIndex]?.pourcentage?.toFixed(1) ?? '0';
-            return ` ${ctx.label} — ${formatUSD(val)} (${pct}%)`;
+          label: (context: import('chart.js').TooltipItem<'doughnut'>) => {
+            const value = typeof context.raw === 'number' ? context.raw : 0;
+            const percentage = data[context.dataIndex]?.pourcentage?.toFixed(1) ?? '0';
+            return ` ${context.label} — ${formatUSD(value)} (${percentage}%)`;
           },
         },
       },
@@ -113,30 +59,28 @@ export function DoughnutSiteChart({ data, totalCA, isLoading }: DoughnutSiteChar
   };
 
   return (
-    <div className="card h-full flex flex-col">
-      <div className="mb-1">
-        <h2 className="text-sm font-bold text-primary">Répartition par site</h2>
-        <p className="text-xs text-text-muted mt-0.5">
-          {totalCA >= 1_000_000
-            ? (totalCA / 1_000_000).toFixed(1) + ' M $'
-            : formatUSD(totalCA)}
-        </p>
+    <section className="card min-w-0" aria-labelledby="reports-distribution-title" aria-busy={isLoading}>
+      <div className="report-panel-heading">
+        <h2 id="reports-distribution-title">Répartition par site</h2>
+        <p>Contribution au chiffre d’affaires de la période</p>
       </div>
-
-      {isEmpty ? (
-        <div className="flex-1 flex items-center justify-center text-sm text-text-muted py-8">
+      {isLoading ? (
+        <div className="flex h-[280px] flex-col items-center justify-center gap-4" aria-hidden="true">
+          <div className="skeleton h-40 w-40 rounded-full" />
+          <div className="skeleton h-5 w-32 rounded" />
+        </div>
+      ) : data.length === 0 ? (
+        <div className="flex h-[280px] items-center justify-center text-center text-sm text-text-muted">
           Aucune vente sur la période
         </div>
       ) : (
-        <div className="flex-1 flex items-center">
-          <Doughnut
-            data={chartData}
-            options={options}
-            plugins={[centrePlugin]}
-          />
+        <div className="flex h-[280px] min-w-0 flex-col gap-3">
+          <p className="text-center text-sm text-text-muted">Total <strong className="ml-1 font-semibold tabular-nums text-primary">{formatUSD(totalCA)}</strong></p>
+          <div className="relative min-h-0 flex-1">
+            <Doughnut data={chartData} options={options} role="img" aria-label={`Répartition des ventes : ${data.map(site => `${site.siteNom}, ${site.pourcentage.toLocaleString('fr-CD', { maximumFractionDigits: 1 })} %`).join(' ; ')}`} />
+          </div>
         </div>
       )}
-
-    </div>
+    </section>
   );
 }

@@ -24,10 +24,10 @@ export function TopProductsBarChart({ data, isLoading }: TopProductsBarChartProp
 
   if (isLoading) {
     return (
-      <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <div className="skeleton h-5 w-48 rounded" />
-          <div className="skeleton h-4 w-28 rounded" />
+      <div className="card min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="skeleton h-5 w-48 max-w-full rounded" />
+          <div className="skeleton h-4 w-28 max-w-full rounded" />
         </div>
         <div className="skeleton rounded" style={{ height: 220 }} />
       </div>
@@ -42,17 +42,19 @@ export function TopProductsBarChart({ data, isLoading }: TopProductsBarChartProp
       {
         label: 'Quantité vendue',
         data: (data ?? []).map((p) => p.quantite),
-        backgroundColor: '#2E86C1CC',
-        borderColor: '#2E86C1',
+        backgroundColor: '#2563eb',
+        borderColor: '#2563eb',
         borderWidth: 1,
         borderRadius: 4,
-        hoverBackgroundColor: '#1A5C8ACC',
+        hoverBackgroundColor: '#1d4ed8',
+        maxBarThickness: 24,
       },
     ],
   };
 
   const options = {
     indexAxis: 'y' as const,
+    animation: false as const,
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -73,35 +75,38 @@ export function TopProductsBarChart({ data, isLoading }: TopProductsBarChartProp
     },
     scales: {
       x: {
-        grid: { color: '#f0f4f8' },
+        border: { display: false },
+        grid: { color: '#e2e8f0' },
         ticks: {
-          font: { size: 11 },
+          color: '#64748b',
+          font: { size: 12 },
           callback: (v: number | string) => String(Math.round(Number(v))),
         },
         title: {
           display: true,
           text: 'Quantité vendue',
-          font: { size: 11 },
+          font: { size: 12 },
           color: '#64748b',
         },
       },
       y: {
         grid: { display: false },
-        ticks: { font: { size: 11 } },
+        border: { display: false },
+        ticks: { color: '#64748b', font: { size: 12, family: '"Plus Jakarta Sans", sans-serif' } },
       },
     },
   };
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-primary">
+    <section className="card min-w-0" aria-labelledby="reports-products-title">
+      <div className="report-panel-heading flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <h2 id="reports-products-title">
           Top 5 produits — par quantité vendue
         </h2>
         <button
           type="button"
           onClick={() => navigate('/reports/sales')}
-          className="flex items-center gap-1 text-xs text-primary-accent font-semibold
+          className="flex min-h-11 shrink-0 items-center gap-1 text-sm text-primary-accent font-semibold
                      hover:underline focus:outline-none focus:ring-2 focus:ring-primary-accent/30 rounded"
         >
           Rapport détaillé
@@ -115,9 +120,9 @@ export function TopProductsBarChart({ data, isLoading }: TopProductsBarChartProp
         </div>
       ) : (
         <div style={{ height: 220 }}>
-          <Bar data={chartData} options={options} />
+          <Bar data={chartData} options={options} role="img" aria-label={`Produits les plus vendus : ${data.map(product => `${product.nom}, ${product.quantite} unités`).join(' ; ')}`} />
         </div>
       )}
-    </div>
+    </section>
   );
 }

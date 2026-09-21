@@ -1,0 +1,173 @@
+.reports-dashboard .report-navigation {
+  @apply flex min-w-0 gap-1 overflow-x-auto border-b border-border pb-2;
+}
+
+.reports-dashboard .report-navigation :is(a, button) {
+  @apply inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-text-muted;
+  @apply hover:bg-white hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-accent;
+}
+
+.reports-dashboard .report-navigation [aria-current="page"] {
+  @apply bg-primary-light text-blue-700;
+}
+
+.reports-dashboard .report-filters {
+  @apply min-w-0 rounded-xl border border-border bg-white p-4;
+}
+
+.reports-dashboard .report-filter-field {
+  @apply flex min-w-0 max-w-full flex-col gap-1.5;
+}
+
+.reports-dashboard .report-filter-field > :is(label, span) {
+  @apply text-xs font-semibold text-text;
+}
+
+.reports-dashboard .report-filter-field select {
+  @apply h-11 min-w-0 max-w-full;
+}
+
+.reports-dashboard .report-custom-range > div {
+  @apply min-w-0 max-w-full;
+}
+
+.reports-dashboard #date-range-picker-trigger {
+  @apply h-auto min-h-11 w-full text-left;
+}
+
+.reports-dashboard #date-range-picker-trigger span {
+  @apply whitespace-normal;
+}
+
+.reports-dashboard .report-custom-range [role="dialog"] {
+  @apply shadow-card;
+  left: auto;
+  right: 0;
+}
+
+.reports-dashboard .report-custom-range [role="dialog"] button {
+  min-height: 44px !important;
+}
+
+.reports-dashboard .report-custom-range [role="dialog"] > [class~="items-start"] {
+  gap: 0.75rem;
+}
+
+.reports-dashboard .report-custom-range [role="dialog"] > [class~="items-start"] > button {
+  min-width: 44px;
+}
+
+.reports-dashboard .report-metrics {
+  @apply grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-white sm:grid-cols-3;
+}
+
+.reports-dashboard .report-metric {
+  @apply min-w-0 p-4 sm:p-5;
+  overflow-wrap: anywhere;
+}
+
+.reports-dashboard .report-metric:first-child {
+  @apply col-span-2 border-b border-border sm:col-span-1 sm:border-b-0;
+}
+
+.reports-dashboard .report-metric:last-child {
+  @apply border-l border-border;
+}
+
+.reports-dashboard .report-panel-heading {
+  @apply mb-5 min-w-0;
+}
+
+.reports-dashboard .report-panel-heading h2 {
+  @apply text-section-title text-primary;
+  text-wrap: balance;
+}
+
+.reports-dashboard .report-panel-heading p {
+  @apply mt-1 text-xs leading-relaxed text-text-muted;
+}
+
+.reports-dashboard .report-table {
+  @apply min-w-[560px];
+}
+
+.reports-dashboard .report-table th {
+  @apply text-right text-xs font-semibold normal-case tracking-normal;
+}
+
+.reports-dashboard .report-table :is(th, td):first-child {
+  @apply text-left;
+}
+
+.reports-dashboard .report-table td:not(:first-child) {
+  @apply text-right tabular-nums;
+}
+
+.reports-dashboard .report-table td:nth-child(2) {
+  @apply whitespace-nowrap;
+}
+
+.reports-dashboard .report-table button {
+  @apply min-h-11 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-accent;
+}
+
+.reports-dashboard .report-table .badge-danger {
+  @apply text-xs tracking-normal text-red-700;
+}
+
+.reports-dashboard .report-cash-columns {
+  @apply grid min-w-0 gap-6 xl:grid-cols-2 xl:gap-8;
+}
+
+.reports-dashboard .report-cash-columns > :last-child {
+  @apply min-w-0 border-t border-border pt-5 xl:border-l xl:border-t-0 xl:pl-8 xl:pt-0;
+}
+
+.reports-dashboard .report-footnote {
+  @apply mt-3 border-t border-border pt-3 text-xs leading-relaxed text-text-muted;
+}
+
+@media (min-width: 640px) {
+  .reports-dashboard .report-metric + .report-metric {
+    @apply border-l border-border;
+  }
+}
+
+@media (max-width: 1279px) {
+  .reports-dashboard .report-custom-range [role="dialog"] {
+    position: fixed;
+    inset: auto 16px 16px;
+    max-width: 600px;
+    max-height: calc(100dvh - 32px);
+    margin: 0 auto;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .reports-dashboard .card {
+    @apply p-4;
+  }
+
+  .reports-dashboard .report-custom-range [role="dialog"] > [class~="items-start"] {
+    @apply relative block pt-12;
+  }
+
+  .reports-dashboard .report-custom-range [role="dialog"] > [class~="items-start"] > button {
+    @apply absolute top-0 m-0 min-h-11 min-w-11;
+  }
+
+  .reports-dashboard .report-custom-range [role="dialog"] > [class~="items-start"] > button:last-child {
+    @apply right-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reports-dashboard .skeleton {
+    animation: none;
+  }
+
+  .reports-dashboard .report-custom-range [role="dialog"] {
+    animation: none;
+  }
+}
