@@ -15,8 +15,18 @@ async function bootstrap() {
   app.use(compression());
   app.use(cookieParser());
 
+  const rawOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:5173');
+  const allowedOrigins = rawOrigin.split(',').map((o) => o.trim());
+
   app.enableCors({
-    origin: config.get('CORS_ORIGIN', 'http://localhost:5173'),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${origin}' not allowed`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
