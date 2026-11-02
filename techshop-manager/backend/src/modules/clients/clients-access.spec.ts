@@ -28,6 +28,7 @@ describe('Financial HTTP role matrix with real JWT', () => {
   const sale = { clientId: 'client-a', siteId: 'site-a', modePaiement: 'CASH', lignes: [{ produitId: 'product', quantite: 1 }] };
   const retour = { modeRemboursement: 'CASH', motif: 'Retour', lignes: [{ produitId: 'product', quantite: 1 }] };
   const cashierPosts = [
+    { path: '/clients/client-a/mlm/retry', body: {}, service: 'retryMlmActivation' },
     { path: '/clients/onboarding/recit', body: { ...recit, modePaiement: 'CASH' }, service: 'onboardingRecit' },
     { path: '/clients/client-a/onboarding/recit', body: { montantRecit: 10, modePaiement: 'CASH' }, service: 'resumeOnboardingRecit' },
     { path: '/clients/onboarding/recit/kpay/init', body: { ...recit, ...payment }, service: 'initKpayRecit' },
@@ -119,6 +120,9 @@ describe('Financial HTTP role matrix with real JWT', () => {
         if (operation.service === 'onboardingRecit' || operation.service === 'resumeOnboardingRecit') {
           expect(args[args.length - 2]).toMatchObject({ agentId: 'cashier' });
           expect(args[args.length - 1]).toMatchObject({ id: 'cashier', role: Role.CAISSIER, siteId: 'site-a' });
+        } else if (operation.service === 'retryMlmActivation') {
+          expect(args[0]).toBe('client-a');
+          expect(args[1]).toMatchObject({ id: 'cashier', role: Role.CAISSIER, siteId: 'site-a' });
         } else if (operation.service === 'onboardingActivate') {
           expect(args[2]).toBe('cashier');
           expect(args[3]).toMatchObject({ responseActor: { id: 'cashier', role: Role.CAISSIER, siteId: 'site-a' } });

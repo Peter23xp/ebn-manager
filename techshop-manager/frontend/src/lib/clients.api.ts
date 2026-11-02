@@ -208,6 +208,9 @@ export const clientsApi = {
   getDetailById: (id: string) =>
     api.get<ClientDetail>(`/clients/${id}`).then((r) => r.data),
 
+  retryMlmActivation: (id: string) =>
+    api.post<ClientDetail>(`/clients/${id}/mlm/retry`).then((r) => r.data),
+
   update: (id: string, body: UpdateClientDto) =>
     api.patch<{ client: Client }>(`/clients/${id}`, body).then((r) => r.data),
 

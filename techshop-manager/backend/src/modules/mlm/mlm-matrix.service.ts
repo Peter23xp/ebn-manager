@@ -15,11 +15,11 @@ export class MlmMatrixService {
     private readonly placementService: MlmPlacementService = new MlmPlacementService(prisma),
   ) {}
 
-  async onClientActivated(clientId: string, parrainCode?: string): Promise<void> {
+  async onClientActivated(clientId: string, parrainCode?: string, actorId?: string): Promise<void> {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         await this.prisma.$transaction(
-          tx => this.onClientActivatedInTx(tx, clientId, parrainCode),
+          tx => this.onClientActivatedInTx(tx, clientId, parrainCode, actorId),
           { timeout: 30000, maxWait: 10000 },
         );
         return;

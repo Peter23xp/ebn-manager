@@ -262,6 +262,13 @@ export class ClientsController {
     return this.clientsService.initKpayFiche(clientId, dto, user.id);
   }
 
+  @Post(':id/mlm/retry')
+  @Roles(Role.CAISSIER)
+  async retryMlmActivation(@Param('id') clientId: string, @CurrentUser() user: StaffActor) {
+    await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
+    return this.clientsService.retryMlmActivation(clientId, user);
+  }
+
   @Post(':id/onboarding/activate')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')

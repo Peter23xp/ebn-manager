@@ -15,6 +15,7 @@ import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
 import { useClientDetail } from '@/hooks/useClientDetail';
 import { usePrivateQueryScope } from '@/hooks/usePrivateQueryScope';
 import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
+import { MlmActivationRetry } from '@/components/clients/MlmActivationRetry';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { EditClientModal } from '@/components/clients/EditClientModal';
 import { ClientInfoTab } from '@/components/clients/tabs/ClientInfoTab';
@@ -338,9 +339,12 @@ export default function ClientDetailPage() {
                       />
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-medium text-text-muted">
-                      MLM non activé
-                    </span>
+                    <>
+                      <span className="inline-flex items-center rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-medium text-text-muted">
+                        MLM non activé
+                      </span>
+                      <MlmActivationRetry client={client} />
+                    </>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[12px] text-text-muted">

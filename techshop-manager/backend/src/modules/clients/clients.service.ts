@@ -291,6 +291,29 @@ export class ClientsService implements OnModuleInit {
     };
   }
 
+  async retryMlmActivation(id: string, actor: StaffActor) {
+    if (!hasMinimumRole(actor.role, Role.CAISSIER)) {
+      throw new ForbiddenException('Vous ne pouvez pas relancer une activation MLM.');
+    }
+    const siteId = effectiveStaffSite(actor);
+    const client = await this.prisma.client.findUnique({
+      where: { id, ...(siteId ? { siteInscriptionId: siteId } : {}) },
+      select: { id: true, statut: true, parrainClientId: true, membre: { select: { id: true } } },
+    });
+    if (!client) throw new NotFoundException('Client introuvable');
+    if (client.statut !== StatutClient.ACTIF) {
+      throw new BadRequestException('Le client doit être actif avant de relancer le MLM.');
+    }
+    // Only MLM is retried: activation sales, stock and portal credentials stay untouched.
+    // The MLM transaction lock also serializes concurrent manual/automatic retries.
+    if (!client.membre) {
+      await this.mlmMatrixService.onClientActivated(client.id, client.parrainClientId ?? undefined, actor.id);
+    }
+    const detail = await this.findOne(id, actor);
+    if (!detail.membre) throw new ConflictException('La création du membre MLM n’a pas été confirmée. Réessayez.');
+    return detail;
+  }
+
   async findOne(id: string, actor?: StaffActor) {
     const siteId = actor ? effectiveStaffSite(actor) : undefined;
     const where = { id, ...(siteId ? { siteInscriptionId: siteId } : {}) };
