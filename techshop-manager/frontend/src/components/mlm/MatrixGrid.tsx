@@ -30,8 +30,8 @@ export function MatrixGrid({ matrix, isLoading }: MatrixGridProps) {
   return (
     <div className="space-y-4">
       {/* Matrix status banner */}
-      <div className="flex items-center justify-between rounded-xl px-4 py-3 border border-border bg-bg">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 border border-border bg-bg">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-text">Remplissage de la matrice :</span>
           <span className="font-mono font-bold text-primary-accent">
             {matrix.filleulsValides} / {matrix.requiredPositions ?? '—'} positions validées

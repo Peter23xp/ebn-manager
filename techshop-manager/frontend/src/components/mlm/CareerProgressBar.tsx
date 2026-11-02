@@ -11,13 +11,13 @@ interface CareerProgressBarProps {
 export const CareerProgressBar: React.FC<CareerProgressBarProps> = ({ currentLevel, className }) => {
   return (
     <div className={cn('w-full py-4', className)}>
-      <div className="relative flex justify-between">
+      <div className="relative grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-4 xl:grid-cols-8">
         {/* Ligne de fond */}
-        <div className="absolute top-1/2 left-0 right-0 h-1 bg-bg-inset -translate-y-1/2 rounded-full" />
+        <div className="hidden xl:block absolute top-4 left-0 right-0 h-1 bg-bg-inset -translate-y-1/2 rounded-full" />
 
         {/* Ligne de progression */}
         <div
-          className="absolute top-1/2 left-0 h-1 bg-primary-accent -translate-y-1/2 rounded-full transition-all duration-500 ease-out-quart"
+          className="hidden xl:block absolute top-4 left-0 h-1 bg-primary-accent -translate-y-1/2 rounded-full transition-all duration-500 ease-out-quart"
           style={{ width: `${(Math.max(0, currentLevel - 1) / (MLM_LEVELS_REF.length - 1)) * 100}%` }}
         />
 
@@ -39,9 +39,9 @@ export const CareerProgressBar: React.FC<CareerProgressBarProps> = ({ currentLev
                 {isCompleted ? <Check size={16} strokeWidth={3} /> : <span className="text-sm font-bold">{level.ordre}</span>}
               </div>
 
-              <div className="absolute top-10 flex flex-col items-center w-24 text-center">
+              <div className="mt-2 flex min-w-0 flex-col items-center text-center">
                 <span className={cn(
-                  'text-xs font-semibold whitespace-nowrap transition-colors duration-300',
+                  'text-xs font-semibold transition-colors duration-300',
                   isCurrent ? 'text-primary-accent' :
                   isCompleted ? 'text-text' : 'text-text-muted'
                 )}>

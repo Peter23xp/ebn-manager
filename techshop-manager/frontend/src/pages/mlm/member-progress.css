@@ -1,0 +1,24 @@
+/* Let grid panels shrink so wide tables scroll inside their own panel. */
+.member-progress > *,
+.member-progress > .grid > * {
+  min-width: 0;
+}
+
+.member-progress h2 {
+  flex-wrap: wrap;
+}
+
+.member-progress h2 > svg {
+  flex-shrink: 0;
+}
+
+.member-progress {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 639px) {
+  .member-progress > .p-6,
+  .member-progress > .grid > .p-6 {
+    padding: 1rem;
+  }
+}

@@ -25,6 +25,7 @@ import { ProgressiveCommissions } from '@/components/mlm/ProgressiveCommissions'
 import { CommissionProgress } from '@/components/mlm/CommissionProgress';
 import { formatMlmMoney } from '@/lib/mlm-display';
 import { formatDate, formatUSD } from '@/lib/utils';
+import './member-progress.css';
 
 const BONUS_STATUT_LABEL: Record<string, { label: string; badge: string }> = {
   EN_ATTENTE: { label: 'En attente', badge: 'badge-warning' },
@@ -49,11 +50,11 @@ export default function MemberProgressPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="skeleton h-10 w-10 rounded-lg" />
-          <div className="space-y-2">
-            <div className="skeleton h-7 w-48 rounded" />
-            <div className="skeleton h-4 w-64 rounded" />
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="skeleton h-10 w-10 shrink-0 rounded-lg" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="skeleton h-7 w-full max-w-48 rounded" />
+            <div className="skeleton h-4 w-full max-w-64 rounded" />
           </div>
         </div>
         <div className="skeleton h-40 rounded-xl" />
@@ -102,18 +103,18 @@ export default function MemberProgressPage() {
   const prochainNiveau = progression?.nextLevel;
 
   return (
-    <div className="space-y-6 animate-fade-up">
+    <div className="min-w-0 space-y-6 animate-fade-up member-progress">
       {/* Top navigation */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <button
             onClick={() => navigate('/mlm/members')}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-white text-text-muted hover:border-primary-accent hover:text-primary-accent transition-colors duration-150"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-text-muted hover:border-primary-accent hover:text-primary-accent transition-colors duration-150"
             aria-label="Retour"
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
+          <div className="min-w-0 break-words">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-page-title text-primary">
                 {membre.client.prenom} {membre.client.nom}
@@ -135,11 +136,11 @@ export default function MemberProgressPage() {
       </div>
 
       {/* Hero Overview: Rank + Next Rank + Parrain + Wallet */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid min-w-0 grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Current & Next Rank Card */}
-        <div className="md:col-span-2 rounded-xl border border-border bg-bg-card shadow-card p-6 flex flex-col justify-between">
+        <div className="min-w-0 xl:col-span-2 rounded-xl border border-border bg-bg-card shadow-card p-4 sm:p-6 flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Rang MLM actuel</p>
                 <h2 className="text-2xl font-extrabold text-text mt-0.5">{currentLevel?.nom ?? 'Builder en cours'}</h2>
@@ -166,7 +167,7 @@ export default function MemberProgressPage() {
         </div>
 
         {/* Side summary: Parrain & Portefeuille */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {/* Parrain Direct */}
           <div className="rounded-xl border border-border bg-bg-card shadow-card p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted mb-2 flex items-center gap-1.5">
@@ -243,12 +244,13 @@ export default function MemberProgressPage() {
 
           {/* Matrix level tabs */}
           {matrices && matrices.length > 1 && (
-            <div className="period-toggle" role="group" aria-label="Niveau de matrice">
+            <div className="period-toggle min-w-0 max-w-full flex-wrap" role="group" aria-label="Niveau de matrice">
               {matrices.map((m: any) => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedMatrixLevelId(m.niveau.id)}
-                  className={`period-btn ${
+                  aria-pressed={activeMatrix?.id === m.id}
+                  className={`period-btn min-h-11 ${
                     activeMatrix?.id === m.id ? 'active' : ''
                   }`}
                 >
@@ -264,7 +266,7 @@ export default function MemberProgressPage() {
 
       {/* Filleuls & Réseau List */}
       <div className="rounded-xl border border-border bg-bg-card shadow-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-section-title text-primary flex items-center gap-2">
             <Users size={18} className="text-platine" />
             Recrutements personnels directs
@@ -360,7 +362,7 @@ export default function MemberProgressPage() {
               <DollarSign size={18} className="text-success" />
               Commissions ({commissions.length})
             </h2>
-            <div className="flex gap-1.5 text-xs">
+            <div className="flex flex-wrap gap-1.5 text-xs">
               {Object.entries(commissionsByStatut).map(([st, val]: [string, any]) => {
                 const cfg = COMMISSION_STATUT_LABEL[st] ?? COMMISSION_STATUT_LABEL['EN_ATTENTE'];
                 return (
