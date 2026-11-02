@@ -85,6 +85,6 @@ describe('onboarding and POS payment availability', () => {
     expect(screen.queryByRole('button', { name: 'M-Pesa' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Activer le compte et générer/ }));
     await userEvent.click(screen.getByRole('button', { name: '✓ Activer le compte' }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith('/clients/client/onboarding/activate', { produitId: 'product', modePaiement: 'CASH' }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/clients/client/onboarding/activate', { produitId: 'product', modePaiement: 'CASH' }, { timeout: 120000 }));
   });
 });

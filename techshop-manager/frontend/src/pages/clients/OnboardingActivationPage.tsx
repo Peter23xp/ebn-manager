@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { pdf } from '@react-pdf/renderer';
 import { api, getErrorMessage } from '@/lib/api';
+import { MLM_ACTIVATION_REQUEST_TIMEOUT } from '@/lib/clients.api';
 import { isMobileMoneyBlocked, withPaymentAvailability } from '@/lib/mobile-money';
 import { MobileMoneyUnavailableNotice } from '@/components/payments/MobileMoneyUnavailableNotice';
 import { cn, formatCDF, formatUSD, formatDate, initials } from '@/lib/utils';
@@ -327,7 +328,7 @@ export default function OnboardingActivationPage() {
     mutationFn: () => withPaymentAvailability(modePaiement, () => api.post(`/clients/${id}/onboarding/activate`, {
       produitId: selectedProduit!.id,
       modePaiement,
-    })),
+    }, { timeout: MLM_ACTIVATION_REQUEST_TIMEOUT })),
     onSuccess: (res) => {
       setConfirmOpen(false);
       const c = res.data;

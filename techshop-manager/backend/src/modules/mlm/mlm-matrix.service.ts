@@ -7,6 +7,9 @@ import { MlmPlacementService } from './mlm-placement.service';
 import { money } from './mlm-progressive';
 import { generationCapacity, generationProgress, MATRIX_GENERATIONS } from './mlm-generation';
 
+const ACTIVATION_BUDGET_MS = 100000;
+const ACTIVATION_MAX_WAIT_MS = 10000;
+
 @Injectable()
 export class MlmMatrixService {
   constructor(
@@ -16,15 +19,21 @@ export class MlmMatrixService {
   ) {}
 
   async onClientActivated(clientId: string, parrainCode?: string, actorId?: string): Promise<void> {
+    const deadline = Date.now() + ACTIVATION_BUDGET_MS;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
+        const remaining = Math.max(2, deadline - Date.now());
+        const maxWait = Math.min(ACTIVATION_MAX_WAIT_MS, Math.floor(remaining / 2));
         await this.prisma.$transaction(
           tx => this.onClientActivatedInTx(tx, clientId, parrainCode, actorId),
-          { timeout: 30000, maxWait: 10000 },
+          // Placement can recalculate eight generations and cascade branch ascents.
+          // Keep creation and commissions atomic even on a slower database connection.
+          // Conflict retries share this budget instead of each receiving another 90s.
+          { timeout: remaining - maxWait, maxWait },
         );
         return;
       } catch (error) {
-        if (attempt < 4 && (error?.code === 'P2034' || (error?.code === 'P2002' && String(error?.meta?.target).includes('matricule')))) continue;
+        if (attempt < 4 && Date.now() < deadline && (error?.code === 'P2034' || (error?.code === 'P2002' && String(error?.meta?.target).includes('matricule')))) continue;
         throw error;
       }
     }

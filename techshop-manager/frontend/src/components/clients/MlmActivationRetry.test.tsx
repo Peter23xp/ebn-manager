@@ -33,7 +33,7 @@ describe('MLM activation retry', () => {
     fireEvent.click(button);
     fireEvent.click(button);
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
-    expect(post).toHaveBeenCalledWith('/clients/client/mlm/retry');
+    expect(post).toHaveBeenCalledWith('/clients/client/mlm/retry', undefined, { timeout: 120000 });
     expect(screen.getByRole('button', { name: /Relance en cours/ })).toBeDisabled();
     await act(async () => resolve({ data: activated }));
     expect(await screen.findByRole('status')).toHaveTextContent('MLM activé');

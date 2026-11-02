@@ -314,7 +314,7 @@ export class ClientsService implements OnModuleInit {
     return detail;
   }
 
-  async findOne(id: string, actor?: StaffActor) {
+  async findOne(id: string, actor?: StaffActor, options: { healMlm?: boolean } = {}) {
     const siteId = actor ? effectiveStaffSite(actor) : undefined;
     const where = { id, ...(siteId ? { siteInscriptionId: siteId } : {}) };
     const salesWhere = siteId ? { siteId } : undefined;
@@ -369,7 +369,7 @@ export class ClientsService implements OnModuleInit {
     }
 
     let currentClient = client;
-    if (client.statut === StatutClient.ACTIF && !client.membre) {
+    if (options.healMlm !== false && client.statut === StatutClient.ACTIF && !client.membre) {
       try {
         await this.mlmMatrixService.onClientActivated(client.id, client.parrainClientId ?? undefined);
         const reloaded = await this.prisma.client.findUnique({
@@ -1502,19 +1502,12 @@ export class ClientsService implements OnModuleInit {
       );
     }
 
-    // Activer le profil Membre MLM et initialiser matrice / portefeuille (avec retry automatique)
-    let mlmSuccess = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await this.mlmMatrixService.onClientActivated(activatedClient.id, client.parrainClientId ?? undefined);
-        mlmSuccess = true;
-        break;
-      } catch (err) {
-        console.error(`[MLM ACTIVATION ATTEMPT ${attempt}/3 FAILED] Client ${activatedClient.id}:`, err);
-        if (attempt < 3) {
-          await new Promise((res) => setTimeout(res, 500 * attempt));
-        }
-      }
+    // MLM already retries transaction conflicts within a shared time budget.
+    // Do not repeat expired transactions inside this HTTP request.
+    try {
+      await this.mlmMatrixService.onClientActivated(activatedClient.id, client.parrainClientId ?? undefined);
+    } catch (err) {
+      console.error(`[MLM ACTIVATION FAILED] Client ${activatedClient.id}:`, err);
     }
 
     // Vérifier s'il y a des filleuls en attente à réclamer (info uniquement, pas de blocage)
@@ -1522,7 +1515,7 @@ export class ClientsService implements OnModuleInit {
       where: { parrainClientId: clientId, statut: 'EN_ATTENTE' },
     });
 
-    const result = await this.findOne(activatedClient.id, opts.responseActor);
+    const result = await this.findOne(activatedClient.id, opts.responseActor, { healMlm: false });
     
     // Ajouter l'info des claims pendants dans la réponse
     return {

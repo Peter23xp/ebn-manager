@@ -82,7 +82,16 @@ describe('core round1 promotion history', () => {
     }] : [];
     const transaction: any = {
       $executeRaw: jest.fn<any>().mockResolvedValue(1),
-      $queryRaw: jest.fn<any>().mockResolvedValue([{ id: 'root', depth: 0 }]),
+      $queryRaw: jest.fn<any>().mockResolvedValueOnce([{ id: 'root', depth: 0 }]).mockImplementation(async (query: Prisma.Sql) => {
+        for (let index = 0; index < query.values.length; index += 7) {
+          const [, membreId, mlmLevelId, filleulsValides, occupiedPositions, estComplete, dateComplete] = query.values.slice(index, index + 7);
+          const matrix = { id: `matrix-${mlmLevelId}`, membreId, mlmLevelId, filleulsValides, occupiedPositions, estComplete, dateComplete,
+            level: levels.find(level => level.id === mlmLevelId),
+            commissionPolicyVersion: null, commissionAccountedPositions: 0, commissionBudgetTotal: null, commissionBudgetImmediate: null, commissionBudgetHeld: null, generationRewardedAt: null };
+          matrices.set(matrix.id, matrix);
+        }
+        return [...matrices.values()].map(({ id }) => ({ id }));
+      }),
       mlmLevel: { findMany: jest.fn<any>().mockResolvedValue(levels) },
       membre: {
         findUnique: jest.fn<any>().mockResolvedValue(member),
@@ -93,12 +102,6 @@ describe('core round1 promotion history', () => {
         estValide: true, filleul: { statut: 'ACTIF', totalDescendants: 4, matrices: [{ level: { ordre: 1 }, filleulsValides: 4, occupiedPositions: 4 }] },
       }))) },
       matrix: {
-        upsert: jest.fn<any>(async ({ create }) => {
-          const matrix = { id: `matrix-${create.mlmLevelId}`, ...create, level: levels.find(level => level.id === create.mlmLevelId),
-            commissionPolicyVersion: null, commissionAccountedPositions: 0, commissionBudgetTotal: null, commissionBudgetImmediate: null, commissionBudgetHeld: null, generationRewardedAt: null };
-          matrices.set(matrix.id, matrix);
-          return matrix;
-        }),
         findMany: jest.fn<any>(async () => [...matrices.values()]),
         findUniqueOrThrow: jest.fn<any>(async ({ where }) => matrices.get(where.id)),
         update: jest.fn<any>(async ({ where, data }) => Object.assign(matrices.get(where.id), data)),

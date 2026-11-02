@@ -9,6 +9,9 @@ import type {
   StatutEtape,
 } from '@/types';
 
+// MLM placement may use a 90s transaction plus 10s waiting for a connection.
+export const MLM_ACTIVATION_REQUEST_TIMEOUT = 120000;
+
 // ── Type réponse détail client ────────────────────────────────────
 
 export interface OnboardingEtapeDetail {
@@ -202,14 +205,14 @@ export const clientsApi = {
 
   // SCR-006 — Détail simple (utilisé par d'autres modules)
   getById: (id: string) =>
-    api.get<Client>(`/clients/${id}`).then((r) => r.data),
+    api.get<Client>(`/clients/${id}`, { timeout: MLM_ACTIVATION_REQUEST_TIMEOUT }).then((r) => r.data),
 
   // SCR-006 — Détail complet avec onboarding, parrainage, achats, points
   getDetailById: (id: string) =>
-    api.get<ClientDetail>(`/clients/${id}`).then((r) => r.data),
+    api.get<ClientDetail>(`/clients/${id}`, { timeout: MLM_ACTIVATION_REQUEST_TIMEOUT }).then((r) => r.data),
 
   retryMlmActivation: (id: string) =>
-    api.post<ClientDetail>(`/clients/${id}/mlm/retry`).then((r) => r.data),
+    api.post<ClientDetail>(`/clients/${id}/mlm/retry`, undefined, { timeout: MLM_ACTIVATION_REQUEST_TIMEOUT }).then((r) => r.data),
 
   update: (id: string, body: UpdateClientDto) =>
     api.patch<{ client: Client }>(`/clients/${id}`, body).then((r) => r.data),
@@ -244,6 +247,8 @@ export const clientsApi = {
     api
       .post<{ client: Client; codeParrain: string }>(
         `/clients/${clientId}/onboarding/activate`,
+        undefined,
+        { timeout: MLM_ACTIVATION_REQUEST_TIMEOUT },
       )
       .then((r) => r.data),
 

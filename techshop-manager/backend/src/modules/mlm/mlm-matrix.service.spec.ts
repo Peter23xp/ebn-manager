@@ -30,6 +30,26 @@ function fixture(statut = 'EN_ATTENTE') {
   return { commission, transaction, wallet, service: new MlmMatrixService(prisma, wallet) };
 }
 
+describe('MLM activation time budget', () => {
+  it('shares the deadline across retryable conflicts rather than starting another full transaction', async () => {
+    let now = 0;
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const conflict = Object.assign(new Error('Serialization conflict'), { code: 'P2034' });
+    const durations: number[] = [];
+    const prisma: any = { $transaction: jest.fn<any>(async (_callback, options) => {
+      durations.push(options.maxWait + options.timeout);
+      now += 60000;
+      throw conflict;
+    }) };
+    try {
+      await expect(new MlmMatrixService(prisma, {} as never).onClientActivated('client')).rejects.toBe(conflict);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(durations[0]).toBeLessThanOrEqual(100000);
+      expect(durations[1]).toBeLessThanOrEqual(40000);
+    } finally { clock.mockRestore(); }
+  });
+});
+
 describe('generation commissions', () => {
   it.each([[12, -2], [-2, 12]])('rejects a malformed legacy split %i/%i before any credit', async (immediate, held) => {
     const { service, wallet, commission, transaction } = fixture();

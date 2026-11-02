@@ -366,21 +366,30 @@ export class MlmPlacementService {
         include: { filleul: { include: { matrices: { include: { level: true } } } } },
       });
       const validChildren = member.statut === 'ACTIF' ? children.filter(child => child.estValide && child.filleul.statut === 'ACTIF') : [];
-      const matrices = [];
-      for (const level of levels) {
+      const completedAt = new Date();
+      const matrices = levels.map(level => {
         const count = level.ordre === 1 ? validChildren.length : validChildren.reduce((sum, child) =>
           sum + (child.filleul.matrices.find(matrix => matrix.level.ordre === level.ordre - 1)?.filleulsValides ?? 0), 0);
         const occupiedCount = level.ordre === 1 ? children.length : children.reduce((sum, child) =>
           sum + (child.filleul.matrices.find(matrix => matrix.level.ordre === level.ordre - 1)?.occupiedPositions ?? 0), 0);
-        const complete = count === generationCapacity(level.ordre);
-        const matrix = await tx.matrix.upsert({
-          where: { membreId_mlmLevelId: { membreId: member.id, mlmLevelId: level.id } },
-          create: { membreId: member.id, mlmLevelId: level.id, filleulsValides: count, occupiedPositions: occupiedCount, estComplete: complete, dateComplete: complete ? new Date() : null },
-          update: { filleulsValides: count, occupiedPositions: occupiedCount, estComplete: complete, dateComplete: complete ? new Date() : null },
-        });
-        matrices.push({ ordre: level.ordre, count, occupiedCount });
-        affected.add(matrix.id);
-      }
+        return { levelId: level.id, ordre: level.ordre, count, occupiedCount, complete: count === generationCapacity(level.ordre) };
+      });
+      // One round trip per ancestor. Only counters change on conflict: preserve
+      // matrix IDs, positions, frozen budgets and all financial history.
+      const updated = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        INSERT INTO matrices (id, "membreId", "mlmLevelId", "filleulsValides", "occupiedPositions", "estComplete", "dateComplete")
+        VALUES ${Prisma.join(matrices.map(matrix => Prisma.sql`(
+          ${randomUUID()}, ${member.id}, ${matrix.levelId}, ${matrix.count}, ${matrix.occupiedCount},
+          ${matrix.complete}, ${matrix.complete ? completedAt : null}::timestamp
+        )`))}
+        ON CONFLICT ("membreId", "mlmLevelId") DO UPDATE SET
+          "filleulsValides" = EXCLUDED."filleulsValides",
+          "occupiedPositions" = EXCLUDED."occupiedPositions",
+          "estComplete" = EXCLUDED."estComplete",
+          "dateComplete" = EXCLUDED."dateComplete"
+        RETURNING id
+      `);
+      for (const matrix of updated) affected.add(matrix.id);
       const progression = generationProgress(levels, matrices, member.highestLevelAchieved);
       await tx.membre.update({ where: { id: member.id }, data: {
         mlmLevelId: progression.currentLevel?.id ?? levels[0].id,
