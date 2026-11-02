@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { generationCapacity } from './mlm-generation';
+import { generationCapacity, generationEarningsSuspension } from './mlm-generation';
 import { money, progressiveAmounts, PROGRESSIVE_POLICY } from './mlm-progressive';
 import { readInvalidProgressiveRanges } from './mlm-progressive-integrity';
 
@@ -59,7 +59,8 @@ export async function readProgressiveSummaries(tx: Prisma.TransactionClient, mem
         accountedPositions: accounted,
         budgetTotal: money(budget.total).toFixed(2), budgetImmediate: money(budget.immediate).toFixed(2), budgetHeld: money(budget.held).toFixed(2),
         remainingTotal: progressiveAmounts(budget, capacity, accounted, capacity).total.toFixed(2),
-        suspendedReason: level.isActive ? null : 'Niveau désactivé',
+        suspendedReason: !level.isActive ? 'Niveau désactivé' : generationEarningsSuspension(level.ordre,
+          levels.map(previous => ({ ordre: previous.ordre, count: matrices.find(row => row.mlmLevelId === previous.id)?.filleulsValides ?? 0 }))),
       };
     } catch {
       financialState = { accountedPositions: null, budgetTotal: null, budgetImmediate: null, budgetHeld: null, remainingTotal: null, suspendedReason: 'Vérification historique requise : droits de cette génération indisponibles. Le portefeuille reste consultable.' };

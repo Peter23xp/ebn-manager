@@ -21,6 +21,22 @@ function fixture() {
 }
 
 describe('progressive financial read model', () => {
+  it('reports the completion gate without hiding existing generation earnings', async () => {
+    const { tx, level, matrix, groups } = fixture();
+    const sapphire = { ...level, id: 2, ordre: 2, nom: 'Sapphire' };
+    tx.mlmLevel.findMany = async () => [level, sapphire];
+    const second = { ...matrix, id: 'second', mlmLevelId: 2, filleulsValides: 8,
+      commissionAccountedPositions: 0, commissionPolicyVersion: null,
+      commissionBudgetTotal: null, commissionBudgetImmediate: null, commissionBudgetHeld: null };
+    tx.matrix.findMany = async () => [matrix, second];
+    expect((await readProgressiveSummaries(tx, 'member'))[1]).toMatchObject({
+      currentValidPositions: 8, accountedPositions: 0, remainingTotal: '80.00', suspendedReason: expect.stringMatching(/génération 1/i),
+    });
+    matrix.filleulsValides = 4;
+    expect((await readProgressiveSummaries(tx, 'member'))[1].suspendedReason).toBeNull();
+    expect(groups).toHaveLength(3);
+  });
+
   it('reports frozen budgets and accounted rights separately from current positions and credits', async () => {
     const { tx } = fixture();
     expect(await readProgressiveSummaries(tx, 'member')).toEqual([{

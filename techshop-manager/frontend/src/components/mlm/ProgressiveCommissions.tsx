@@ -13,7 +13,7 @@ export function ProgressiveCommissions({ summaries, isLoading, isError, onRetry 
     <section aria-label="Progression financière par génération" className="min-w-0 rounded-xl border border-border bg-bg-card p-4 sm:p-5 space-y-4 text-sm text-text">
       <div className="space-y-2 max-w-prose">
         <h2 className="text-section-title text-primary">Progression financière par génération</h2>
-        <p>Les huit générations rapportent indépendamment, sans attendre la complétion de la précédente. Le rang et les bonus restent liés aux générations complètes.</p>
+        <p>Chaque génération rapporte progressivement après la complétion des générations précédentes. Les positions déjà présentes sont prises en compte au déblocage. Le rang et les bonus restent liés aux générations complètes.</p>
         <p className="text-slate-600">Le total comptabilisé ne constitue pas le solde retirable : seul le portefeuille indique le disponible courant, après validation et retraits.</p>
       </div>
       {isLoading ? (

@@ -50,13 +50,20 @@ integration('progressive commissions on isolated PostgreSQL', () => {
     expect((await prisma.portefeuille.findUniqueOrThrow({ where: { membreId: root.id } })).totalGagne.toFixed(2)).toBe('0.00');
   }, 60000);
 
-  it('earns generation two while the first is incomplete and keeps the recruiter', async () => {
+  it('unlocks existing generation two positions only after generation one completes', async () => {
     const root = await activate();
     const child = await activate(root.id);
     await activate(child.id);
-    expect(await prisma.commission.count({ where: { membreId: root.id, level: { ordre: 2 } } })).toBe(1);
+    expect(await prisma.commission.count({ where: { membreId: root.id, level: { ordre: 2 } } })).toBe(0);
     expect(await prisma.promotion.count({ where: { membreId: root.id } })).toBe(0);
     expect((await prisma.membre.findUniqueOrThrow({ where: { id: child.id } })).parrainId).toBe(root.id);
+    for (let position = 0; position < 3; position++) await activate(root.id);
+    const commissions = await prisma.commission.findMany({ where: { membreId: root.id, level: { ordre: 2 } } });
+    expect(commissions).toHaveLength(1);
+    expect(commissions[0]).toMatchObject({ progressFrom: 0, progressTo: 1 });
+    expect(commissions[0].montant.toFixed(2)).toBe('5.21');
+    expect(await prisma.promotion.count({ where: { membreId: root.id } })).toBe(1);
+    expect(await prisma.bonusAttribue.count({ where: { membreId: root.id } })).toBe(1);
   }, 30000);
 
   it('does not reward transient generation counts before an automatic ascent', async () => {
@@ -67,7 +74,7 @@ integration('progressive commissions on isolated PostgreSQL', () => {
     const before = await prisma.commission.aggregate({ where: { membreId: parent.id, level: { ordre: 2 } }, _sum: { montant: true } });
     await activate(fast.id);
     const after = await prisma.commission.aggregate({ where: { membreId: parent.id, level: { ordre: 2 } }, _sum: { montant: true } });
-    expect(before._sum.montant?.gt(0)).toBe(true);
+    expect(before._sum.montant).toBeNull();
     expect(after._sum.montant?.toFixed(2)).toBe(before._sum.montant?.toFixed(2));
     const final = await prisma.membre.findUniqueOrThrow({ where: { id: fast.id }, include: { matrixPosition: { include: { matrix: true } } } });
     expect(final.matrixPosition.matrix.membreId).toBe(grandparent.id);
@@ -94,7 +101,7 @@ integration('progressive commissions on isolated PostgreSQL', () => {
     try {
       const summaries = await prisma.$transaction(tx => readProgressiveSummaries(tx, root.id));
       expect(summaries[0]).toMatchObject({ accountedPositions: null, remainingTotal: null, suspendedReason: expect.any(String), generatedTotal: '30.00' });
-      expect(summaries[1]).toMatchObject({ remainingTotal: '83.33', suspendedReason: null });
+      expect(summaries[1]).toMatchObject({ remainingTotal: '83.33', suspendedReason: expect.stringMatching(/génération 1/i) });
       await expect(prisma.$transaction(tx => new MlmProgressiveService().account(tx, rows[0].matrixId, { id: 'bad-replay', origin: 'CATCH_UP' }))).rejects.toThrow();
     } finally {
       await prisma.commission.update({ where: { id: rows[0].id }, data: { montant: rows[0].montant, montantSysteme: rows[0].montantSysteme, montantRetour: rows[0].montantRetour } });

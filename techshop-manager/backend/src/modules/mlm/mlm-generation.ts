@@ -13,6 +13,16 @@ export interface GenerationLevel {
   nom: string;
 }
 
+/** Current validated positions unlock earnings, never historical rank or paid amounts. */
+export function generationEarningsSuspension(generation: number, generations: GenerationCount[]): string | null {
+  for (let previous = 1; previous < generation; previous++) {
+    if (generations.find(row => row.ordre === previous)?.count !== generationCapacity(previous)) {
+      return `En attente de la complétion de la génération ${previous} (${generationCapacity(previous)} positions validées requises).`;
+    }
+  }
+  return null;
+}
+
 export function generationCapacity(generation: number): number {
   if (!Number.isInteger(generation) || generation < 1 || generation > MATRIX_GENERATIONS) {
     throw new Error('Generation attendue entre 1 et 8');

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
-import { generationCapacity } from './mlm-generation';
+import { generationCapacity, generationEarningsSuspension } from './mlm-generation';
 import { CommissionBudget, money, progressiveAmounts, PROGRESSIVE_POLICY } from './mlm-progressive';
 
 export interface ProgressiveEvent {
@@ -94,7 +94,13 @@ export class MlmProgressiveService {
       }
       if (!progressiveAmounts(budget, capacity, previousTo, accounted).total.isZero()) throw new ConflictException('Progression comptabilisee sans commission');
     }
-    const target = matrix.level.isActive ? Math.max(accounted, matrix.filleulsValides) : accounted;
+    const predecessors = matrix.level.ordre > 1 ? await tx.matrix.findMany({
+      where: { membreId: matrix.membreId, level: { ordre: { lt: matrix.level.ordre } } },
+      select: { filleulsValides: true, level: { select: { ordre: true } } },
+    }) : [];
+    const suspendedReason = !matrix.level.isActive ? 'Niveau désactivé'
+      : generationEarningsSuspension(matrix.level.ordre, predecessors.map(row => ({ ordre: row.level.ordre, count: row.filleulsValides })));
+    const target = suspendedReason === null ? Math.max(accounted, matrix.filleulsValides) : accounted;
     const proposed = progressiveAmounts(budget, capacity, accounted, target);
     const preview = {
       matrixId: matrix.id, memberId: matrix.membreId, levelId: matrix.mlmLevelId,
@@ -104,7 +110,7 @@ export class MlmProgressiveService {
       budget: { total: money(budget.total).toFixed(2), immediate: money(budget.immediate).toFixed(2), held: money(budget.held).toFixed(2) },
       proposed: { total: proposed.total.toFixed(2), immediate: proposed.immediate.toFixed(2), held: proposed.held.toFixed(2) },
       rewardedAt: rewardedAt?.toISOString() ?? null,
-      suspendedReason: matrix.level.isActive ? null : 'Niveau désactivé',
+      suspendedReason,
       historyFingerprint: createHash('sha256').update(JSON.stringify(rows)).digest('hex'),
     };
     return { matrix, preview };

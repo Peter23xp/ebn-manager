@@ -14,7 +14,7 @@ function fixture(count = 1) {
   const bonuses: any[] = [];
   const tx: any = {
     $executeRaw: async () => 1,
-    matrix: { findUniqueOrThrow: async () => matrix, update: async ({ data }) => Object.assign(matrix, data) },
+    matrix: { findUniqueOrThrow: async () => matrix, findMany: async () => [], update: async ({ data }) => Object.assign(matrix, data) },
     commission: {
       findMany: async () => [...rows].sort((first, second) => (first.progressTo ?? 0) - (second.progressTo ?? 0)),
       findFirst: async () => [...rows].sort((first, second) => (second.progressTo ?? 0) - (first.progressTo ?? 0))[0] ?? null,
@@ -27,6 +27,70 @@ function fixture(count = 1) {
 }
 
 describe('progressive financial accounting', () => {
+  it.each(['PROGRESSIVE', 'CATCH_UP'] as const)('waits for the previous generation before accounting through %s', async origin => {
+    const { service, tx, matrix, rows } = fixture(3);
+    matrix.level.ordre = 2;
+    const previous = { level: { ordre: 1 }, filleulsValides: 3, estComplete: true };
+    tx.matrix.findMany = async () => [previous];
+    expect((await service.preview(tx, matrix.id)).proposed.total).toBe('0.00');
+    expect((await service.preview(tx, matrix.id)).suspendedReason).toMatch(/génération 1/i);
+    await service.account(tx, matrix.id, { id: 'blocked', origin });
+    expect(rows).toHaveLength(0);
+    expect(matrix.commissionPolicyVersion).toBeNull();
+    previous.filleulsValides = 4;
+    await service.account(tx, matrix.id, { id: 'unlocked', origin });
+    await service.account(tx, matrix.id, { id: 'replayed', origin });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ progressFrom: 0, progressTo: 3 });
+    expect(rows[0].montant.toFixed(2)).toBe('7.50');
+  });
+
+  it.each([2, 3, 4, 5, 6, 7, 8])('requires every earlier generation to be complete for generation %s', async generation => {
+    const { service, tx, matrix, rows } = fixture(1);
+    matrix.level.ordre = generation;
+    const previous = Array.from({ length: generation - 1 }, (_, i) => ({ level: { ordre: i + 1 }, filleulsValides: 4 ** (i + 1) }));
+    tx.matrix.findMany = async () => previous;
+    previous[0].filleulsValides = 3;
+    await service.account(tx, matrix.id, { id: 'gap', origin: 'PROGRESSIVE' });
+    expect(rows).toHaveLength(0);
+    expect(matrix.commissionAccountedPositions).toBe(0);
+    previous[0].filleulsValides = 4;
+    expect((await service.preview(tx, matrix.id)).suspendedReason).toBeNull();
+  });
+
+  it('queries predecessor counts only for the beneficiary and lower generations', async () => {
+    const { service, tx, matrix } = fixture(1);
+    matrix.level.ordre = 3;
+    let query: unknown;
+    tx.matrix.findMany = async args => { query = args; return []; };
+    await service.preview(tx, matrix.id);
+    expect(query).toMatchObject({ where: { membreId: 'parent', level: { ordre: { lt: 3 } } } });
+  });
+
+  it('keeps historical earnings and only resumes unaccounted positions after recompletion', async () => {
+    const { service, tx, matrix, rows } = fixture(3);
+    matrix.level.ordre = 2;
+    const previous = { level: { ordre: 1 }, filleulsValides: 4 };
+    tx.matrix.findMany = async () => [previous];
+    await service.account(tx, matrix.id, { id: 'initial', origin: 'PROGRESSIVE' });
+    previous.filleulsValides = 3;
+    matrix.filleulsValides = 5;
+    await service.account(tx, matrix.id, { id: 'paused', origin: 'PROGRESSIVE' });
+    expect(rows).toHaveLength(1);
+    expect(matrix.commissionAccountedPositions).toBe(3);
+    previous.filleulsValides = 4;
+    await service.account(tx, matrix.id, { id: 'resumed', origin: 'PROGRESSIVE' });
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({ progressFrom: 3, progressTo: 5 });
+  });
+
+  it('blocks a higher generation when the preceding matrix is missing', async () => {
+    const { service, tx, matrix, rows } = fixture(1);
+    matrix.level.ordre = 2;
+    await service.account(tx, matrix.id, { id: 'missing', origin: 'CATCH_UP' });
+    expect(rows).toHaveLength(0);
+  });
+
   it('previews without writes then creates a pending tranche with event provenance', async () => {
     const { service, tx, matrix, rows } = fixture();
     const preview = await service.preview(tx, matrix.id);

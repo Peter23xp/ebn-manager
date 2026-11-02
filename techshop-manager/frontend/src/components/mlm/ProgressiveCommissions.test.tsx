@@ -4,6 +4,15 @@ import { ProgressiveCommissions } from './ProgressiveCommissions';
 import { progressiveBuilder, progressiveSapphire } from '@/pages/mlm/progressive.fixtures';
 
 describe('unavailable historical generation accounting', () => {
+  it('explains sequential unlocking and displays the server completion requirement', () => {
+    render(<ProgressiveCommissions summaries={[
+      { ...progressiveSapphire, suspendedReason: 'En attente de la complétion de la génération 1 (4 positions validées requises).' },
+    ]} />);
+    expect(screen.getByText(/Chaque génération rapporte progressivement après la complétion des générations précédentes/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Génération 2 — Sapphire' })).toHaveTextContent('4 positions validées requises');
+    expect(screen.queryByText(/rapportent indépendamment/)).not.toBeInTheDocument();
+  });
+
   it('labels nullable budgets and accounting as unavailable while preserving known aggregates and other generations', () => {
     render(<ProgressiveCommissions summaries={[
       { ...progressiveBuilder, budgetTotal: null, budgetImmediate: null, budgetHeld: null, accountedPositions: null, remainingTotal: null, suspendedReason: 'Historique incohérent' },
