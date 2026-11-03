@@ -38,8 +38,4 @@ Si nous ajoutons un jour un outil de mesure d'audience ou tout traceur non essen
 
 ## Contact
 
-Pour toute question : **[EMAIL_DONNÉES]**.
-
-## Liste des éléments à compléter
-
-- **[EMAIL_DONNÉES]**
+Pour toute question : bagalwatibuka182@gmail.com.

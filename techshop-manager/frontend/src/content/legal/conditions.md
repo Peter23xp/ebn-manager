@@ -1,12 +1,14 @@
 > **Avertissement :** ce document a été rédigé avec l'aide d'une intelligence artificielle et constitue uniquement un point de départ. Il ne constitue pas un avis juridique et ne crée aucune relation avocat-client. Les lois varient selon les pays et évoluent dans le temps. Faites-le relire par un professionnel du droit qualifié avant de le publier ou de vous y fier. L'auteur de l'outil décline toute responsabilité quant à son utilisation.
 
+> **Données d'exemple :** les informations d'identification de l'entreprise (adresse, numéros d'enregistrement, responsable, montants et délais) sont fictives et servent uniquement à visualiser le document. Remplacez-les par les informations réelles avant toute publication.
+
 # Conditions générales d'utilisation et d'adhésion
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
 ## 1. Définitions
 
-- **EBN**, **nous** : **[DÉNOMINATION_SOCIALE]**, **[FORME_JURIDIQUE]**, siège social **[ADRESSE_SIÈGE]**, Belgique, numéro d'entreprise **[NUMÉRO_BCE]**.
+- **EBN**, **nous** : Entreprise Bénie Network SRL, société à responsabilité limitée (SRL), siège social Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique, numéro d'entreprise 0123.456.789.
 - **Service** : le site EBN Network, le portail membre, l'espace employé et les services rendus en boutique.
 - **Membre** : toute personne dont l'adhésion au réseau a été activée par EBN.
 - **Compte** : l'accès personnel d'un membre (téléphone + code PIN) ou d'un employé (identifiant + mot de passe).
@@ -22,9 +24,9 @@ En signant la fiche d'adhésion, en activant votre compte ou en utilisant le Ser
 
 Pour devenir membre, vous devez :
 
-- avoir au moins **[ÂGE_MINIMUM]** ans [HYPOTHÈSE : 18 ans proposés] et la capacité juridique de conclure un contrat ;
+- avoir au moins 18 ans et la capacité juridique de conclure un contrat ;
 - vous inscrire en personne dans une boutique EBN et fournir des informations exactes ;
-- résider dans un pays où le programme est proposé : **[PAYS_OÙ_LE_PROGRAMME_EST_OUVERT]**. [HYPOTHÈSE : RDC uniquement à ce stade ; l'ouverture à des résidents de l'Union européenne nécessite une analyse juridique spécifique.]
+- résider dans un pays où le programme est proposé : République démocratique du Congo.
 
 ## 3. Adhésion et comptes
 
@@ -34,14 +36,14 @@ L'adhésion suit quatre étapes obligatoires, dans l'ordre : présentation (réc
 
 ### 3.2 Frais d'adhésion
 
-L'activation donne lieu au paiement de **[MONTANT_ET_CONTENU_DE_L'ADHÉSION]**, en échange de **[PRODUITS_OU_SERVICES_REMIS_À_L'ADHÉSION]**. Le prix et son contenu vous sont communiqués avant signature de la fiche d'adhésion.
+L'activation donne lieu au paiement de un montant unique de 90 USD, en échange de un kit de produits de démarrage d'une valeur équivalente et la formation d'accueil. Le prix et son contenu vous sont communiqués avant signature de la fiche d'adhésion.
 
 ### 3.3 Sécurité du compte
 
 - Votre code PIN ou votre mot de passe est strictement personnel. Ne le communiquez à personne.
 - Vous êtes responsable de toute activité réalisée avec votre compte.
 - Après 5 tentatives de connexion échouées, le compte est bloqué pendant 15 minutes.
-- Si vous pensez que votre compte est compromis, prévenez immédiatement votre boutique ou écrivez à **[EMAIL_CONTACT]**.
+- Si vous pensez que votre compte est compromis, prévenez immédiatement votre boutique ou écrivez à bagalwatibuka182@gmail.com.
 
 ### 3.4 Un compte par personne
 
@@ -79,11 +81,11 @@ Les bonus d'incitation (pagnes, kits alimentaires, équipements, véhicules, log
 
 - Vous pouvez demander le retrait de la part retirable de votre portefeuille depuis le portail membre, par mobile money ou en espèces en boutique.
 - Les retraits par mobile money passent par notre prestataire de paiement (KPay) et l'opérateur que vous choisissez.
-- Délai de traitement : **[DÉLAI_TRAITEMENT_RETRAIT]**. Frais éventuels : **[FRAIS_RETRAIT]**. Montant minimum : **[MONTANT_MINIMUM_RETRAIT]**.
+- Délai de traitement : 72 heures ouvrées. Frais éventuels : aucuns frais EBN ; seuls les frais de l'opérateur mobile money s'appliquent. Montant minimum : aucun.
 - Vous êtes responsable de l'exactitude du numéro mobile money indiqué. EBN n'est pas responsable d'un paiement envoyé sur un numéro erroné que vous avez fourni.
 - EBN peut suspendre un retrait en cas de soupçon de fraude, le temps de la vérification, et vous en informe.
 - Les achats en boutique sont payables selon les moyens acceptés par la boutique. Les prix sont affichés en francs congolais (CDF) ou en dollars américains (USD).
-- Retours et remboursements des produits : **[POLITIQUE_DE_RETOUR_PRODUITS]**.
+- Retours et remboursements des produits : les produits non ouverts peuvent être échangés ou remboursés dans les 14 jours, sur présentation du reçu, sans préjudice de la garantie légale de conformité.
 
 ## 6. Utilisation acceptable
 
@@ -107,7 +109,7 @@ Le Service, la marque EBN Network, le logo, les textes, les documents de formati
 
 ### 8.1 Par le membre
 
-Vous pouvez quitter le réseau à tout moment en le signalant à votre boutique ou par écrit à **[EMAIL_CONTACT]**. La part retirable de votre portefeuille reste payable selon l'article 5. Le sort de la part réinvestie : **[RÈGLE_PART_RÉINVESTIE_EN_CAS_DE_DÉPART]**.
+Vous pouvez quitter le réseau à tout moment en le signalant à votre boutique ou par écrit à bagalwatibuka182@gmail.com. La part retirable de votre portefeuille reste payable selon l'article 5. Le sort de la part réinvestie : les lots déjà libérés sont versés sur la part retirable ; la part encore bloquée reste affectée au réseau et n'est pas remboursable.
 
 ### 8.2 Par EBN
 
@@ -138,13 +140,13 @@ Vous vous engagez à indemniser EBN des conséquences d'une réclamation d'un ti
 
 ## 12. Modification des conditions
 
-EBN peut modifier ces conditions, par exemple pour faire évoluer le barème. Les nouvelles conditions vous sont communiquées au moins **[PRÉAVIS_EN_JOURS]** jours avant leur entrée en vigueur [HYPOTHÈSE : 30 jours proposés], par SMS, par e-mail ou dans le portail membre. Les commissions déjà acquises ne sont pas affectées. Si vous refusez les nouvelles conditions, vous pouvez quitter le réseau selon l'article 8.1.
+EBN peut modifier ces conditions, par exemple pour faire évoluer le barème. Les nouvelles conditions vous sont communiquées au moins 30 jours avant leur entrée en vigueur, par SMS, par e-mail ou dans le portail membre. Les commissions déjà acquises ne sont pas affectées. Si vous refusez les nouvelles conditions, vous pouvez quitter le réseau selon l'article 8.1.
 
 ## 13. Droit applicable et litiges
 
-- Les présentes conditions sont soumises au **[DROIT_APPLICABLE]**. [HYPOTHÈSE : droit belge proposé ; à arbitrer avec votre juriste pour les membres résidant en RDC.]
+- Les présentes conditions sont soumises au droit belge.
 - En cas de litige, contactez d'abord le service réclamations : nous cherchons une solution amiable dans un délai de 30 jours.
-- À défaut d'accord, le litige peut être soumis à une médiation, puis aux tribunaux de **[TRIBUNAUX_COMPÉTENTS]**, sans préjudice des règles protectrices qui permettent au consommateur de saisir les juridictions de son lieu de résidence.
+- À défaut d'accord, le litige peut être soumis à une médiation, puis aux tribunaux de Bruxelles, sans préjudice des règles protectrices qui permettent au consommateur de saisir les juridictions de son lieu de résidence.
 
 ## 14. Divisibilité
 
@@ -152,18 +154,16 @@ Si une clause est jugée nulle ou inapplicable, les autres clauses restent en vi
 
 ## 15. Contact et réclamations
 
-- Réclamations : **[EMAIL_RÉCLAMATIONS]**, ou auprès de votre boutique EBN. Nous accusons réception sous 5 jours ouvrés et répondons sous 30 jours.
-- Courrier : **[DÉNOMINATION_SOCIALE]**, **[ADRESSE_SIÈGE]**, Belgique.
+- Réclamations : bagalwatibuka182@gmail.com, ou auprès de votre boutique EBN. Nous accusons réception sous 5 jours ouvrés et répondons sous 30 jours.
+- Courrier : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique.
 - WhatsApp : +243 974 752 784.
 
-## Liste des éléments à compléter
+## Informations d'exemple à remplacer
 
-- **[DÉNOMINATION_SOCIALE]**, **[FORME_JURIDIQUE]**, **[ADRESSE_SIÈGE]**, **[NUMÉRO_BCE]**
-- **[ÂGE_MINIMUM]**, **[PAYS_OÙ_LE_PROGRAMME_EST_OUVERT]**
-- **[MONTANT_ET_CONTENU_DE_L'ADHÉSION]**, **[PRODUITS_OU_SERVICES_REMIS_À_L'ADHÉSION]**
-- **[DÉLAI_TRAITEMENT_RETRAIT]**, **[FRAIS_RETRAIT]**, **[MONTANT_MINIMUM_RETRAIT]**
-- **[POLITIQUE_DE_RETOUR_PRODUITS]**
-- **[RÈGLE_PART_RÉINVESTIE_EN_CAS_DE_DÉPART]**
-- **[PRÉAVIS_EN_JOURS]**, **[DROIT_APPLICABLE]**, **[TRIBUNAUX_COMPÉTENTS]**
-- **[EMAIL_CONTACT]**, **[EMAIL_RÉCLAMATIONS]**
-- Chaque mention [HYPOTHÈSE : …] à valider puis retirer
+- Dénomination, forme juridique, adresse et numéro BCE
+- Montant et contenu de l'adhésion (90 USD, kit)
+- Délai et frais de retrait
+- Politique de retour des produits
+- Règle de la part réinvestie en cas de départ
+- Préavis, droit applicable et tribunaux
+- Chaque mention [HYPOTHÈSE : …] restante à valider puis retirer

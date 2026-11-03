@@ -1,19 +1,21 @@
 > **Avertissement :** ce document a été rédigé avec l'aide d'une intelligence artificielle et constitue uniquement un point de départ. Il ne constitue pas un avis juridique et ne crée aucune relation avocat-client. Les lois varient selon les pays et évoluent dans le temps. Faites-le relire par un professionnel du droit qualifié avant de le publier ou de vous y fier. L'auteur de l'outil décline toute responsabilité quant à son utilisation.
 
+> **Données d'exemple :** les informations d'identification de l'entreprise (adresse, numéros d'enregistrement, responsable, montants et délais) sont fictives et servent uniquement à visualiser le document. Remplacez-les par les informations réelles avant toute publication.
+
 # Politique de confidentialité
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
 ## 1. Introduction et champ d'application
 
-La présente politique explique comment **[DÉNOMINATION_SOCIALE]** (« EBN », « nous ») collecte, utilise et protège vos données personnelles lorsque vous :
+La présente politique explique comment Entreprise Bénie Network SRL (« EBN », « nous ») collecte, utilise et protège vos données personnelles lorsque vous :
 
 - visitez le site EBN Network ;
 - devenez membre du réseau et utilisez le portail membre ;
 - achetez des produits dans nos boutiques de Goma, Bukavu ou Kinshasa ;
 - travaillez pour EBN et utilisez l'espace employé (caisse, stocks, clients, rapports).
 
-Le responsable du traitement est **[DÉNOMINATION_SOCIALE]**, dont le siège social est situé **[ADRESSE_SIÈGE]**, Belgique, numéro d'entreprise **[NUMÉRO_BCE]**.
+Le responsable du traitement est Entreprise Bénie Network SRL, dont le siège social est situé Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique, numéro d'entreprise 0123.456.789.
 
 Étant établis en Belgique, nous appliquons le Règlement général sur la protection des données (RGPD, règlement (UE) 2016/679) à l'ensemble des traitements, y compris ceux qui concernent les membres résidant en République démocratique du Congo. Les dispositions de protection des données du Code du numérique congolais (ordonnance-loi n° 23/010 du 13 mars 2023) s'appliquent également aux traitements réalisés en RDC. [HYPOTHÈSE : une même politique couvre la Belgique et la RDC ; à confirmer par votre juriste.]
 
@@ -66,11 +68,11 @@ Nous ne prenons aucune décision produisant des effets juridiques à votre égar
 Nous faisons appel à des sous-traitants qui traitent des données pour notre compte, dans le cadre de contrats conformes à l'article 28 du RGPD :
 
 - **Render** : hébergement de l'application et de son serveur. Données concernées : toutes les données de l'application. Politique : https://render.com/privacy
-- **[HÉBERGEUR_BASE_DE_DONNÉES]** : hébergement de la base de données. Données concernées : toutes les données de l'application. [HYPOTHÈSE : à compléter, avec la région d'hébergement.]
-- **[FOURNISSEUR_STOCKAGE]** : stockage des fichiers (exports, documents). Données concernées : rapports et documents générés.
+- Render (base PostgreSQL gérée, région Francfort, Allemagne) : hébergement de la base de données. Données concernées : toutes les données de l'application.
+- Cloudflare R2 (politique : https://www.cloudflare.com/privacypolicy/) : stockage des fichiers (exports, documents). Données concernées : rapports et documents générés.
 - **Resend** : envoi des e-mails (réinitialisation de mot de passe, notifications). Données concernées : adresse e-mail, nom, contenu du message. Politique : https://resend.com/legal/privacy-policy
 - **Africa's Talking** : envoi des SMS. Données concernées : numéro de téléphone, contenu du SMS. Politique : https://africastalking.com/privacy
-- **KPay** : paiements et retraits par mobile money. Données concernées : numéro mobile money, montant, référence de transaction. Politique : **[URL_POLITIQUE_KPAY]**
+- **KPay** : paiements et retraits par mobile money. Données concernées : numéro mobile money, montant, référence de transaction. Politique : communiquée par KPay sur demande
 - **Opérateurs mobile money** (M-Pesa, Orange Money, Airtel Money, etc.) : exécution des paiements et retraits que vous demandez, selon leurs propres conditions.
 
 Le site propose aussi un lien vers **WhatsApp**. Si vous l'utilisez, la conversation est régie par les conditions et la politique de confidentialité de WhatsApp (Meta) : https://www.whatsapp.com/legal/privacy-policy
@@ -85,11 +87,11 @@ Au sein du réseau, certaines informations sont visibles par d'autres personnes,
 
 ## 5. Durée de conservation
 
-- **Compte membre** : pendant toute la durée de votre adhésion, puis **[DURÉE_APRÈS_RÉSILIATION]** après la clôture du compte, pour gérer les éventuelles réclamations. [HYPOTHÈSE : 3 ans proposés ; à valider.]
+- **Compte membre** : pendant toute la durée de votre adhésion, puis 3 ans après la clôture du compte, pour gérer les éventuelles réclamations.
 - **Pièces comptables** (ventes, commissions, retraits) : 7 ans, durée de conservation comptable prévue par le droit belge. [HYPOTHÈSE : à vérifier par votre comptable, y compris pour les obligations en RDC.]
 - **Formulaire de contact** : 12 mois après le dernier échange, si aucune adhésion ne s'ensuit.
 - **Journaux techniques et de sécurité** : 12 mois au maximum.
-- **Sauvegardes** : les données supprimées disparaissent des sauvegardes au plus tard **[DURÉE_SAUVEGARDES]** après leur suppression.
+- **Sauvegardes** : les données supprimées disparaissent des sauvegardes au plus tard 35 jours après leur suppression.
 
 ## 6. Transferts internationaux
 
@@ -99,7 +101,7 @@ Vos données circulent entre la Belgique (siège), la RDC (boutiques et équipes
 - Lorsque c'est nécessaire, ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (art. 46 RGPD), ou par le cadre de protection des données UE-États-Unis pour les prestataires certifiés.
 - Les transferts vers nos équipes en RDC sont nécessaires à l'exécution du contrat qui vous lie à EBN (art. 49, 1, b RGPD). [HYPOTHÈSE : mécanisme à confirmer par votre juriste.]
 
-Vous pouvez obtenir une copie des garanties applicables en écrivant à **[EMAIL_DONNÉES]**.
+Vous pouvez obtenir une copie des garanties applicables en écrivant à bagalwatibuka182@gmail.com.
 
 ## 7. Sécurité
 
@@ -127,7 +129,7 @@ Vous disposez des droits suivants sur vos données :
 - **Opposition** : vous opposer aux traitements fondés sur notre intérêt légitime, et à tout moment à la prospection commerciale.
 - **Retrait du consentement** : retirer à tout moment un consentement donné, sans effet sur les traitements déjà réalisés.
 
-Pour exercer ces droits, écrivez à **[EMAIL_DONNÉES]** ou adressez-vous à votre boutique EBN. Nous pourrons vous demander de prouver votre identité. Nous répondons dans un délai d'un mois, prolongeable de deux mois pour les demandes complexes ; nous vous en informerons le cas échéant.
+Pour exercer ces droits, écrivez à bagalwatibuka182@gmail.com ou adressez-vous à votre boutique EBN. Nous pourrons vous demander de prouver votre identité. Nous répondons dans un délai d'un mois, prolongeable de deux mois pour les demandes complexes ; nous vous en informerons le cas échéant.
 
 Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de l'**Autorité de protection des données** (Belgique), rue de la Presse 35, 1000 Bruxelles, https://www.autoriteprotectiondonnees.be, ou auprès de l'autorité compétente de votre pays de résidence.
 
@@ -137,7 +139,7 @@ Nous utilisons uniquement les cookies et le stockage local strictement nécessai
 
 ## 10. Mineurs
 
-Le programme EBN est réservé aux personnes âgées d'au moins **[ÂGE_MINIMUM]** ans. [HYPOTHÈSE : 18 ans proposés.] Nous ne collectons pas sciemment de données concernant des mineurs. Si vous pensez qu'un mineur nous a transmis des données, contactez-nous et nous les supprimerons.
+Le programme EBN est réservé aux personnes âgées d'au moins 18 ans. Nous ne collectons pas sciemment de données concernant des mineurs. Si vous pensez qu'un mineur nous a transmis des données, contactez-nous et nous les supprimerons.
 
 ## 11. Modifications de cette politique
 
@@ -145,21 +147,16 @@ Nous pouvons mettre à jour cette politique, par exemple si nous changeons de pr
 
 ## 12. Contact
 
-- Questions sur vos données : **[EMAIL_DONNÉES]**
-- Délégué à la protection des données : **[DPO]** [HYPOTHÈSE : à indiquer si un DPO est désigné ; sinon, retirer cette ligne.]
-- Adresse postale : **[DÉNOMINATION_SOCIALE]**, **[ADRESSE_SIÈGE]**, Belgique
+- Questions sur vos données : bagalwatibuka182@gmail.com
+- Délégué à la protection des données : aucun délégué désigné à ce jour ; les demandes sont traitées par la direction à l'adresse bagalwatibuka182@gmail.com
+- Adresse postale : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique
 
-## Liste des éléments à compléter
+## Informations d'exemple à remplacer
 
-- **[DÉNOMINATION_SOCIALE]**
-- **[ADRESSE_SIÈGE]**
-- **[NUMÉRO_BCE]**
-- **[EMAIL_DONNÉES]**
-- **[DPO]**
-- **[HÉBERGEUR_BASE_DE_DONNÉES]**
-- **[FOURNISSEUR_STOCKAGE]**
-- **[URL_POLITIQUE_KPAY]**
-- **[DURÉE_APRÈS_RÉSILIATION]**
-- **[DURÉE_SAUVEGARDES]**
-- **[ÂGE_MINIMUM]**
-- Chaque mention [HYPOTHÈSE : …] à valider puis retirer
+- Adresse du siège
+- Numéro d'entreprise (BCE)
+- Hébergeur et région de la base de données
+- Fournisseur de stockage
+- Durées de conservation (3 ans, 35 jours)
+- Âge minimum
+- Chaque mention [HYPOTHÈSE : …] restante à valider puis retirer
