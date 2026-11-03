@@ -81,6 +81,9 @@ const SupportPage       = lazy(() => import('@/pages/support/SupportPage'));
 // Home
 const HomePage          = lazy(() => import('@/pages/home/HomePage'));
 
+// Pages légales
+const LegalPage         = lazy(() => import('@/pages/legal/LegalPage'));
+
 // 404
 const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
 
@@ -123,6 +126,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/portal/login" element={<PortalLoginPage />} />
+          <Route path="/legal/:slug" element={<LegalPage />} />
 
           {/* Portal Client — role CLIENT — each page owns its own PortalLayout */}
           <Route path="/portal/home"      element={<AuthGuard><RoleGuard minRole="CLIENT" maxRole="CLIENT"><PortalHomePage /></RoleGuard></AuthGuard>} />

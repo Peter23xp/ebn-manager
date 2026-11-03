@@ -17,3 +17,11 @@ export const OG_IMAGE = `${SITE_URL}/og-image.svg`;
 
 export const SITE_DESCRIPTION =
   'Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa — RDC.';
+
+/** Siège social. Modifier ici l'adresse exacte : elle est reprise sur l'accueil, les pages de connexion et le JSON-LD. */
+export const SIEGE = {
+  ville: 'Bruxelles',
+  pays: 'Belgique',
+  codePays: 'BE',
+  libelle: 'Bruxelles, Belgique',
+};

@@ -44,3 +44,13 @@ describe('staff login destinations', () => {
     expect(useAuthStore.getState().user).toMatchObject({ role, siteId: 'site-1' });
   });
 });
+
+describe('page scroll', () => {
+  it('débloque le défilement de la page et le rétablit en quittant', () => {
+    const view = render(<HelmetProvider><MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><LoginPage /></MemoryRouter></HelmetProvider>);
+    expect(document.body.style.overflow).toBe('auto');
+    expect(document.documentElement.style.overflow).toBe('auto');
+    view.unmount();
+    expect(document.body.style.overflow).toBe('');
+  });
+});

@@ -1,131 +1,64 @@
-import { useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Lottie } from 'lottie-react';
 import { PageSEO } from '@/components/seo/PageSEO';
-import { SITE_URL } from '@/lib/site';
+import { SIEGE, SITE_URL } from '@/lib/site';
+import { usePageScroll } from '@/hooks/usePageScroll';
+import { photo } from '@/lib/photos';
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
-function usePageScroll() {
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const root = document.getElementById('root');
-    html.style.overflow = 'auto';
-    body.style.overflow = 'auto';
-    if (root) root.style.overflow = 'auto';
-    return () => {
-      html.style.overflow = '';
-      body.style.overflow = '';
-      if (root) root.style.overflow = '';
-    };
-  }, []);
-}
 
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      el.style.opacity = '1';
-      el.style.transform = 'none';
-      return;
-    }
-    const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          el.style.opacity = '1';
-          el.style.transform = 'translateY(0)';
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.1 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return ref;
-}
-
-function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  const ref = useReveal();
+function Photo({ src, alt, eager }: { src: string; alt: string; eager?: boolean }) {
   return (
-    <div
-      ref={ref}
-      style={{
-        opacity: 0,
-        transform: 'translateY(22px)',
-        transition: `opacity 0.6s cubic-bezier(0.25,1,0.5,1) ${delay}ms, transform 0.6s cubic-bezier(0.25,1,0.5,1) ${delay}ms`,
-      }}
-    >
-      {children}
-    </div>
+    <img
+      src={src}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+    />
   );
 }
 
-/* ── donnees ──────────────────────────────────────────────────────────────── */
+/* ── siège & implantations ────────────────────────────────────────────────── */
 
-function LottieAsset({ file, label }: { file: string; label: string }) {
-  const [animationData, setAnimationData] = useState<object | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/assets/${file}`, { signal: controller.signal })
-      .then(response => {
-        if (!response.ok) throw new Error(`Impossible de charger ${file}`);
-        return response.json();
-      })
-      .then(setAnimationData)
-      .catch(error => {
-        if (error.name !== 'AbortError') console.error(error);
-      });
-    return () => controller.abort();
-  }, [file]);
+const IMPLANTATIONS = [
+  { lieu: SIEGE.ville, pays: SIEGE.pays, type: 'Siège social', desc: 'Direction générale, partenariats internationaux, conformité.' },
+  { lieu: 'Goma', pays: 'Nord-Kivu, RDC', type: 'Direction des opérations', desc: 'Pilotage des boutiques et du réseau en RDC.' },
+  { lieu: 'Bukavu', pays: 'Sud-Kivu, RDC', type: 'Boutique', desc: 'Inscription, formation et activation des membres.' },
+  { lieu: 'Kinshasa', pays: 'Kinshasa, RDC', type: 'Boutique', desc: 'Inscription, formation et développement du réseau.' },
+];
 
-  if (!animationData) return <div className="lp-lottie-loading" aria-hidden />;
+/* ── données ──────────────────────────────────────────────────────────────── */
 
-  return <Lottie src={animationData} loop autoplay className="lp-lottie" aria-label={label} role="img" />;
-}
-
-const STATS = [
-  { v: '3', l: 'Villes', sub: 'Goma · Bukavu · Kinshasa' },
-  { v: '8', l: 'Niveaux', sub: "D'ambassadeur" },
-  { v: '50K', l: 'Bonus $', sub: 'Retraite Crown' },
-  { v: '100%', l: 'Tracable', sub: 'Portefeuille USD' },
+const FAITS = [
+  { k: 'Siège social', v: SIEGE.libelle },
+  { k: 'Boutiques', v: 'Goma · Bukavu · Kinshasa' },
+  { k: 'Plan de carrière', v: '8 niveaux publiés' },
 ];
 
 const VALEURS = [
-  {
-    icon: String.fromCodePoint(0x1F91D),
-    titre: 'Integrite',
-    desc: 'Nous operons en toute transparence : plan de remuneration clair, pas de promesses irrealistes, des faits.',
-  },
-  {
-    icon: String.fromCodePoint(0x1F30D),
-    titre: 'Ancrage local',
-    desc: 'Fondee a Goma, EBN connait les realites de la region des Grands Lacs et agit pour sa communaute.',
-  },
-  {
-    icon: String.fromCodePoint(0x1F4C8),
-    titre: 'Croissance reelle',
-    desc: "Vente de produits et services concrets d'abord. Le reseau amplifie, il ne remplace pas la valeur reelle.",
-  },
-  {
-    icon: String.fromCodePoint(0x1F512),
-    titre: 'Conformite',
-    desc: 'Enregistree legalement a Goma (RCCM), EBN opere dans un cadre legal rigoureux.',
-  },
+  { titre: 'Intégrité', desc: 'Plan de rémunération publié, montants configurés dans le système, aucune promesse irréaliste.' },
+  { titre: 'Ancrage local', desc: `Une direction à ${SIEGE.ville}, des équipes qui connaissent le terrain à Goma, Bukavu et Kinshasa.` },
+  { titre: 'Croissance réelle', desc: "La vente de produits et services concrets d'abord. Le réseau amplifie la valeur, il ne la remplace pas." },
+  { titre: 'Conformité', desc: 'Une structure juridique claire en Belgique et en RDC, des registres tenus et vérifiables.' },
+];
+
+const OFFRE_PHOTOS = [
+  { img: photo('1488459716781-31db52582fe9'), alt: 'Étal de fruits et légumes frais', legende: 'Des produits du quotidien' },
+  { img: photo('1531058020387-3be344556be6'), alt: 'Salle de formation remplie de participants', legende: 'Des formations en boutique' },
+  { img: photo('1521791136064-7986c2920216'), alt: 'Poignée de main entre deux partenaires', legende: 'Un parrainage encadré' },
 ];
 
 const PRODUITS = [
-  { num: '01', nom: 'Produits et services reels', desc: 'Proposez des solutions utiles et concrètes qui créent une vraie valeur pour vos clients.', badge: 'Valeur réelle' },
-  { num: '02', nom: 'Formation et accompagnement', desc: 'Commencez avec les bons outils, des conseils pratiques et un accompagnement à chaque étape.', badge: 'Démarrage' },
-  { num: '03', nom: 'Une communauté locale', desc: 'Rejoignez des partenaires engagés à Goma, Bukavu et Kinshasa, et avancez avec eux.', badge: 'Communauté' },
-  { num: '04', nom: 'Parrainage transparent', desc: 'Développez votre réseau dans un cadre clair, fondé sur la confiance et le partage.', badge: 'Réseau' },
-  { num: '05', nom: 'Commissions évolutives', desc: 'Faites progresser vos revenus selon votre activité, votre engagement et les résultats de votre réseau.', badge: 'Progression' },
-  { num: '06', nom: 'Un parcours de réussite', desc: 'Évoluez de Builder vers les niveaux Ambassadeur grâce à un plan de carrière structuré.', badge: 'Carrière' },
+  { num: '01', nom: 'Produits et services réels', desc: 'Des solutions utiles et concrètes qui créent une vraie valeur pour vos clients.' },
+  { num: '02', nom: 'Formation et accompagnement', desc: 'Démarrez avec les bons outils, des conseils pratiques et un suivi à chaque étape.' },
+  { num: '03', nom: 'Une communauté locale', desc: 'Des partenaires engagés à Goma, Bukavu et Kinshasa, qui avancent ensemble.' },
+  { num: '04', nom: 'Parrainage transparent', desc: 'Développez votre réseau dans un cadre clair, fondé sur la confiance et le partage.' },
+  { num: '05', nom: 'Commissions évolutives', desc: 'Des revenus qui progressent selon votre activité, votre engagement et votre réseau.' },
+  { num: '06', nom: 'Un parcours de réussite', desc: 'Évoluez de Builder vers les niveaux Ambassadeur grâce à un plan de carrière structuré.' },
 ];
 
 const OPPORTUNITE = [
@@ -140,20 +73,26 @@ const OPPORTUNITE = [
 ];
 
 const TEMOIGNAGES = [
-  { nom: 'Marie K.', ville: 'Goma', role: 'Ambassadrice Niveau Or', texte: "Grace a EBN, j'ai pu batir un reseau de plus de 20 partenaires en 6 mois. La transparence du systeme m'a convaincue des le depart." },
-  { nom: 'Patrick M.', ville: 'Bukavu', role: 'Distributeur Bronze', texte: "Le systeme de caisse POS a revolutionne la gestion de ma boutique. Je vois mes ventes en temps reel meme depuis mon telephone." },
-  { nom: 'Sarah N.', ville: 'Kinshasa', role: 'Ambassadrice Argent', texte: "Ce qui m'a seduite, c'est la clarte : chaque commission est visible dans mon portefeuille. Aucune surprise, aucune promesse vide." },
+  { nom: 'Marie K.', ville: 'Goma', role: 'Ambassadrice Niveau Or', texte: "Grâce à EBN, j'ai pu bâtir un réseau de plus de 20 partenaires en 6 mois. La transparence du système m'a convaincue dès le départ." },
+  { nom: 'Patrick M.', ville: 'Bukavu', role: 'Distributeur Bronze', texte: 'Le système de caisse a changé la gestion de ma boutique. Je vois mes ventes en temps réel, même depuis mon téléphone.' },
+  { nom: 'Sarah N.', ville: 'Kinshasa', role: 'Ambassadrice Argent', texte: "Ce qui m'a convaincue, c'est la clarté : chaque commission est visible dans mon portefeuille. Aucune surprise." },
 ];
 
 const ETAPES = [
-  { n: '1', titre: 'Contactez-nous', desc: "Via WhatsApp ou le formulaire. Un conseiller EBN vous repond sous 24h pour repondre a vos questions." },
-  { n: '2', titre: 'Inscription en boutique', desc: "Venez dans l'une de nos boutiques a Goma, Bukavu ou Kinshasa. Formation et activation de votre compte." },
-  { n: '3', titre: 'Parrainez 4 personnes', desc: "Chaque personne que vous amenez occupe une position dans votre matrice et vous genere une commission." },
-  { n: '4', titre: 'Montez les niveaux', desc: "Matrice complete = commission versee + promotion au niveau suivant avec des montants plus eleves." },
+  { n: '1', titre: 'Contactez-nous', desc: 'Par WhatsApp ou via le formulaire. Un conseiller EBN vous répond sous 24h.' },
+  { n: '2', titre: 'Inscription en boutique', desc: "Rendez-vous dans l'une de nos boutiques à Goma, Bukavu ou Kinshasa : formation et activation du compte." },
+  { n: '3', titre: 'Parrainez 4 personnes', desc: 'Chaque personne que vous amenez occupe une position dans votre matrice et génère une commission.' },
+  { n: '4', titre: 'Montez les niveaux', desc: 'Matrice complète = commission versée et promotion au niveau suivant.' },
 ];
 
 const WHATSAPP_LINK = 'https://wa.me/243974752784?text=Bonjour%20EBN%20!%20Je%20souhaite%20en%20savoir%20plus%20sur%20votre%20programme.';
 const WHATSAPP_NUMBER = '+243 974 752 784';
+
+const WA_PATH = 'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z';
+
+function WhatsAppIcon({ size = 22 }: { size?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={WA_PATH} /></svg>;
+}
 
 /* ── formulaire contact ───────────────────────────────────────────────────── */
 
@@ -177,12 +116,7 @@ function ContactForm() {
   if (state === 'success') {
     return (
       <div className="lp-form-success" role="status">
-        <div className="lp-success-icon" aria-hidden>
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
-        <h3 className="lp-success-title">Message recu !</h3>
+        <h3 className="lp-success-title">Message reçu</h3>
         <p className="lp-success-desc">Merci {form.nom}. Un conseiller EBN vous contactera sous 24h au {form.telephone}.</p>
       </div>
     );
@@ -196,7 +130,7 @@ function ContactForm() {
           <input id="lp-nom" type="text" value={form.nom} onChange={set('nom')} placeholder="Jean Kabila" autoComplete="name" />
         </div>
         <div className="lp-field">
-          <label htmlFor="lp-tel">Telephone *</label>
+          <label htmlFor="lp-tel">Téléphone *</label>
           <input id="lp-tel" type="tel" value={form.telephone} onChange={set('telephone')} placeholder="+243 9XX XXX XXX" autoComplete="tel" />
         </div>
       </div>
@@ -204,52 +138,244 @@ function ContactForm() {
         <label htmlFor="lp-ville">Ville</label>
         <select id="lp-ville" value={form.ville} onChange={set('ville')}>
           <option value="">Choisir votre ville</option>
-          {['Goma', 'Bukavu', 'Kinshasa', 'Autre'].map(v => <option key={v} value={v}>{v}</option>)}
+          {['Goma', 'Bukavu', 'Kinshasa', SIEGE.ville, 'Autre'].map(v => <option key={v} value={v}>{v}</option>)}
         </select>
       </div>
       <div className="lp-field">
         <label htmlFor="lp-message">Message</label>
-        <textarea id="lp-message" rows={3} value={form.message} onChange={set('message')} placeholder="Dites-nous en quoi nous pouvons vous aider..." />
+        <textarea id="lp-message" rows={4} value={form.message} onChange={set('message')} placeholder="Dites-nous en quoi nous pouvons vous aider..." />
       </div>
       {state === 'error' && (
-        <p className="lp-form-error" role="alert">Merci de remplir votre nom et telephone.</p>
+        <p className="lp-form-error" role="alert">Merci de remplir votre nom et votre téléphone.</p>
       )}
-      <button type="submit" className="lp-form-submit" disabled={state === 'sending'}>
-        {state === 'sending' ? (
-          <><span className="lp-spinner" aria-hidden /> Envoi en cours...</>
-        ) : 'Envoyer le message'}
+      <button type="submit" className="lp-btn lp-btn-dark lp-btn-block" disabled={state === 'sending'}>
+        {state === 'sending' ? 'Envoi en cours...' : 'Envoyer le message'}
       </button>
-      <p className="lp-form-note">Reponse garantie sous 24h ouvrees. Vos donnees ne servent qu'a traiter votre demande.</p>
+      <p className="lp-form-note">
+        Réponse sous 24h ouvrées. Vos données servent uniquement à traiter votre demande
+        (voir notre <Link to="/legal/confidentialite">politique de confidentialité</Link>).
+      </p>
     </form>
   );
 }
 
+/* ── styles ───────────────────────────────────────────────────────────────── */
+
+const CSS = `
+  .lp { --ink: #111827; --text: #374151; --muted: #6b7280; --line: #e5e7eb; --alt: #f1f5f9; --gold: #a17e36;
+    background: #fff; color: var(--ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif; font-size: 15px; line-height: 1.6; }
+  .lp * { box-sizing: border-box; }
+  .lp img { display: block; max-width: 100%; }
+  .lp-wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  @media (max-width: 640px) { .lp-wrap { padding: 0 20px; } }
+  .lp-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* WHATSAPP */
+  .lp-wa-float { position: fixed; bottom: 22px; right: 22px; z-index: 100; width: 54px; height: 54px; border-radius: 50%; background: #25D366; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+  @media (max-width: 640px) { .lp-wa-float { bottom: 16px; right: 16px; width: 50px; height: 50px; } }
+
+  /* NAV */
+  .lp-nav { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid var(--line); }
+  .lp-nav-bar { height: 68px; display: flex; align-items: center; justify-content: space-between; }
+  .lp-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .lp-brand img { height: 42px; width: 42px; object-fit: contain; }
+  .lp-brand-name { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 700; color: var(--ink); }
+  .lp-brand-name span { color: var(--gold); }
+  .lp-nav-links { display: flex; align-items: center; gap: 26px; }
+  @media (max-width: 960px) { .lp-nav-links { display: none; } }
+  .lp-nav-link { font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); background: none; border: none; cursor: pointer; padding: 4px 0; }
+  .lp-nav-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 6px; }
+  .lp-nav-link:focus-visible, .lp-btn:focus-visible, .lp-burger:focus-visible, .lp-menu-link:focus-visible, .lp-footer-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  .lp-burger { display: none; width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); align-items: center; justify-content: center; }
+  @media (max-width: 960px) { .lp-burger { display: flex; } }
+  .lp-menu { border-top: 1px solid var(--line); background: #fff; padding: 4px 0 18px; }
+  .lp-menu .lp-wrap { display: flex; flex-direction: column; }
+  .lp-menu-link { font-family: inherit; text-align: left; font-size: 15px; font-weight: 500; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 14px 0; cursor: pointer; }
+  .lp-menu .lp-btn { margin-top: 16px; }
+
+  /* BOUTONS */
+  .lp-btn { font-family: inherit; font-size: 14.5px; font-weight: 600; border-radius: 6px; padding: 0 22px; min-height: 46px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; border: 1px solid transparent; transition: background .15s, border-color .15s; }
+  .lp-btn-dark { background: var(--ink); color: #fff; }
+  .lp-btn-dark:hover { background: #374151; }
+  .lp-btn-dark:disabled { opacity: .6; cursor: wait; }
+  .lp-btn-line { background: #fff; color: var(--ink); border-color: #d1d5db; }
+  .lp-btn-line:hover { border-color: var(--ink); }
+  .lp-btn-sm { min-height: 38px; font-size: 13.5px; padding: 0 16px; }
+  .lp-btn-block { width: 100%; }
+
+  /* TYPO */
+  .lp-label { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin: 0 0 14px; }
+  .lp-h1 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(38px, 5vw, 60px); font-weight: 700; line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 22px; color: var(--ink); }
+  .lp-h2 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(28px, 3.2vw, 40px); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 16px; color: var(--ink); }
+  .lp-h3 { font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }
+  .lp-p { color: var(--text); margin: 0 0 16px; max-width: 62ch; }
+  .lp-small { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  /* SECTIONS */
+  .lp-sec { padding: 96px 0; border-top: 1px solid var(--line); }
+  .lp-sec-alt { background: var(--alt); border-top: 0; }
+  @media (max-width: 640px) { .lp-sec { padding: 64px 0; } }
+  .lp-intro { max-width: 680px; margin-bottom: 48px; }
+
+  /* HERO */
+  .lp-hero { padding: 72px 0 88px; }
+  .lp-hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 64px; align-items: center; }
+  @media (max-width: 900px) { .lp-hero { padding: 40px 0 64px; } .lp-hero-grid { grid-template-columns: 1fr; gap: 40px; } }
+  .lp-hero-sub { font-size: 17px; color: var(--text); max-width: 54ch; margin: 0 0 32px; }
+  .lp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .lp-facts { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0 40px; margin: 44px 0 0; padding: 22px 0 0; border-top: 1px solid var(--line); }
+  @media (max-width: 560px) { .lp-facts { grid-template-columns: 1fr; gap: 14px; } }
+  .lp-facts dt { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .lp-facts dd { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+  .lp-hero-photo { aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: #eef0f3; }
+  .lp-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+  @media (max-width: 900px) { .lp-hero-photo { aspect-ratio: 4 / 3; max-height: 460px; } }
+
+  /* FIGURES */
+  .lp-figure { margin: 0; }
+  .lp-figure-img { border-radius: 8px; overflow: hidden; background: #e5e7eb; }
+  .lp-figure-img img { width: 100%; height: 100%; object-fit: cover; }
+  .lp-figure figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .lp-ratio-43 { aspect-ratio: 4 / 3; }
+
+  /* A PROPOS */
+  .lp-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; align-items: start; }
+  @media (max-width: 900px) { .lp-two { grid-template-columns: 1fr; gap: 36px; } }
+  .lp-values { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 32px; margin-top: 32px; }
+  @media (max-width: 520px) { .lp-values { grid-template-columns: 1fr; } }
+  .lp-values > div { border-top: 2px solid var(--ink); padding-top: 14px; }
+  .lp-values p { font-size: 14px; color: var(--text); margin: 0; }
+
+  /* IMPLANTATIONS */
+  .lp-place-list { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .lp-place { display: grid; grid-template-columns: 170px 1fr; gap: 6px 24px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  @media (max-width: 520px) { .lp-place { grid-template-columns: 1fr; } }
+  .lp-place-name { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+  .lp-place-country { font-size: 13px; color: var(--muted); }
+  .lp-place-type { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); margin-bottom: 2px; }
+  .lp-place.hq .lp-place-type { color: var(--gold); }
+  .lp-place p { font-size: 14px; color: var(--text); margin: 0; }
+
+  /* OFFRE */
+  .lp-photo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 56px; }
+  @media (max-width: 760px) { .lp-photo-row { grid-template-columns: 1fr; } }
+  .lp-photo-row .lp-figure-img { aspect-ratio: 4 / 3; }
+  .lp-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 40px; }
+  @media (max-width: 900px) { .lp-grid3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .lp-grid3 { grid-template-columns: 1fr; } }
+  .lp-item { padding: 22px 0; border-top: 1px solid #d1d5db; }
+  .lp-item-num { font-size: 12px; font-weight: 600; color: var(--gold); margin-bottom: 8px; }
+  .lp-item p { font-size: 14px; color: var(--text); margin: 0; }
+
+  /* OPPORTUNITE */
+  .lp-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; background: #fff; }
+  .lp-table { width: 100%; border-collapse: collapse; }
+  .lp-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 12px 18px; background: #f9fafb; border-bottom: 1px solid var(--line); }
+  .lp-table td { padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; color: var(--text); }
+  .lp-table tr:last-child td { border-bottom: 0; }
+  .lp-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .lp-table .lvl, .lp-table .amount { font-weight: 700; color: var(--ink); }
+  .lp-table .amount { white-space: nowrap; }
+  .lp-table .split { font-size: 12px; color: var(--muted); }
+  .lp-table tr.top td { background: #faf7ef; }
+  @media (max-width: 640px) { .lp-table th, .lp-table td { padding: 12px 12px; } .lp-col-bonus { display: none; } }
+  .lp-note { font-size: 14px; color: var(--text); margin: 20px 0 0; }
+  .lp-legal { font-size: 12.5px; color: var(--muted); margin: 14px 0 0; max-width: 90ch; }
+
+  /* TEMOIGNAGES */
+  .lp-quotes { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 64px; align-items: start; }
+  @media (max-width: 900px) { .lp-quotes { grid-template-columns: 1fr; gap: 36px; } }
+  .lp-quotes .lp-figure-img { aspect-ratio: 4 / 5; }
+  @media (max-width: 900px) { .lp-quotes .lp-figure-img { aspect-ratio: 4 / 3; } .lp-quotes .lp-figure-img img { object-position: center 20%; } }
+  .lp-quote { margin: 0; padding: 26px 0; border-bottom: 1px solid #d1d5db; }
+  .lp-quote:first-of-type { padding-top: 0; }
+  .lp-quote p { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; line-height: 1.5; color: var(--ink); margin: 0 0 12px; }
+  .lp-quote footer { font-size: 13.5px; color: var(--muted); }
+  .lp-quote footer strong { color: var(--ink); font-weight: 600; }
+
+  /* ETAPES */
+  .lp-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; list-style: none; margin: 0; padding: 0; }
+  @media (max-width: 900px) { .lp-steps { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .lp-steps { grid-template-columns: 1fr; gap: 24px; } }
+  .lp-step { border-top: 2px solid var(--ink); padding-top: 16px; }
+  .lp-step-n { font-size: 13px; font-weight: 600; color: var(--gold); margin-bottom: 6px; }
+  .lp-step p { font-size: 14px; color: var(--text); margin: 0; }
+
+  /* ACCES */
+  .lp-access { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .lp-access { grid-template-columns: 1fr; } }
+  .lp-access-card { border: 1px solid var(--line); border-radius: 8px; padding: 28px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .lp-access-card .lp-btn { margin-top: 14px; }
+
+  /* CONTACT */
+  .lp-contact { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 64px; align-items: start; }
+  @media (max-width: 900px) { .lp-contact { grid-template-columns: 1fr; gap: 36px; } }
+  .lp-info { margin: 28px 0 0; padding: 0; }
+  .lp-info > div { padding: 16px 0; border-top: 1px solid #d1d5db; }
+  .lp-info dt { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .lp-info dd { margin: 0; font-weight: 600; color: var(--ink); }
+  .lp-info a { color: var(--ink); }
+  .lp-form-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 32px; }
+  @media (max-width: 520px) { .lp-form-card { padding: 22px; } }
+  .lp-contact-form { display: flex; flex-direction: column; }
+  .lp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .lp-form-row { grid-template-columns: 1fr; } }
+  .lp-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .lp-field label { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .lp-field input, .lp-field select, .lp-field textarea { font-family: inherit; font-size: 14px; color: var(--ink); border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 12px; background: #fff; min-height: 44px; width: 100%; }
+  .lp-field textarea { resize: vertical; min-height: 100px; }
+  .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(161,126,54,.15); }
+  .lp-field input::placeholder, .lp-field textarea::placeholder { color: #9ca3af; }
+  .lp-form-note { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+  .lp-form-error { font-size: 13px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 12px; margin: 0 0 14px; }
+  .lp-form-success { padding: 24px 0; }
+  .lp-success-title { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; margin: 0 0 8px; color: var(--ink); }
+  .lp-success-desc { color: var(--text); margin: 0; }
+
+  /* FOOTER */
+  .lp-footer { border-top: 1px solid var(--line); padding: 56px 0 28px; }
+  .lp-footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.2fr; gap: 40px; margin-bottom: 40px; }
+  @media (max-width: 900px) { .lp-footer-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .lp-footer-grid { grid-template-columns: 1fr; } }
+  .lp-footer-title { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); margin: 0 0 14px; }
+  .lp-footer-links { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; }
+  .lp-footer-link { font-family: inherit; font-size: 14px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; text-align: left; }
+  .lp-footer-link:hover { color: var(--ink); }
+  .lp-legal-links { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
+  .lp .lp-legal-links a, .lp .lp-form-note a { min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+  .lp .lp-legal-links a:hover { color: var(--ink); }
+  .lp-footer-legal { border-top: 1px solid var(--line); padding-top: 22px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+`;
+
 /* ── page ─────────────────────────────────────────────────────────────────── */
+
+const NAV = [
+  { id: 'a-propos', label: 'À propos' },
+  { id: 'implantations', label: 'Implantations' },
+  { id: 'produits', label: 'Notre offre' },
+  { id: 'opportunite', label: 'Opportunité' },
+  { id: 'contact', label: 'Contact' },
+];
 
 export default function HomePage() {
   const navigate = useNavigate();
   usePageScroll();
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const scrollTo = (id: string) => {
-    setMobileMenuOpen(false);
+    setMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <>
-      {/* Un seul <title>/<description> : le Helmet inline doublonnait les balises
-          de PageSEO (title/description/og:url/lutter = contenu dupliqué). */}
       <PageSEO
         title="Entreprise Bénie Network — Réseau MLM & solutions de commerce"
-        description="Entreprise Bénie Network (EBN) — réseau de marketing relationnel basé à Goma (RDC). Caisse POS, gestion des stocks et plan de rémunération transparent à 8 niveaux pour les partenaires de Goma, Bukavu et Kinshasa."
+        description={`Entreprise Bénie Network (EBN) — réseau de marketing relationnel avec siège social à ${SIEGE.libelle} et boutiques en RDC (Goma, Bukavu, Kinshasa). Plan de rémunération transparent à 8 niveaux.`}
         canonical="/"
         ogType="website"
       />
       <Helmet>
-        {/* JSON-LD : uniquement des informations réellement présentes dans le
-            projet (nom, Goma/Nord-Kivu, zones desservies, WhatsApp de contact). */}
         <script type="application/ld+json">{JSON.stringify({
           '@context': 'https://schema.org',
           '@graph': [
@@ -260,9 +386,14 @@ export default function HomePage() {
               'alternateName': 'EBN Network',
               'url': SITE_URL,
               'logo': `${SITE_URL}/assets/Progress business logo.png`,
-              'description': 'Réseau de marketing relationnel basé à Goma, RDC.',
-              'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': 'Goma', 'addressRegion': 'Nord-Kivu' },
-              'areaServed': ['Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
+              'description': `Réseau de marketing relationnel — siège social à ${SIEGE.libelle}, boutiques en RDC.`,
+              'address': { '@type': 'PostalAddress', 'addressCountry': SIEGE.codePays, 'addressLocality': SIEGE.ville },
+              'location': IMPLANTATIONS.slice(1).map(s => ({
+                '@type': 'Place',
+                'name': `EBN ${s.lieu}`,
+                'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': s.lieu },
+              })),
+              'areaServed': ['Belgique', 'Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
               'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'availableLanguage': ['French'] },
               'sameAs': ['https://wa.me/243974752784'],
             },
@@ -277,929 +408,353 @@ export default function HomePage() {
         })}</script>
       </Helmet>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .lp { background: #f1f5f9; color: #0f172a; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
-        .lp * { box-sizing: border-box; }
-
-        /* WHATSAPP FLOAT */
-        .lp-wa-float {
-          position: fixed; bottom: 24px; right: 24px; z-index: 100;
-          width: 56px; height: 56px; border-radius: 50%;
-          background: #25D366; color: #fff;
-          display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 4px 20px rgba(37,211,102,0.45);
-          text-decoration: none; transition: transform .2s, box-shadow .2s;
-        }
-        .lp-wa-float:hover { transform: scale(1.1); box-shadow: 0 8px 30px rgba(37,211,102,0.55); }
-        @media (max-width: 640px) { .lp-wa-float { bottom: 16px; right: 16px; width: 50px; height: 50px; } }
-
-        /* NAV */
-        .lp-nav {
-          position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-          height: 60px; display: flex; align-items: center; justify-content: space-between;
-          padding: 0 6vw; background: rgba(255,255,255,0.94);
-          backdrop-filter: blur(14px); border-bottom: 1px solid #e2e8f0;
-        }
-        .lp-nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-        .lp-nav-brand img { height: 44px; width: 44px; object-fit: contain; }
-        .lp-nav-name { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 700; color: #0A1628; letter-spacing: -0.01em; }
-        .lp-nav-name span { color: #2563eb; font-style: italic; }
-        .lp-nav-links { display: flex; align-items: center; gap: 18px; }
-        @media (max-width: 820px) { .lp-nav-links { display: none; } }
-
-        /* HAMBURGER BUTTON */
-        .lp-nav-hamburger {
-          display: none; align-items: center; justify-content: center;
-          width: 40px; height: 40px; border-radius: 8px; border: 1.5px solid #e2e8f0;
-          background: none; cursor: pointer; color: #334155; transition: background .15s, border-color .15s;
-          flex-shrink: 0;
-        }
-        .lp-nav-hamburger:hover { background: #f8fafc; border-color: #a17e36; color: #a17e36; }
-        .lp-nav-hamburger:focus-visible { outline: 2px solid #a17e36; outline-offset: 3px; }
-        @media (max-width: 820px) { .lp-nav-hamburger { display: flex; } }
-
-        /* MOBILE DRAWER OVERLAY */
-        .lp-mobile-overlay {
-          position: fixed; inset: 0; z-index: 200;
-          background: rgba(10,22,40,0.55); backdrop-filter: blur(4px);
-          animation: lp-fade-in .15s ease;
-        }
-        @keyframes lp-fade-in { from { opacity:0; } to { opacity:1; } }
-        .lp-mobile-drawer {
-          position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
-          width: min(300px, 88vw);
-          background: #fff; display: flex; flex-direction: column;
-          padding: 0; box-shadow: -12px 0 40px rgba(10,22,40,.18);
-          animation: lp-slide-in .22s cubic-bezier(0.25,1,0.5,1);
-        }
-        @keyframes lp-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        .lp-drawer-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
-        }
-        .lp-drawer-close {
-          width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid #e2e8f0;
-          background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-          color: #64748b; transition: background .15s, color .15s;
-        }
-        .lp-drawer-close:hover { background: #f1f5f9; color: #0A1628; }
-        .lp-drawer-body { flex: 1; overflow-y: auto; padding: 20px 0; }
-        .lp-drawer-link {
-          display: block; width: 100%; text-align: left; padding: 13px 24px;
-          font-size: 15px; font-weight: 600; color: #334155; background: none; border: none;
-          cursor: pointer; text-decoration: none; transition: background .12s, color .12s;
-        }
-        .lp-drawer-link:hover { background: #faf7ef; color: #a17e36; }
-        .lp-drawer-divider { height: 1px; background: #e2e8f0; margin: 12px 24px; }
-        .lp-drawer-footer { padding: 16px 20px 24px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-        .lp-drawer-btn-primary {
-          width: 100%; height: 46px; border-radius: 10px; font-size: 14px; font-weight: 700;
-          background: #111827; color: #fff; border: none; cursor: pointer; transition: background .15s;
-        }
-        .lp-drawer-btn-primary:hover { background: #374151; }
-        .lp-drawer-btn-secondary {
-          width: 100%; height: 46px; border-radius: 10px; font-size: 14px; font-weight: 700;
-          background: #fff; color: #111827; border: 1.5px solid #e2e8f0; cursor: pointer; transition: background .15s, border-color .15s;
-        }
-        .lp-drawer-btn-secondary:hover { background: #f8fafc; border-color: #a17e36; }
-        .lp-nav-link { font-size: 13px; font-weight: 600; color: #334155; text-decoration: none; background: none; border: none; cursor: pointer; padding: 0; }
-        .lp-nav-link:hover { color: #0A1628; }
-        .lp-nav-btn { font-size: 13px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 7px; padding: 0 18px; height: 36px; cursor: pointer; transition: background .18s; }
-        .lp-nav-btn:hover { background: #1d4ed8; }
-        .lp-nav-btn.dark { background: #fff; color: #0A1628; border: 1.5px solid #e2e8f0; }
-        .lp-nav-btn.dark:hover { background: #f1f5f9; border-color: #cbd5e1; }
-        .lp-nav-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-
-        /* HERO - editorial, premium and conversion-focused */
-        .lp-hero { min-height: 700px; padding: 52px 6vw 76px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); gap: clamp(38px, 7vw, 108px); align-items: center; background: #0A1628; position: relative; overflow: hidden; }
-        .lp-hero::before { content: ''; position: absolute; width: 520px; height: 520px; border: 1px solid rgba(251,191,36,.18); border-radius: 50%; right: -160px; top: -220px; pointer-events: none; }
-        .lp-hero::after { content: ''; position: absolute; width: 300px; height: 300px; background: rgba(37,99,235,.12); filter: blur(90px); left: -90px; bottom: -140px; pointer-events: none; }
-        .lp-hero-inner { padding: 34px 0; max-width: 640px; position: relative; z-index: 1; }
-        @media (max-width: 860px) { .lp-hero { min-height: auto; grid-template-columns: 1fr; gap: 28px; padding: 92px 6vw 64px; } .lp-hero-inner { padding: 14px 0 0; max-width: 700px; } }
-        @media (max-width: 640px) { .lp-hero { padding: 80px 20px 48px; } .lp-hero-inner { padding: 0; } }
-
-        .lp-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #fbbf24; margin-bottom: 28px; }
-        .lp-eyebrow-dot { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; box-shadow: 0 0 0 5px rgba(251,191,36,.13); }
-        @keyframes lp-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-        .lp-h1 { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(44px, 6.5vw, 78px); font-weight: 900; line-height: 0.99; letter-spacing: -0.03em; color: #fff; margin: 0 0 30px; text-wrap: balance; }
-        .lp-h1 em { font-style: italic; color: #fbbf24; }
-
-        .lp-hero-sub { font-size: clamp(15px, 1.45vw, 18px); font-weight: 400; line-height: 1.7; color: #cbd5e1; max-width: 560px; margin: 0 0 40px; }
-
-        .lp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-        .lp-btn-primary { font-size: 14px; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, box-shadow .18s; }
-        .lp-btn-primary:hover { background: #1d4ed8; box-shadow: 0 8px 24px rgba(37,99,235,0.25); }
-        .lp-btn-primary:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-        .lp-btn-secondary { font-size: 14px; font-weight: 700; background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.3); border-radius: 8px; padding: 14px 30px; cursor: pointer; min-height: 48px; transition: background .18s, border-color .18s; }
-        .lp-btn-secondary:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.65); }
-        .lp-btn-secondary:focus-visible { outline: 2px solid #fbbf24; outline-offset: 3px; }
-
-        .lp-hero-proof { display: flex; flex-wrap: wrap; gap: 12px 22px; margin-top: 26px; color: #94a3b8; font-size: 11px; line-height: 1.4; }
-        .lp-hero-proof span { display: inline-flex; align-items: center; gap: 5px; }
-        .lp-hero-proof span::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #fbbf24; }
-        .lp-hero-proof strong { color: #fff; font-weight: 800; }
-
-        .lp-hero-img-wrap { margin: 0; height: min(620px, 68vh); min-height: 470px; border-radius: 28px; overflow: visible; background: #16243a; border: 1px solid rgba(255,255,255,.2); position: relative; display: flex; align-items: center; justify-content: center; box-shadow: 0 28px 80px rgba(0,0,0,.34); }
-        @media (max-width: 860px) { .lp-hero-img-wrap { height: 430px; min-height: 0; max-width: 760px; width: 100%; } }
-        @media (max-width: 640px) { .lp-hero-img-wrap { height: 330px; min-height: 0; border-radius: 20px; } }
-        .lp-hero-img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: inherit; }
-        .lp-lottie { position: relative; z-index: 2; width: 100%; height: 100%; }
-        .lp-lottie-loading { width: 100%; height: 100%; min-height: 160px; }
-        .lp-hero-img-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
-        .lp-about-photo { background: transparent !important; border-radius: 0; }
-        .lp-temo-photo { background-image: url('/assets/testimoniql.jpg') !important; background-size: cover; background-position: center; }
-        .lp-temo-photo > img { opacity: 0; }
-        .lp-temo-photo > .lp-temo-image { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: 1; }
-        .lp-hero-img-wrap > .lp-hero-img, .lp-hero-img-wrap > .lp-hero-placeholder { display: none; }
-        .lp-hero-placeholder { position: absolute; inset: 0; z-index: 0; border-radius: inherit; background: linear-gradient(135deg, #0A1628 0%, #16305a 55%, #1e3a5f 100%); }
-        .lp-hero-placeholder::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(37,99,235,.08), transparent 55%, rgba(251,191,36,.08)); }
-        .lp-hero-text-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 2; }
-        .lp-hero-overlay-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(28px, 4vw, 52px); font-weight: 900; color: rgba(255,255,255,0.9); text-align: center; letter-spacing: -0.02em; text-shadow: 0 2px 20px rgba(0,0,0,0.4); }
-        .lp-hero-overlay-title em { font-style: italic; color: #93c5fd; }
-        .lp-hero-overlay-sub { font-size: 14px; color: rgba(255,255,255,0.5); letter-spacing: 0.15em; text-transform: uppercase; }
-        .lp-img-badge { position: absolute; bottom: -20px; left: -24px; z-index: 3; display: flex; align-items: center; gap: 9px; padding: 14px 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 18px 45px rgba(0,0,0,.22); border-radius: 12px; font-size: 11px; color: #0A1628; font-weight: 800; letter-spacing: 0.05em; }
-        @media (max-width: 640px) { .lp-img-badge { left: 14px; bottom: -14px; padding: 11px 14px; } }
-        .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; animation: lp-pulse 2s ease-in-out infinite; }
-        .lp-hero-caption { display: none; }
-        .lp-hero-caption-kicker { color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: none; }
-
-        /* STATS */
-        .lp-stats { background: #0A1628; padding: 40px 6vw; display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid #0A1628; border-bottom: 1px solid #0A1628; }
-        @media (max-width: 600px) { .lp-stats { grid-template-columns: repeat(2,1fr); gap: 32px 0; } }
-        .lp-stat { padding-right: 28px; border-right: 1px solid rgba(255,255,255,.14); }
-        .lp-stat:last-child { border-right: none; }
-        @media (max-width: 600px) { .lp-stat:nth-child(2) { border-right: none; } .lp-stat:nth-child(3) { border-right: 1px solid rgba(255,255,255,.14); } }
-        .lp-stat-v { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(36px, 4vw, 48px); font-weight: 900; color: #fbbf24; line-height: 1; margin-bottom: 4px; }
-        .lp-stat-l { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #f8fafc; margin-bottom: 2px; }
-        .lp-stat-sub { font-size: 11px; color: #94a3b8; }
-
-        /* SECTIONS */
-        .lp-sec { padding: 88px 6vw; background: #f1f5f9; }
-        @media (max-width: 640px) { .lp-sec { padding: 64px 20px; } }
-        .lp-sec-white { background: #ffffff; }
-
-        .lp-sec-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #94a3b8; margin-bottom: 14px; }
-        .lp-sec-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: #0A1628; margin: 0 0 16px; max-width: 520px; }
-        .lp-sec-title em { font-style: italic; color: #2563eb; }
-        .lp-sec-sub { font-size: 15px; line-height: 1.7; color: #475569; max-width: 560px; margin: 0 0 48px; }
-
-        /* A PROPOS */
-        .lp-about-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 2px; background: #e2e8f0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-        @media (max-width: 680px) { .lp-about-grid { grid-template-columns: 1fr; } }
-        .lp-about-cell { background: #fff; padding: 32px 28px; transition: background .15s; }
-        .lp-about-cell:hover { background: #f8fafc; }
-        .lp-about-icon { font-size: 28px; margin-bottom: 14px; display: block; }
-        .lp-about-titre { font-size: 16px; font-weight: 700; color: #0A1628; margin: 0 0 8px; }
-        .lp-about-desc { font-size: 13.5px; line-height: 1.65; color: #475569; }
-
-        /* PRODUITS */
-        .lp-prod-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-        @media (max-width: 900px) { .lp-prod-grid { grid-template-columns: repeat(2,1fr); } }
-        @media (max-width: 500px) { .lp-prod-grid { grid-template-columns: 1fr; } }
-        .lp-prod-cell { background: #fff; padding: 28px 26px; transition: background .15s; }
-        .lp-prod-cell:hover { background: #f8fafc; }
-        .lp-prod-num { font-family: 'Playfair Display', Georgia, serif; font-size: 11px; color: #cbd5e1; margin-bottom: 16px; }
-        .lp-prod-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #1d4ed8; background: #dbeafe; border-radius: 999px; padding: 3px 9px; margin-bottom: 10px; }
-        .lp-prod-nom { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-        .lp-prod-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
-
-        /* OPPORTUNITE */
-        .lp-opp-ladder { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-        .lp-opp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) minmax(140px, 190px); padding: 14px 18px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
-        @media (max-width: 640px) { .lp-opp-head { grid-template-columns: 1fr minmax(120px, 160px); } .lp-opp-hide { display: none; } }
-        .lp-opp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.3fr) minmax(140px, 190px); align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; transition: background .15s; }
-        .lp-opp-row:hover { background: #f8fafc; }
-        .lp-opp-row.crown { background: #eff6ff; }
-        .lp-opp-row.crown:hover { background: #dbeafe; }
-        @media (max-width: 640px) { .lp-opp-row { grid-template-columns: 1fr minmax(120px, 160px); } }
-        .lp-opp-nom { font-size: 15px; font-weight: 700; color: #0f172a; }
-        .lp-opp-nom.crown-nom { color: #1d4ed8; }
-        .lp-opp-note { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-        .lp-opp-val { font-size: 12px; color: #475569; line-height: 1.35; }
-        .lp-opp-total { font-size: 16px; font-weight: 800; color: #2563eb; text-align: right; font-family: 'Playfair Display', Georgia, serif; }
-        .lp-opp-footnote { font-size: 12px; color: #475569; margin-top: 20px; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 18px; }
-        .lp-disclaimer { font-size: 12px; color: #64748b; margin-top: 24px; line-height: 1.6; padding: 14px 18px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-
-        /* TEMOIGNAGES */
-        .lp-temoignages { display: flex; flex-direction: column; gap: 14px; }
-        .lp-temoignage { background: #fff; border-radius: 12px; padding: 28px 26px; border: 1.5px solid #e2e8f0; cursor: pointer; transition: box-shadow .2s, border-color .2s; }
-        .lp-temoignage.active { border-color: #2563eb; box-shadow: 0 4px 20px rgba(37,99,235,0.12); }
-        .lp-temoignage:hover { border-color: #93c5fd; }
-        .lp-temoignage-quote { font-size: 15px; line-height: 1.7; color: #334155; margin-bottom: 18px; }
-        .lp-temoignage-footer { display: flex; align-items: center; gap: 12px; }
-        .lp-temoignage-avatar { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; background: #eff6ff; font-size: 14px; font-weight: 800; color: #2563eb; flex-shrink: 0; }
-        .lp-temoignage-nom { font-size: 14px; font-weight: 700; color: #0A1628; }
-        .lp-temoignage-role { font-size: 11px; color: #94a3b8; }
-
-        /* ETAPES */
-        .lp-steps { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid #e2e8f0; }
-        @media (max-width: 980px) { .lp-steps { grid-template-columns: repeat(2,1fr); } }
-        @media (max-width: 560px) { .lp-steps { grid-template-columns: 1fr; } }
-        .lp-step { padding: 30px 26px 34px 0; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
-        .lp-step:last-child { border-right: none; }
-        @media (max-width: 980px) and (min-width: 561px) { .lp-step:nth-child(2n) { border-right: none; } }
-        @media (max-width: 560px) { .lp-step { border-right: none !important; padding-left: 0 !important; padding-right: 0 !important; } .lp-step:last-child { border-bottom: none; } }
-        .lp-step-n { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 700; color: #2563eb; width: 34px; height: 34px; border: 1.5px solid #bfdbfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; background: #eff6ff; }
-        .lp-step-titre { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 8px; }
-        .lp-step-desc { font-size: 13px; line-height: 1.65; color: #475569; }
-
-        /* PORTAILS */
-        .lp-portals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        @media (max-width: 640px) { .lp-portals-grid { grid-template-columns: 1fr; } }
-        .lp-portal-card { border-radius: 12px; padding: 36px 32px; cursor: pointer; text-align: left; border: none; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .2s, transform .2s; }
-        .lp-portal-card:hover { transform: translateY(-2px); }
-        .lp-portal-card:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-        .lp-portal-card.agent { background: #fff; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 20px rgba(15,23,42,0.06); }
-        .lp-portal-card.agent:hover { border-color: #93c5fd; box-shadow: 0 12px 40px rgba(37,99,235,0.12); }
-        .lp-portal-card.client { background: #f8fafc; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 20px rgba(15,23,42,0.04); }
-        .lp-portal-card.client:hover { border-color: #cbd5e1; box-shadow: 0 12px 40px rgba(15,23,42,0.10); }
-        .lp-portal-label { font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
-        .agent .lp-portal-label { color: #2563eb; }
-        .client .lp-portal-label { color: #64748b; }
-        .lp-portal-title { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; line-height: 1.05; }
-        .agent .lp-portal-title { color: #0A1628; }
-        .client .lp-portal-title { color: #0A1628; }
-        .lp-portal-desc { font-size: 13px; line-height: 1.6; }
-        .agent .lp-portal-desc { color: #475569; }
-        .client .lp-portal-desc { color: #475569; }
-        .lp-portal-cta { font-size: 13px; font-weight: 700; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
-        .agent .lp-portal-cta { color: #2563eb; }
-        .client .lp-portal-cta { color: #0f172a; }
-
-        /* CONTACT */
-        .lp-contact-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap: clamp(40px,6vw,80px); align-items: flex-start; }
-        @media (max-width: 860px) { .lp-contact-grid { grid-template-columns: 1fr; } }
-        .lp-wa-btn { display: inline-flex; align-items: center; gap: 12px; background: #25D366; color: #fff; font-size: 15px; font-weight: 700; border: none; border-radius: 10px; padding: 16px 28px; cursor: pointer; min-height: 52px; text-decoration: none; transition: background .18s, box-shadow .18s; margin-top: 28px; }
-        .lp-wa-btn:hover { background: #1da855; box-shadow: 0 6px 20px rgba(37,211,102,0.35); }
-        .lp-contact-info { display: flex; flex-direction: column; gap: 20px; margin-top: 28px; }
-        .lp-contact-info-item { display: flex; gap: 12px; align-items: flex-start; }
-        .lp-contact-info-icon { width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; color: #2563eb; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .lp-contact-info-title { font-size: 13px; font-weight: 700; color: #0A1628; margin: 0 0 2px; }
-        .lp-contact-info-val { font-size: 13px; color: #64748b; }
-
-        .lp-contact-form { display: flex; flex-direction: column; }
-        .lp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        @media (max-width: 480px) { .lp-form-row { grid-template-columns: 1fr; } }
-        .lp-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-        .lp-field label { font-size: 12px; font-weight: 700; color: #334155; letter-spacing: 0.02em; }
-        .lp-field input, .lp-field select, .lp-field textarea { font-family: inherit; font-size: 14px; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 11px 13px; background: #fff; min-height: 44px; transition: border-color .15s, box-shadow .15s; width: 100%; }
-        .lp-field textarea { resize: vertical; min-height: 80px; }
-        .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-        .lp-field input::placeholder, .lp-field textarea::placeholder { color: #94a3b8; }
-        .lp-form-submit { width: 100%; font-size: 15px; font-weight: 700; color: #fff; background: #2563eb; border: none; border-radius: 9px; padding: 15px; cursor: pointer; min-height: 50px; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background .18s; }
-        .lp-form-submit:hover { background: #1d4ed8; }
-        .lp-form-submit:disabled { opacity: 0.65; cursor: wait; }
-        .lp-spinner { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff; animation: lp-spin 0.7s linear infinite; }
-        @keyframes lp-spin { to { transform: rotate(360deg); } }
-        .lp-form-note { font-size: 12px; color: #94a3b8; text-align: center; margin: 12px 0 0; }
-        .lp-form-error { font-size: 13px; font-weight: 600; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 11px 14px; margin: 0 0 14px; }
-        .lp-form-success { text-align: center; padding: 34px 10px; }
-        .lp-success-icon { width: 62px; height: 62px; border-radius: 50%; margin: 0 auto 20px; background: #dcfce7; color: #15803d; display: flex; align-items: center; justify-content: center; }
-        .lp-success-title { font-size: 20px; font-weight: 800; color: #0A1628; margin: 0 0 10px; }
-        .lp-success-desc { font-size: 14px; line-height: 1.7; color: #475569; margin: 0; }
-
-        /* PHOTO PLACEHOLDERS */
-        .lp-photo {
-          position: relative; overflow: hidden; border-radius: 12px;
-          background: #e8edf5;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 10px;
-        }
-        .lp-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; border-radius: 12px; }
-        .lp-about-photo > img, .lp-about-photo > .lp-photo-hint { display: none; }
-        .lp-photo-hint {
-          display: none !important; flex-direction: column; align-items: center; gap: 8px;
-          pointer-events: none; user-select: none; text-align: center; padding: 20px;
-          position: relative; z-index: 1;
-        }
-        .lp-photo-hint-icon {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: rgba(10,22,40,0.07); border: 1.5px dashed #94a3b8;
-          display: flex; align-items: center; justify-content: center;
-          color: #94a3b8; font-size: 20px;
-        }
-        .lp-photo-hint-label {
-          font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
-          text-transform: uppercase; color: #94a3b8;
-        }
-        .lp-photo-hint-sub { font-size: 11px; color: #cbd5e1; }
-
-        /* A PROPOS layout with photo */
-        .lp-about-wrap { display: grid; grid-template-columns: 1fr minmax(0, 420px); gap: clamp(32px,5vw,72px); align-items: flex-start; }
-        @media (max-width: 960px) { .lp-about-wrap { grid-template-columns: 1fr; } }
-        .lp-about-photo { height: 560px; }
-        @media (max-width: 960px) { .lp-about-photo { height: 340px; } }
-
-        /* PHOTO STRIP (full-width) */
-        .lp-photo-strip {
-          display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 3px;
-          height: 440px; margin: 0;
-        }
-        @media (max-width: 760px) { .lp-photo-strip { grid-template-columns: 1fr 1fr; height: 320px; } }
-        @media (max-width: 480px) { .lp-photo-strip { grid-template-columns: 1fr; height: auto; gap: 3px; } }
-        .lp-photo-strip .lp-photo { border-radius: 0; }
-        @media (max-width: 760px) { .lp-photo-strip .lp-photo:last-child { display: none; } }
-
-        /* TEMOIGNAGES layout with photo */
-        .lp-temo-wrap { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,380px); gap: clamp(32px,5vw,64px); align-items: flex-start; }
-        @media (max-width: 900px) { .lp-temo-wrap { grid-template-columns: 1fr; } }
-        .lp-temo-photo { height: 520px; }
-        @media (max-width: 900px) { .lp-temo-photo { height: 320px; } }
-
-        /* FOOTER */
-
-        .lp-footer { background: #ffffff; padding: 40px 6vw 28px; border-top: 1px solid #e2e8f0; }
-        @media (max-width: 640px) { .lp-footer { padding: 32px 20px 24px; } }
-        .lp-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 36px; }
-        @media (max-width: 760px) { .lp-footer-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 480px) { .lp-footer-grid { grid-template-columns: 1fr; } }
-        .lp-footer-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
-        .lp-footer-brand img { height: 36px; width: 36px; object-fit: contain; opacity: 0.9; }
-        .lp-footer-brand-name { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 700; color: #0A1628; }
-        .lp-footer-brand-name span { color: #2563eb; font-style: italic; }
-        .lp-footer-desc { font-size: 13px; color: #64748b; line-height: 1.6; max-width: 300px; }
-        .lp-footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #334155; margin-bottom: 14px; }
-        .lp-footer-links { display: flex; flex-direction: column; gap: 10px; }
-        .lp-footer-link { font-size: 13px; color: #64748b; text-decoration: none; background: none; border: none; cursor: pointer; text-align: left; padding: 0; transition: color .15s; }
-        .lp-footer-link:hover { color: #0A1628; }
-        .lp-footer-legal { border-top: 1px solid #e2e8f0; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-        .lp-footer-rccm { font-size: 11px; color: #475569; line-height: 1.7; }
-        .lp-footer-copy { font-size: 11px; color: #475569; }
-
-        /* ANIMATIONS HERO */
-        @keyframes lp-up { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        .lp-a0 { animation: lp-up .6s cubic-bezier(0.25,1,0.5,1) 0ms   both; }
-        .lp-a1 { animation: lp-up .6s cubic-bezier(0.25,1,0.5,1) 100ms  both; }
-        .lp-a2 { animation: lp-up .6s cubic-bezier(0.25,1,0.5,1) 190ms  both; }
-        .lp-a3 { animation: lp-up .6s cubic-bezier(0.25,1,0.5,1) 280ms  both; }
-        .lp-a4 { animation: lp-up .6s cubic-bezier(0.25,1,0.5,1) 390ms  both; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .lp-a0,.lp-a1,.lp-a2,.lp-a3,.lp-a4 { animation: none; }
-          .lp-eyebrow-dot,.lp-badge-dot { animation: none; }
-        }
-
-        /* PALETTE EBN : blanc, noir et or — aucun bleu */
-        .lp-hero { background: #fff; }
-        .lp-hero::before { border-color: rgba(161,126,54,.2); }
-        .lp-hero::after { background: rgba(161,126,54,.08); }
-        .lp-h1 { color: #111827; }
-        .lp-h1 em, .lp-eyebrow { color: #a17e36; }
-        .lp-eyebrow-dot, .lp-hero-proof span::before { background: #a17e36; box-shadow: 0 0 0 5px rgba(161,126,54,.12); }
-        .lp-hero-sub { color: #475569; }
-        .lp-btn-primary, .lp-form-submit { background: #111827; }
-        .lp-btn-primary:hover, .lp-form-submit:hover { background: #374151; box-shadow: 0 8px 24px rgba(17,24,39,.18); }
-        .lp-btn-primary:focus-visible, .lp-nav-btn:focus-visible, .lp-field input:focus, .lp-field select:focus, .lp-field textarea:focus { outline-color: #a17e36; border-color: #a17e36; box-shadow: 0 0 0 3px rgba(161,126,54,.12); }
-        .lp-btn-secondary { color: #111827; border-color: #d1d5db; background: #fff; }
-        .lp-btn-secondary:hover { background: #f9fafb; border-color: #a17e36; }
-        .lp-hero-proof { color: #64748b; }
-        .lp-hero-proof strong { color: #111827; }
-        .lp-hero-img-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
-        .lp-hero-placeholder { background: linear-gradient(135deg, #111827 0%, #374151 55%, #6b7280 100%); }
-        .lp-hero-overlay-title em { color: #f5d98b; }
-        .lp-stats { background: #fff; border-color: #e5e7eb; }
-        .lp-stat { border-color: #e5e7eb; }
-        .lp-stat-v { color: #a17e36; }
-        .lp-stat-l { color: #111827; }
-        .lp-nav-name span, .lp-footer-brand-name span { color: #a17e36; }
-        .lp-nav-btn { background: #111827; }
-        .lp-nav-btn:hover { background: #374151; }
-        .lp-nav-btn:focus-visible { outline-color: #a17e36; }
-        .lp-sec-title em, .lp-opp-total, .lp-portal-label, .lp-prod-badge, .lp-step-n { color: #a17e36; }
-        .lp-prod-badge, .lp-step-n { background: #faf7ef; border-color: #dfcfaa; }
-        .lp-opp-row.crown { background: #faf7ef; }
-        .lp-opp-row.crown:hover { background: #f5eddb; }
-        .lp-portal-card.agent:hover { border-color: #dfcfaa; box-shadow: 0 12px 40px rgba(161,126,54,.12); }
-        .lp-portal-card:focus-visible { outline-color: #a17e36; }
-        .lp-contact-info-icon { background: #faf7ef; color: #a17e36; }
-        .lp-temoignage.active { border-color: #a17e36; box-shadow: 0 4px 20px rgba(161,126,54,.12); }
-        .lp-temoignage:hover { border-color: #dfcfaa; }
-        .lp-temoignage-avatar { border-color: #dfcfaa; background: #faf7ef; color: #a17e36; }
-        .lp-img-badge { color: #111827; }
-      `}} />
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       <div className="lp">
-
-        {/* WHATSAPP FLOAT */}
         <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="lp-wa-float" aria-label="Contacter EBN sur WhatsApp">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-          </svg>
+          <WhatsAppIcon size={26} />
         </a>
 
         {/* NAV */}
-        <nav className="lp-nav">
-          <a href="/" className="lp-nav-brand" aria-label="Entreprise Benie Network - Accueil">
-            <img src="/assets/Progress business logo.png" alt="EBN" />
-            <span className="lp-nav-name">EBN <span>Network</span></span>
-          </a>
-
-          {/* Desktop links */}
-          <div className="lp-nav-links">
-            <button className="lp-nav-link" onClick={() => scrollTo('a-propos')}>A propos</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('produits')}>Produits</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('opportunite')}>Opportunite</button>
-            <button className="lp-nav-link" onClick={() => scrollTo('contact')}>Contact</button>
-            <div style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 4px' }} aria-hidden />
-            <button className="lp-nav-link" onClick={() => navigate('/login')}>Staff</button>
-            <button className="lp-nav-btn dark" onClick={() => navigate('/portal/login')}>Connexion Membre</button>
+        <header className="lp-nav">
+          <div className="lp-wrap lp-nav-bar">
+            <a href="/" className="lp-brand" aria-label="Entreprise Bénie Network - Accueil">
+              <img src="/assets/Progress business logo.png" alt="" />
+              <span className="lp-brand-name">EBN <span>Network</span></span>
+            </a>
+            <nav className="lp-nav-links" aria-label="Navigation principale">
+              {NAV.map(n => <button key={n.id} className="lp-nav-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+              <button className="lp-nav-link" onClick={() => navigate('/login')}>Staff</button>
+              <button className="lp-btn lp-btn-dark lp-btn-sm" onClick={() => navigate('/portal/login')}>Connexion membre</button>
+            </nav>
+            <button className="lp-burger" onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={menuOpen} aria-controls="lp-menu">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                {menuOpen
+                  ? <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
+                  : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
+              </svg>
+            </button>
           </div>
-
-          {/* Mobile hamburger button */}
-          <button
-            className="lp-nav-hamburger"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Ouvrir le menu de navigation"
-            aria-expanded={mobileMenuOpen}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-          </button>
-        </nav>
-
-        {/* Mobile drawer */}
-        {mobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              className="lp-mobile-overlay"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-hidden
-            />
-            {/* Drawer */}
-            <div
-              className="lp-mobile-drawer"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu de navigation"
-            >
-              {/* Drawer header */}
-              <div className="lp-drawer-header">
-                <a href="/" className="lp-nav-brand" aria-label="Accueil">
-                  <img src="/assets/Progress business logo.png" alt="EBN" />
-                  <span className="lp-nav-name">EBN <span>Network</span></span>
-                </a>
-                <button
-                  className="lp-drawer-close"
-                  onClick={() => setMobileMenuOpen(false)}
-                  aria-label="Fermer le menu"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
+          {menuOpen && (
+            <nav id="lp-menu" className="lp-menu" aria-label="Navigation mobile">
+              <div className="lp-wrap">
+                {NAV.map(n => <button key={n.id} className="lp-menu-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+                <button className="lp-menu-link" onClick={() => { setMenuOpen(false); navigate('/login'); }}>Espace staff</button>
+                <button className="lp-btn lp-btn-dark" onClick={() => { setMenuOpen(false); navigate('/portal/login'); }}>Connexion membre</button>
               </div>
+            </nav>
+          )}
+        </header>
 
-              {/* Drawer links */}
-              <nav className="lp-drawer-body" aria-label="Navigation mobile">
-                <button className="lp-drawer-link" onClick={() => scrollTo('a-propos')}>À propos</button>
-                <button className="lp-drawer-link" onClick={() => scrollTo('produits')}>Produits</button>
-                <button className="lp-drawer-link" onClick={() => scrollTo('opportunite')}>Opportunité</button>
-                <button className="lp-drawer-link" onClick={() => scrollTo('contact')}>Contact</button>
-                <div className="lp-drawer-divider" aria-hidden />
-                <button className="lp-drawer-link" onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}>Espace Staff</button>
-              </nav>
-
-              {/* Drawer footer CTA */}
-              <div className="lp-drawer-footer">
-                <button
-                  className="lp-drawer-btn-primary"
-                  onClick={() => { setMobileMenuOpen(false); navigate('/portal/login'); }}
-                >
-                  Connexion Membre
-                </button>
-                <button
-                  className="lp-drawer-btn-secondary"
-                  onClick={() => scrollTo('contact')}
-                >
-                  Nous contacter
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* HERO */}
-        <section className="lp-hero" aria-labelledby="lp-hero-title">
-          <div className="lp-hero-inner">
-            <p className="lp-eyebrow lp-a0">
-              <span className="lp-eyebrow-dot" aria-hidden />
-              Entreprise Benie Network · Goma, RDC
-            </p>
-            <h1 id="lp-hero-title" className="lp-h1 lp-a1">
-              Batissez votre<br />
-              avenir avec<br />
-              <em>EBN.</em>
-            </h1>
-            <p className="lp-hero-sub lp-a2">
-              Rejoignez un reseau de partenaires engages a Goma et dans la region des
-              Grands Lacs, autour de produits qui changent des vies. Transparent, legal,
-              ancre dans la realite congolaise.
-            </p>
-            <div className="lp-actions lp-a3">
-              <button className="lp-btn-primary" onClick={() => scrollTo('contact')} id="hero-cta-contact">
-                Nous contacter
-              </button>
-              <button className="lp-btn-secondary" onClick={() => scrollTo('produits')} id="hero-cta-produits">
-                Decouvrir nos produits
-              </button>
-            </div>
-            <div className="lp-hero-proof lp-a3" aria-label="Engagements EBN">
-              <span><strong>RDC</strong> · ancrage local</span>
-              <span><strong>8</strong> niveaux transparents</span>
-              <span><strong>4</strong> filleuls par étape</span>
-            </div>
-          </div>
-          <div className="lp-hero-img-wrap lp-a4">
-            <LottieAsset file="hero%20sect.json" label="Animation présentant une femme dans l'univers EBN Network" />
-            <img
-              src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1600&q=85"
-              alt="Professionnelle noire représentant la communauté EBN Network"
-              className="lp-hero-img"
-              fetchPriority="high"
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-            <div className="lp-hero-placeholder" aria-hidden>
-              <div className="lp-hero-text-overlay">
-                <div className="lp-hero-overlay-title">Votre reseau,<br />votre <em>avenir.</em></div>
-                <div className="lp-hero-overlay-sub">Goma · Bukavu · Kinshasa</div>
-              </div>
-            </div>
-            <div className="lp-hero-caption">
-              <span className="lp-hero-caption-kicker">Une communauté qui avance</span>
-              <span>Goma · Bukavu · Kinshasa</span>
-            </div>
-          </div>
-        </section>
-
-        {/* STATS */}
-        <div className="lp-stats" role="region" aria-label="Chiffres cles EBN">
-          {STATS.map(({ v, l, sub }) => (
-            <div key={l} className="lp-stat">
-              <div className="lp-stat-v">{v}</div>
-              <div className="lp-stat-l">{l}</div>
-              <div className="lp-stat-sub">{sub}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* A PROPOS */}
-        <section className="lp-sec lp-sec-white" id="a-propos" aria-labelledby="lp-about-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">A propos d'EBN</p>
-            <h2 id="lp-about-title" className="lp-sec-title">
-              Mission, vision &<br /><em>valeurs fondatrices.</em>
-            </h2>
-            <p className="lp-sec-sub">
-              Entreprise Benie Network sarl est une societe de marketing relationnel enregistree
-              legalement a Goma, RDC. Notre mission : creer de la valeur reelle en combinant
-              vente de produits et services avec un programme de developpement de reseau transparent.
-            </p>
-          </Reveal>
-          <div className="lp-about-wrap">
-            <Reveal delay={80}>
-              <div className="lp-about-grid">
-                {VALEURS.map(({ icon, titre, desc }) => (
-                  <div key={titre} className="lp-about-cell">
-                    <span className="lp-about-icon" role="img" aria-label={titre}>{icon}</span>
-                    <div className="lp-about-titre">{titre}</div>
-                    <div className="lp-about-desc">{desc}</div>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-            {/* ── PHOTO PLACEHOLDER : Equipe / bureau EBN ── */}
-            <Reveal delay={140}>
-              <div className="lp-photo lp-about-photo" aria-hidden>
-                <LottieAsset file="about.json" label="Animation présentant une femme et les valeurs d'EBN Network" />
-                <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1100&q=85" alt="Équipe noire réunie autour d’un projet" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                <div className="lp-photo-hint">
-                  <div className="lp-photo-hint-icon">&#x1F4F7;</div>
-                  <div className="lp-photo-hint-label">Photo — equipe EBN</div>
-                  <div className="lp-photo-hint-sub">Recommande : portrait d'equipe ou bureau Goma<br />Format : 3:4 ou 4:5 · Min 800×1000 px</div>
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </section>
-
-        {/* PRODUITS */}
-        <section className="lp-sec" id="produits" aria-labelledby="lp-prod-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">L'expérience EBN</p>
-            <h2 id="lp-prod-title" className="lp-sec-title">
-              Construisez votre avenir<br />avec un <em>réseau solide.</em>
-            </h2>
-            <p className="lp-sec-sub">
-              Chez EBN, le marketing relationnel commence par une valeur réelle : des produits utiles,
-              une communauté engagée et un accompagnement qui vous aide à grandir durablement.
-            </p>
-          </Reveal>
-          <Reveal delay={80}>
-            <div className="lp-prod-grid">
-              {PRODUITS.map(({ num, nom, desc, badge }) => (
-                <div key={nom} className="lp-prod-cell">
-                  <div className="lp-prod-num">{num}</div>
-                  <div className="lp-prod-badge">{badge}</div>
-                  <div className="lp-prod-nom">{nom}</div>
-                  <div className="lp-prod-desc">{desc}</div>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </section>
-
-        {/* ── PHOTO STRIP — entre Produits et Opportunite ── */}
-        <div className="lp-photo-strip" aria-hidden role="presentation">
-          <div className="lp-photo">
-            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=1400&q=85" alt="Entrepreneur noir en réunion" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-            <div className="lp-photo-hint">
-              <div className="lp-photo-hint-icon">&#x1F4F7;</div>
-              <div className="lp-photo-hint-label">Photo principale</div>
-              <div className="lp-photo-hint-sub">Boutique, produit ou ambassadeur<br />Format paysage · Min 1200×800 px</div>
-            </div>
-          </div>
-          <div className="lp-photo">
-            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1100&q=85" alt="Partenaire noire lors d’une rencontre" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-            <div className="lp-photo-hint">
-              <div className="lp-photo-hint-icon">&#x1F4F7;</div>
-              <div className="lp-photo-hint-label">Photo ambiance</div>
-              <div className="lp-photo-hint-sub">Portrait client ou partenaire<br />Format portrait · Min 800×1000 px</div>
-            </div>
-          </div>
-          <div className="lp-photo">
-            <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1100&q=85" alt="Espace de travail professionnel" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-            <div className="lp-photo-hint">
-              <div className="lp-photo-hint-icon">&#x1F4F7;</div>
-              <div className="lp-photo-hint-label">Photo contexte</div>
-              <div className="lp-photo-hint-sub">Goma, ville, marche<br />Format portrait · Min 800×1000 px</div>
-            </div>
-          </div>
-        </div>
-
-        {/* OPPORTUNITE */}
-        <section className="lp-sec lp-sec-white" id="opportunite" aria-labelledby="lp-opp-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">L'opportunite d'affaires</p>
-            <h2 id="lp-opp-title" className="lp-sec-title">
-              8 niveaux de carriere,<br /><em>un parcours clair.</em>
-            </h2>
-            <p className="lp-sec-sub">
-              Chaque niveau demande 4 filleuls actifs. Matrice complete = commission versee (60% Systeme retirable + 40% Auto-reinvestissement) + promotion.
-              Les montants sont configures dans le systeme - rien n'est negocie a part, rien n'est cache.
-            </p>
-          </Reveal>
-          <Reveal delay={80}>
-            <div className="lp-opp-ladder" role="table" aria-label="Bareme des 8 niveaux de carriere EBN">
-              <div className="lp-opp-head" role="row" aria-hidden>
-                <span>Niveau</span>
-                <span className="lp-opp-hide">Bonus d'incitation</span>
-                <span style={{ textAlign: 'right' }}>Gains & Split</span>
-              </div>
-              {OPPORTUNITE.map(({ niveau, filleuls, commission, systeme, retour, bonus }) => (
-                <div key={niveau} className={`lp-opp-row${niveau === 'Crown Ambassadeur' ? ' crown' : ''}`} role="row">
-                  <div>
-                    <div className={`lp-opp-nom${niveau === 'Crown Ambassadeur' ? ' crown-nom' : ''}`}>
-                      {niveau}
-                      {niveau === 'Crown Ambassadeur' && (
-<span style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#a17e36', background: '#faf7ef', borderRadius: 999, padding: '2px 8px', marginLeft: 10 }}>Rang ultime</span>
-                      )}
-                    </div>
-                    <div className="lp-opp-note">{filleuls} filleuls par matrice</div>
-                  </div>
-                  <span className="lp-opp-val lp-opp-hide">{bonus}</span>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="lp-opp-total">{commission}</span>
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
-                      <span style={{ color: '#2563eb', fontWeight: 600 }}>{systeme}</span> (60%) + <span style={{ color: '#059669', fontWeight: 600 }}>{retour}</span> (40%)
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="lp-opp-footnote">
-              Les 8 étapes représentent un total calculé de <strong>122 256.60 USD</strong> (dont <strong>73 354 USD</strong> Système retirable et <strong>48 902.60 USD</strong> réinvestis automatiquement dans le réseau).
-              Chaque étape nécessite 4 filleuls directs ; les bonus d'incitation sont ceux indiqués ci-dessus.
-            </p>
-            <p className="lp-disclaimer">
-              <strong>Mention legale :</strong> Les revenus presentes correspondent aux montants maximaux par niveau.
-              Les resultats reels varient selon l'engagement et le developpement du reseau de chaque participant.
-              Aucune garantie de revenu n'est faite. L'activite commerciale reelle (vente de produits et services)
-              est le fondement de la legitimite de ce programme. EBN opere dans le cadre legal de la RDC.
-            </p>
-          </Reveal>
-        </section>
-
-        {/* TEMOIGNAGES */}
-        <section className="lp-sec lp-sec-white" id="temoignages" aria-labelledby="lp-temo-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">Temoignages</p>
-            <h2 id="lp-temo-title" className="lp-sec-title">
-              Ils ont rejoint<br /><em>le reseau EBN.</em>
-            </h2>
-          </Reveal>
-          <div className="lp-temo-wrap">
-            <Reveal delay={80}>
-              <div className="lp-temoignages" role="list">
-                {TEMOIGNAGES.map((t, i) => (
-                  <div
-                    key={i}
-                    className={`lp-temoignage${activeTestimonial === i ? ' active' : ''}`}
-                    role="listitem"
-                    onClick={() => setActiveTestimonial(i)}
-                    tabIndex={0}
-                    onKeyDown={e => e.key === 'Enter' && setActiveTestimonial(i)}
-                    aria-label={`Temoignage de ${t.nom}`}
-                  >
-                    <p className="lp-temoignage-quote">{t.texte}</p>
-                    <div className="lp-temoignage-footer">
-                      <div className="lp-temoignage-avatar" aria-hidden>{t.nom.charAt(0)}</div>
-                      <div>
-                        <div className="lp-temoignage-nom">{t.nom} · {t.ville}</div>
-                        <div className="lp-temoignage-role">{t.role}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-            {/* ── PHOTO PLACEHOLDER : Ambassadeur / partenaire ── */}
-            <Reveal delay={140}>
-              <div className="lp-photo lp-temo-photo" aria-hidden>
-                <img className="lp-temo-image" src="/assets/testimoniql.jpg" alt="" loading="lazy" />
-                <img src="https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1000&q=85" alt="Portrait d’un partenaire noir EBN" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                <div className="lp-photo-hint">
-                  <div className="lp-photo-hint-icon">&#x1F4F7;</div>
-                  <div className="lp-photo-hint-label">Photo ambassadeur</div>
-                  <div className="lp-photo-hint-sub">Portrait d'un partenaire EBN<br />Format : 4:5 · Min 800×1000 px</div>
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </section>
-
-        {/* COMMENT REJOINDRE */}
-        <section className="lp-sec" id="comment-rejoindre" aria-labelledby="lp-steps-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">Comment rejoindre</p>
-            <h2 id="lp-steps-title" className="lp-sec-title">
-              De visiteur a partenaire,<br /><em>en 4 etapes.</em>
-            </h2>
-            <p className="lp-sec-sub">
-              Pas de jargon, pas d'engagement flou. Voici exactement comment integrer le reseau EBN.
-            </p>
-          </Reveal>
-          <Reveal delay={80}>
-            <div className="lp-steps">
-              {ETAPES.map(et => (
-                <article key={et.n} className="lp-step">
-                  <div className="lp-step-n" aria-hidden>{et.n}</div>
-                  <h3 className="lp-step-titre">{et.titre}</h3>
-                  <p className="lp-step-desc">{et.desc}</p>
-                </article>
-              ))}
-            </div>
-          </Reveal>
-        </section>
-
-        {/* PORTAILS */}
-        <section className="lp-sec lp-sec-white" id="acces" aria-labelledby="lp-portals-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">Acces</p>
-            <h2 id="lp-portals-title" className="lp-sec-title" style={{ marginBottom: 36 }}>
-              Choisissez<br /><em>votre espace.</em>
-            </h2>
-            <div className="lp-portals-grid">
-              <button
-                className="lp-portal-card agent"
-                onClick={() => navigate('/login')}
-                id="portal-employe"
-                aria-label="Acceder a l'espace employe"
-              >
-                <span className="lp-portal-label">Personnel EBN</span>
-                <span className="lp-portal-title">Espace Employe</span>
-                <span className="lp-portal-desc">
-                  Gerants · Agents · Superviseurs<br />
-                  POS · Stocks · Clients · Rapports
-                </span>
-                <span className="lp-portal-cta">Se connecter &rarr;</span>
-              </button>
-              <button
-                className="lp-portal-card client"
-                onClick={() => navigate('/portal/login')}
-                id="portal-client"
-                aria-label="Acceder au portail client"
-              >
-                <span className="lp-portal-label">Clients EBN</span>
-                <span className="lp-portal-title">Portail Client</span>
-                <span className="lp-portal-desc">
-                  Achats · Points fidelite · Filleuls<br />
-                  Programme Bronze &rarr; Platine
-                </span>
-                <span className="lp-portal-cta">Acceder &rarr;</span>
-              </button>
-            </div>
-          </Reveal>
-        </section>
-
-        {/* CONTACT */}
-        <section className="lp-sec" id="contact" aria-labelledby="lp-contact-title">
-          <Reveal>
-            <p className="lp-sec-eyebrow">Contact</p>
-            <h2 id="lp-contact-title" className="lp-sec-title">
-              Nous contacter<br /><em>facilement.</em>
-            </h2>
-          </Reveal>
-          <div className="lp-contact-grid">
-            <Reveal delay={60}>
+        <main>
+          {/* HERO */}
+          <section className="lp-hero" aria-labelledby="lp-hero-title">
+            <div className="lp-wrap lp-hero-grid">
               <div>
-                <p className="lp-sec-sub" style={{ marginBottom: 0 }}>
-                  La facon la plus rapide de nous joindre est WhatsApp - notre canal principal
-                  a Goma et dans toute la region des Grands Lacs.
+                <p className="lp-label">Entreprise Bénie Network</p>
+                <h1 id="lp-hero-title" className="lp-h1">Un réseau commercial bâti sur des produits réels.</h1>
+                <p className="lp-hero-sub">
+                  EBN accompagne commerçants et entrepreneurs en RDC : des boutiques à Goma, Bukavu
+                  et Kinshasa, une formation à l'inscription et un plan de rémunération publié,
+                  consultable à tout moment.
                 </p>
-                <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="lp-wa-btn" id="contact-whatsapp" aria-label="Contacter EBN sur WhatsApp">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                  </svg>
-                  Ecrire sur WhatsApp
-                </a>
-                <div className="lp-contact-info">
-                  <div className="lp-contact-info-item">
-                    <div className="lp-contact-info-icon">&#x1F4CD;</div>
-                    <div>
-                      <div className="lp-contact-info-title">Siege social</div>
-                      <div className="lp-contact-info-val">Goma, Nord-Kivu, RDC</div>
+                <div className="lp-actions">
+                  <button className="lp-btn lp-btn-dark" onClick={() => scrollTo('contact')} id="hero-cta-contact">Devenir partenaire</button>
+                  <button className="lp-btn lp-btn-line" onClick={() => scrollTo('opportunite')} id="hero-cta-produits">Voir le plan de carrière</button>
+                </div>
+                <dl className="lp-facts">
+                  {FAITS.map(f => <div key={f.k}><dt>{f.k}</dt><dd>{f.v}</dd></div>)}
+                </dl>
+              </div>
+              <div className="lp-hero-photo">
+                <Photo src={photo('1611432579402-7037e3e2c1e4')} alt="Entrepreneure souriante tenant une tablette" eager />
+              </div>
+            </div>
+          </section>
+
+          {/* A PROPOS */}
+          <section className="lp-sec lp-sec-alt" id="a-propos" aria-labelledby="lp-about-title">
+            <div className="lp-wrap lp-two">
+              <div>
+                <p className="lp-label">À propos</p>
+                <h2 id="lp-about-title" className="lp-h2">Une entreprise belge, au service du commerce en RDC.</h2>
+                <p className="lp-p">
+                  Entreprise Bénie Network est une société de marketing relationnel dont le siège social
+                  est établi à {SIEGE.libelle}. Ses équipes opérationnelles travaillent en République
+                  démocratique du Congo, au plus près des membres.
+                </p>
+                <p className="lp-p">
+                  Notre mission : créer de la valeur réelle en combinant la vente de produits et services
+                  avec un programme de développement de réseau transparent.
+                </p>
+                <div className="lp-values">
+                  {VALEURS.map(v => (
+                    <div key={v.titre}>
+                      <h3 className="lp-h3">{v.titre}</h3>
+                      <p>{v.desc}</p>
                     </div>
-                  </div>
-                  <div className="lp-contact-info-item">
-                    <div className="lp-contact-info-icon">&#x1F4F1;</div>
-                    <div>
-                      <div className="lp-contact-info-title">WhatsApp Business</div>
-                      <div className="lp-contact-info-val">{WHATSAPP_NUMBER}</div>
-                    </div>
-                  </div>
-                  <div className="lp-contact-info-item">
-                    <div className="lp-contact-info-icon">&#x1F3E2;</div>
-                    <div>
-                      <div className="lp-contact-info-title">Boutiques</div>
-                      <div className="lp-contact-info-val">Goma · Bukavu · Kinshasa</div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            </Reveal>
-            <Reveal delay={120}>
-              <ContactForm />
-            </Reveal>
-          </div>
+              <figure className="lp-figure">
+                <div className="lp-figure-img lp-ratio-43">
+                  <Photo src={photo('1573496130407-57329f01f769')} alt="Réunion de travail autour d'une table" />
+                </div>
+                <figcaption>Chaque nouveau membre est reçu, formé et suivi par un conseiller.</figcaption>
+              </figure>
+            </div>
+          </section>
 
-        </section>
+          {/* IMPLANTATIONS */}
+          <section className="lp-sec" id="implantations" aria-labelledby="lp-places-title">
+            <div className="lp-wrap lp-two">
+              <figure className="lp-figure">
+                <div className="lp-figure-img lp-ratio-43">
+                  <Photo src={photo('1559113202-c916b8e44373')} alt={`Arcades du Cinquantenaire à ${SIEGE.ville}`} />
+                </div>
+                <figcaption>{SIEGE.ville}, siège social d'EBN.</figcaption>
+              </figure>
+              <div>
+                <p className="lp-label">Implantations</p>
+                <h2 id="lp-places-title" className="lp-h2">Siège à {SIEGE.ville}, boutiques en RDC.</h2>
+                <p className="lp-p">
+                  La direction est assurée depuis la Belgique. Sur le terrain, nos boutiques accueillent
+                  et accompagnent les membres au quotidien.
+                </p>
+                <ul className="lp-place-list">
+                  {IMPLANTATIONS.map((s, i) => (
+                    <li key={s.lieu} className={`lp-place${i === 0 ? ' hq' : ''}`}>
+                      <div>
+                        <div className="lp-place-name">{s.lieu}</div>
+                        <div className="lp-place-country">{s.pays}</div>
+                      </div>
+                      <div>
+                        <div className="lp-place-type">{s.type}</div>
+                        <p>{s.desc}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* OFFRE */}
+          <section className="lp-sec lp-sec-alt" id="produits" aria-labelledby="lp-prod-title">
+            <div className="lp-wrap">
+              <div className="lp-intro">
+                <p className="lp-label">Notre offre</p>
+                <h2 id="lp-prod-title" className="lp-h2">Des produits, une formation, un réseau.</h2>
+                <p className="lp-p">
+                  Chez EBN, le marketing relationnel commence par une valeur réelle : des produits utiles,
+                  une communauté engagée et un accompagnement pour grandir durablement.
+                </p>
+              </div>
+              <div className="lp-photo-row">
+                {OFFRE_PHOTOS.map(p => (
+                  <figure key={p.legende} className="lp-figure">
+                    <div className="lp-figure-img"><Photo src={p.img} alt={p.alt} /></div>
+                    <figcaption>{p.legende}</figcaption>
+                  </figure>
+                ))}
+              </div>
+              <div className="lp-grid3">
+                {PRODUITS.map(p => (
+                  <div key={p.num} className="lp-item">
+                    <div className="lp-item-num">{p.num}</div>
+                    <h3 className="lp-h3">{p.nom}</h3>
+                    <p>{p.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* OPPORTUNITE */}
+          <section className="lp-sec" id="opportunite" aria-labelledby="lp-opp-title">
+            <div className="lp-wrap">
+              <div className="lp-intro">
+                <p className="lp-label">Opportunité</p>
+                <h2 id="lp-opp-title" className="lp-h2">8 niveaux de carrière, un barème public.</h2>
+                <p className="lp-p">
+                  Chaque niveau demande 4 filleuls actifs. Une matrice complète donne droit à la commission
+                  (60 % retirable, 40 % réinvesti automatiquement) et à la promotion. Les montants sont
+                  configurés dans le système : rien n'est négocié à part.
+                </p>
+              </div>
+              <div className="lp-table-wrap">
+                <table className="lp-table">
+                  <caption className="lp-visually-hidden">Barème des 8 niveaux de carrière EBN</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Niveau</th>
+                      <th scope="col" className="lp-col-bonus">Bonus d'incitation</th>
+                      <th scope="col" className="num">Commission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {OPPORTUNITE.map(o => (
+                      <tr key={o.niveau} className={o.niveau === 'Crown Ambassadeur' ? 'top' : undefined}>
+                        <td>
+                          <div className="lvl">{o.niveau}</div>
+                          <div className="split">{o.filleuls} filleuls par matrice</div>
+                        </td>
+                        <td className="lp-col-bonus">{o.bonus}</td>
+                        <td className="num">
+                          <div className="amount">{o.commission}</div>
+                          <div className="split">{o.systeme} retirable · {o.retour} réinvesti</div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="lp-note">
+                Total des 8 niveaux : <strong>122 256.60 USD</strong>, dont 73 354 USD retirables
+                et 48 902.60 USD réinvestis automatiquement dans le réseau.
+              </p>
+              <p className="lp-legal">
+                Mention légale : les montants présentés sont les maximums par niveau. Les résultats réels
+                dépendent de l'engagement et du développement du réseau de chaque participant. Aucune
+                garantie de revenu n'est faite. La vente de produits et services est le fondement du programme.
+              </p>
+            </div>
+          </section>
+
+          {/* TEMOIGNAGES */}
+          <section className="lp-sec lp-sec-alt" id="temoignages" aria-labelledby="lp-temo-title">
+            <div className="lp-wrap lp-quotes">
+              <figure className="lp-figure">
+                <div className="lp-figure-img">
+                  <Photo src="/assets/temoignage-900.jpg" alt="Partenaire EBN présentant des pagnes" />
+                </div>
+                <figcaption>Les pagnes, premier bonus du niveau Builder.</figcaption>
+              </figure>
+              <div>
+                <p className="lp-label">Témoignages</p>
+                <h2 id="lp-temo-title" className="lp-h2" style={{ marginBottom: 32 }}>Ils ont rejoint le réseau.</h2>
+                {TEMOIGNAGES.map(t => (
+                  <blockquote key={t.nom} className="lp-quote">
+                    <p>« {t.texte} »</p>
+                    <footer><strong>{t.nom}</strong>, {t.ville} — {t.role}</footer>
+                  </blockquote>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* COMMENT REJOINDRE */}
+          <section className="lp-sec" id="comment-rejoindre" aria-labelledby="lp-steps-title">
+            <div className="lp-wrap">
+              <div className="lp-intro">
+                <p className="lp-label">Comment rejoindre</p>
+                <h2 id="lp-steps-title" className="lp-h2">De visiteur à partenaire, en 4 étapes.</h2>
+              </div>
+              <ol className="lp-steps">
+                {ETAPES.map(e => (
+                  <li key={e.n} className="lp-step">
+                    <div className="lp-step-n">Étape {e.n}</div>
+                    <h3 className="lp-h3">{e.titre}</h3>
+                    <p>{e.desc}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+
+          {/* ACCES */}
+          <section className="lp-sec" id="acces" aria-labelledby="lp-access-title">
+            <div className="lp-wrap">
+              <div className="lp-intro" style={{ marginBottom: 32 }}>
+                <p className="lp-label">Accès</p>
+                <h2 id="lp-access-title" className="lp-h2">Votre espace.</h2>
+              </div>
+              <div className="lp-access">
+                <div className="lp-access-card">
+                  <h3 className="lp-h3" style={{ fontSize: 19 }}>Portail membre</h3>
+                  <p className="lp-small">Achats, points fidélité, filleuls et portefeuille.</p>
+                  <button className="lp-btn lp-btn-dark" onClick={() => navigate('/portal/login')} id="portal-client">Accéder au portail</button>
+                </div>
+                <div className="lp-access-card">
+                  <h3 className="lp-h3" style={{ fontSize: 19 }}>Espace employé</h3>
+                  <p className="lp-small">Gérants, agents et superviseurs : caisse, stocks, clients, rapports.</p>
+                  <button className="lp-btn lp-btn-line" onClick={() => navigate('/login')} id="portal-employe">Se connecter</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* CONTACT */}
+          <section className="lp-sec lp-sec-alt" id="contact" aria-labelledby="lp-contact-title">
+            <div className="lp-wrap lp-contact">
+              <div>
+                <p className="lp-label">Contact</p>
+                <h2 id="lp-contact-title" className="lp-h2">Parlons de votre projet.</h2>
+                <p className="lp-p">WhatsApp reste le moyen le plus rapide de nous joindre. Un conseiller vous répond sous 24h.</p>
+                <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-dark" id="contact-whatsapp">
+                  <WhatsAppIcon size={18} /> Écrire sur WhatsApp
+                </a>
+                <dl className="lp-info">
+                  <div><dt>Siège social</dt><dd>{SIEGE.libelle}</dd></div>
+                  <div><dt>Boutiques</dt><dd>Goma · Bukavu · Kinshasa (RDC)</dd></div>
+                  <div><dt>WhatsApp Business</dt><dd><a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">{WHATSAPP_NUMBER}</a></dd></div>
+                </dl>
+              </div>
+              <div className="lp-form-card">
+                <ContactForm />
+              </div>
+            </div>
+          </section>
+        </main>
 
         {/* FOOTER */}
         <footer className="lp-footer">
-          <div className="lp-footer-grid">
-            <div>
-              <div className="lp-footer-brand">
-                <img src="/assets/Progress business logo.png" alt="" aria-hidden />
-                <span className="lp-footer-brand-name">EBN <span>Network</span></span>
+          <div className="lp-wrap">
+            <div className="lp-footer-grid">
+              <div>
+                <div className="lp-brand" style={{ marginBottom: 14 }}>
+                  <img src="/assets/Progress business logo.png" alt="" />
+                  <span className="lp-brand-name">EBN <span>Network</span></span>
+                </div>
+                <p className="lp-small" style={{ maxWidth: 320 }}>
+                  Entreprise Bénie Network — réseau de marketing relationnel. Produits et services
+                  réels, plan de rémunération transparent.
+                </p>
               </div>
-              <p className="lp-footer-desc">
-                Entreprise Benie Network sarl - Reseau de marketing relationnel base a Goma, RDC.
-                Vente de produits et services reels, plan de remuneration transparent.
-              </p>
-            </div>
-            <div>
-              <div className="lp-footer-col-title">Navigation</div>
-              <div className="lp-footer-links">
-                <button className="lp-footer-link" onClick={() => scrollTo('a-propos')}>A propos</button>
-                <button className="lp-footer-link" onClick={() => scrollTo('produits')}>Produits</button>
-                <button className="lp-footer-link" onClick={() => scrollTo('opportunite')}>Opportunite</button>
-                <button className="lp-footer-link" onClick={() => scrollTo('temoignages')}>Temoignages</button>
-                <button className="lp-footer-link" onClick={() => scrollTo('contact')}>Contact</button>
+              <div>
+                <p className="lp-footer-title">Navigation</p>
+                <div className="lp-footer-links">
+                  {NAV.map(n => <button key={n.id} className="lp-footer-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+                </div>
+              </div>
+              <div>
+                <p className="lp-footer-title">Espaces</p>
+                <div className="lp-footer-links">
+                  <button className="lp-footer-link" onClick={() => navigate('/portal/login')}>Portail membre</button>
+                  <button className="lp-footer-link" onClick={() => navigate('/login')}>Espace employé</button>
+                  <a className="lp-footer-link" href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                </div>
+              </div>
+              <div>
+                <p className="lp-footer-title">Adresses</p>
+                <p className="lp-small">
+                  <strong style={{ color: 'var(--ink)' }}>Siège social</strong><br />{SIEGE.libelle}<br /><br />
+                  <strong style={{ color: 'var(--ink)' }}>Boutiques</strong><br />Goma · Bukavu · Kinshasa
+                </p>
               </div>
             </div>
-            <div>
-              <div className="lp-footer-col-title">Portails</div>
-              <div className="lp-footer-links">
-                <button className="lp-footer-link" onClick={() => navigate('/portal/login')}>Portail Client</button>
-                <button className="lp-footer-link" onClick={() => navigate('/login')}>Espace Employe</button>
-              </div>
+            <div className="lp-footer-legal">
+              <span>Entreprise Bénie Network · Siège social : {SIEGE.libelle}. Les résultats varient selon l'engagement ; aucune garantie de revenu.</span>
+              <nav className="lp-legal-links" aria-label="Informations légales">
+                <Link to="/legal/mentions-legales">Mentions légales</Link>
+                <Link to="/legal/confidentialite">Confidentialité</Link>
+                <Link to="/legal/conditions">Conditions générales</Link>
+                <Link to="/legal/cookies">Cookies</Link>
+                <span>© {new Date().getFullYear()} EBN Network</span>
+              </nav>
             </div>
-          </div>
-          <div className="lp-footer-legal">
-            <div className="lp-footer-rccm">
-              Entreprise Benie Network sarl · RCCM : [N° RCCM Goma] · Siege : Goma, Nord-Kivu, RDC<br />
-              Les resultats varient selon l'engagement. Aucune garantie de revenu n'est faite.
-            </div>
-            <span className="lp-footer-copy">EBN Network RDC © {new Date().getFullYear()}</span>
           </div>
         </footer>
-
       </div>
     </>
   );
