@@ -268,7 +268,7 @@ const CSS = `
   .lp-item p { font-size: 14px; color: var(--text); margin: 0; }
 
   /* OPPORTUNITE */
-  .lp-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; background: #fff; }
+  .lp-table-wrap { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; background: #fff; }
   .lp-table { width: 100%; border-collapse: collapse; }
   .lp-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 12px 18px; background: #f9fafb; border-bottom: 1px solid var(--line); }
   .lp-table td { padding: 14px 18px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; color: var(--text); }
