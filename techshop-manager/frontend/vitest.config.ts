@@ -15,6 +15,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Les beforeEach qui importent dynamiquement des pages lourdes (graphiques,
+    // PDF) dépassaient 10 s à froid quand toute la suite tourne en parallèle.
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     alias: {
       '@': resolve(__dirname, './src'),
     },

@@ -211,11 +211,11 @@ export default function PortalPointsPage() {
           )}
 
           {!isLoading && transactions.length > 0 && (
-            <div className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
+            <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
               {transactions.map((tx) => (
                 <TransactionRow key={tx.id} tx={tx} />
               ))}
-            </div>
+            </ul>
           )}
 
           {hasNextPage && (
