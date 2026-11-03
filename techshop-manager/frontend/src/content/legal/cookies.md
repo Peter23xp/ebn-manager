@@ -1,5 +1,3 @@
-> **Avertissement :** ce document a été rédigé avec l'aide d'une intelligence artificielle et constitue uniquement un point de départ. Il ne constitue pas un avis juridique et ne crée aucune relation avocat-client. Les lois varient selon les pays et évoluent dans le temps. Faites-le relire par un professionnel du droit qualifié avant de le publier ou de vous y fier. L'auteur de l'outil décline toute responsabilité quant à son utilisation.
-
 # Politique cookies
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0

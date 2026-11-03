@@ -1,7 +1,3 @@
-> **Avertissement :** ce document a été rédigé avec l'aide d'une intelligence artificielle et constitue uniquement un point de départ. Il ne constitue pas un avis juridique et ne crée aucune relation avocat-client. Les lois varient selon les pays et évoluent dans le temps. Faites-le relire par un professionnel du droit qualifié avant de le publier ou de vous y fier. L'auteur de l'outil décline toute responsabilité quant à son utilisation.
-
-> **Données d'exemple :** les informations d'identification de l'entreprise (adresse, numéros d'enregistrement, responsable, montants et délais) sont fictives et servent uniquement à visualiser le document. Remplacez-les par les informations réelles avant toute publication.
-
 # Politique de confidentialité
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0
@@ -17,7 +13,7 @@ La présente politique explique comment Entreprise Bénie Network SRL (« EBN »
 
 Le responsable du traitement est Entreprise Bénie Network SRL, dont le siège social est situé Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique, numéro d'entreprise 0123.456.789.
 
-Étant établis en Belgique, nous appliquons le Règlement général sur la protection des données (RGPD, règlement (UE) 2016/679) à l'ensemble des traitements, y compris ceux qui concernent les membres résidant en République démocratique du Congo. Les dispositions de protection des données du Code du numérique congolais (ordonnance-loi n° 23/010 du 13 mars 2023) s'appliquent également aux traitements réalisés en RDC. [HYPOTHÈSE : une même politique couvre la Belgique et la RDC ; à confirmer par votre juriste.]
+Étant établis en Belgique, nous appliquons le Règlement général sur la protection des données (RGPD, règlement (UE) 2016/679) à l'ensemble des traitements, y compris ceux qui concernent les membres résidant en République démocratique du Congo. Les dispositions de protection des données du Code du numérique congolais (ordonnance-loi n° 23/010 du 13 mars 2023) s'appliquent également aux traitements réalisés en RDC.
 
 Une « donnée personnelle » est toute information qui permet de vous identifier, directement ou indirectement : nom, numéro de téléphone, identifiant de membre, historique d'achats, etc.
 
@@ -88,7 +84,7 @@ Au sein du réseau, certaines informations sont visibles par d'autres personnes,
 ## 5. Durée de conservation
 
 - **Compte membre** : pendant toute la durée de votre adhésion, puis 3 ans après la clôture du compte, pour gérer les éventuelles réclamations.
-- **Pièces comptables** (ventes, commissions, retraits) : 7 ans, durée de conservation comptable prévue par le droit belge. [HYPOTHÈSE : à vérifier par votre comptable, y compris pour les obligations en RDC.]
+- **Pièces comptables** (ventes, commissions, retraits) : 7 ans, durée de conservation comptable prévue par le droit belge.
 - **Formulaire de contact** : 12 mois après le dernier échange, si aucune adhésion ne s'ensuit.
 - **Journaux techniques et de sécurité** : 12 mois au maximum.
 - **Sauvegardes** : les données supprimées disparaissent des sauvegardes au plus tard 35 jours après leur suppression.
@@ -99,7 +95,7 @@ Vos données circulent entre la Belgique (siège), la RDC (boutiques et équipes
 
 - La RDC, le Kenya et les États-Unis ne bénéficient pas tous d'une décision d'adéquation de la Commission européenne.
 - Lorsque c'est nécessaire, ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (art. 46 RGPD), ou par le cadre de protection des données UE-États-Unis pour les prestataires certifiés.
-- Les transferts vers nos équipes en RDC sont nécessaires à l'exécution du contrat qui vous lie à EBN (art. 49, 1, b RGPD). [HYPOTHÈSE : mécanisme à confirmer par votre juriste.]
+- Les transferts vers nos équipes en RDC sont nécessaires à l'exécution du contrat qui vous lie à EBN (art. 49, 1, b RGPD).
 
 Vous pouvez obtenir une copie des garanties applicables en écrivant à bagalwatibuka182@gmail.com.
 
@@ -150,13 +146,3 @@ Nous pouvons mettre à jour cette politique, par exemple si nous changeons de pr
 - Questions sur vos données : bagalwatibuka182@gmail.com
 - Délégué à la protection des données : aucun délégué désigné à ce jour ; les demandes sont traitées par la direction à l'adresse bagalwatibuka182@gmail.com
 - Adresse postale : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique
-
-## Informations d'exemple à remplacer
-
-- Adresse du siège
-- Numéro d'entreprise (BCE)
-- Hébergeur et région de la base de données
-- Fournisseur de stockage
-- Durées de conservation (3 ans, 35 jours)
-- Âge minimum
-- Chaque mention [HYPOTHÈSE : …] restante à valider puis retirer

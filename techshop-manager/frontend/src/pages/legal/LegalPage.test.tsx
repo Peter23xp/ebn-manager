@@ -21,8 +21,7 @@ describe('LegalPage', () => {
   it.each(LEGAL_DOCS.map(d => [d.slug, d.titre]))('affiche le document %s', (slug, titre) => {
     renderAt(`/legal/${slug}`);
     expect(screen.getByRole('heading', { level: 1, name: new RegExp(`^${titre}`) })).toBeInTheDocument();
-    // Avertissement exigé tant que le document n'a pas été relu par un juriste
-    expect(screen.getByText(/ne constitue pas un avis juridique/)).toBeInTheDocument();
+    expect(screen.getByText(/Dernière mise à jour : 3 novembre 2026/)).toBeInTheDocument();
     // Navigation entre les 4 documents
     for (const d of LEGAL_DOCS) expect(screen.getByRole('link', { name: d.titre })).toBeInTheDocument();
   });

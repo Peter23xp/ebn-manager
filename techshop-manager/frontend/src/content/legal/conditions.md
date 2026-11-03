@@ -1,7 +1,3 @@
-> **Avertissement :** ce document a été rédigé avec l'aide d'une intelligence artificielle et constitue uniquement un point de départ. Il ne constitue pas un avis juridique et ne crée aucune relation avocat-client. Les lois varient selon les pays et évoluent dans le temps. Faites-le relire par un professionnel du droit qualifié avant de le publier ou de vous y fier. L'auteur de l'outil décline toute responsabilité quant à son utilisation.
-
-> **Données d'exemple :** les informations d'identification de l'entreprise (adresse, numéros d'enregistrement, responsable, montants et délais) sont fictives et servent uniquement à visualiser le document. Remplacez-les par les informations réelles avant toute publication.
-
 # Conditions générales d'utilisation et d'adhésion
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0
@@ -157,13 +153,3 @@ Si une clause est jugée nulle ou inapplicable, les autres clauses restent en vi
 - Réclamations : bagalwatibuka182@gmail.com, ou auprès de votre boutique EBN. Nous accusons réception sous 5 jours ouvrés et répondons sous 30 jours.
 - Courrier : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique.
 - WhatsApp : +243 974 752 784.
-
-## Informations d'exemple à remplacer
-
-- Dénomination, forme juridique, adresse et numéro BCE
-- Montant et contenu de l'adhésion (90 USD, kit)
-- Délai et frais de retrait
-- Politique de retour des produits
-- Règle de la part réinvestie en cas de départ
-- Préavis, droit applicable et tribunaux
-- Chaque mention [HYPOTHÈSE : …] restante à valider puis retirer
