@@ -1,100 +1,65 @@
-import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PageSEO } from '@/components/seo/PageSEO';
+import { usePageScroll } from '@/hooks/usePageScroll';
+
+/**
+ * 404 globale. Vrais liens (<a href>) vers des destinations publiques
+ * uniquement : un visiteur non connecté ne doit pas être envoyé vers
+ * /dashboard ou /clients (redirection vers la connexion, puis impasse).
+ */
+const CSS = `
+  .nf { --ink: #111827; --text: #374151; --muted: #6b7280; --gold: #a17e36;
+    min-height: 100vh; background: #fff; color: var(--ink); font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    display: flex; flex-direction: column; }
+  .nf-top { border-bottom: 1px solid #e5e7eb; padding: 0 32px; height: 68px; display: flex; align-items: center; }
+  .nf-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .nf-brand img { height: 40px; width: 40px; object-fit: contain; }
+  .nf-brand-name { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 700; color: var(--ink); }
+  .nf-brand-name span { color: var(--gold); }
+  .nf-body { flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 20px; }
+  .nf-box { max-width: 480px; }
+  .nf-code { font-family: 'Playfair Display', Georgia, serif; font-size: 96px; font-weight: 700; line-height: 1; color: var(--gold); margin: 0 0 16px; }
+  .nf-title { font-family: 'Playfair Display', Georgia, serif; font-size: 34px; font-weight: 700; margin: 0 0 10px; }
+  .nf-text { font-size: 16px; color: var(--text); margin: 0 0 28px; }
+  .nf-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .nf .nf-btn { font-size: 14.5px; font-weight: 600; border-radius: 6px; padding: 0 22px; min-height: 46px; display: inline-flex; align-items: center; text-decoration: none; border: 1px solid transparent; }
+  .nf .nf-btn-dark { background: var(--ink); color: #fff; }
+  .nf .nf-btn-dark:hover { background: #374151; }
+  .nf .nf-btn-line { background: #fff; color: var(--ink); border-color: #d1d5db; }
+  .nf .nf-btn-line:hover { border-color: var(--ink); }
+  .nf-help { font-size: 14px; color: var(--muted); margin: 28px 0 0; }
+  .nf .nf-help a { min-height: 0; color: var(--ink); font-weight: 600; }
+  .nf a:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+`;
 
 export default function NotFoundPage() {
-  const navigate = useNavigate();
-
+  usePageScroll();
   return (
-    <>
-      <PageSEO
-        title="Page introuvable - 404"
-        description="La page que vous recherchez n'existe pas ou a été déplacée."
-        noindex
-      />
-      
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-neutral-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center">
-          {/* 404 Animation */}
-          <div className="mb-8">
-            <div className="relative inline-block">
-              <div className="text-[120px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#1E3A5F] to-[#2E86C1] leading-none">
-                404
-              </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10">
-                <Search size={80} className="text-[#1E3A5F] animate-pulse" />
-              </div>
-            </div>
-          </div>
+    <div className="nf safe-page">
+      <PageSEO title="Page introuvable" noindex />
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
-          {/* Message */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-[#0A1628] mb-3">
-              Page introuvable
-            </h1>
-            <p className="text-neutral-600 text-base leading-relaxed">
-              La page que vous recherchez n'existe pas ou a été déplacée.
-              Vérifiez l'URL ou retournez à l'accueil.
-            </p>
-          </div>
+      <header className="nf-top">
+        <Link to="/" className="nf-brand" aria-label="EBN Network - Accueil">
+          <img src="/assets/Progress business logo.png" alt="" />
+          <span className="nf-brand-name">EBN <span>Network</span></span>
+        </Link>
+      </header>
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-neutral-200 bg-white text-[#0A1628] font-semibold hover:border-[#2E86C1] hover:text-[#2E86C1] transition-all duration-150"
-            >
-              <ArrowLeft size={18} />
-              Retour
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1E3A5F] text-white font-semibold hover:bg-[#2E86C1] transition-all duration-150 shadow-lg"
-            >
-              <Home size={18} />
-              Accueil
-            </button>
+      <main className="nf-body">
+        <div className="nf-box">
+          <p className="nf-code" aria-hidden>404</p>
+          <h1 className="nf-title">Page introuvable</h1>
+          <p className="nf-text">L'URL que vous avez saisie n'existe pas ou a été déplacée.</p>
+          <div className="nf-actions">
+            <Link to="/" className="nf-btn nf-btn-dark">Retour à l'accueil</Link>
+            <Link to="/login" className="nf-btn nf-btn-line">Se connecter</Link>
           </div>
-
-          {/* Suggestions */}
-          <div className="mt-12 p-6 rounded-2xl bg-white border border-neutral-100 shadow-sm text-left">
-            <p className="text-xs font-bold uppercase tracking-wide text-neutral-400 mb-3">
-              Liens utiles
-            </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="w-full text-left px-4 py-2 rounded-lg text-sm text-neutral-700 hover:bg-blue-50 hover:text-[#2E86C1] transition-colors"
-              >
-                → Tableau de bord
-              </button>
-              <button
-                onClick={() => navigate('/clients')}
-                className="w-full text-left px-4 py-2 rounded-lg text-sm text-neutral-700 hover:bg-blue-50 hover:text-[#2E86C1] transition-colors"
-              >
-                → Gestion des clients
-              </button>
-              <button
-                onClick={() => navigate('/sales/pos')}
-                className="w-full text-left px-4 py-2 rounded-lg text-sm text-neutral-700 hover:bg-blue-50 hover:text-[#2E86C1] transition-colors"
-              >
-                → Point de vente (POS)
-              </button>
-              <button
-                onClick={() => navigate('/mlm')}
-                className="w-full text-left px-4 py-2 rounded-lg text-sm text-neutral-700 hover:bg-blue-50 hover:text-[#2E86C1] transition-colors"
-              >
-                → Réseau MLM
-              </button>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <p className="mt-8 text-xs text-neutral-400">
-            TechShop Manager © {new Date().getFullYear()} — Progress Business
+          <p className="nf-help">
+            Besoin d'aide ? <Link to="/support">Contactez le support</Link>
           </p>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
