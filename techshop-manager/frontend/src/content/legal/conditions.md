@@ -30,9 +30,9 @@ Pour devenir membre, vous devez :
 
 L'adhésion suit quatre étapes obligatoires, dans l'ordre : présentation (récit), formation, fiche d'adhésion, activation. Le compte n'est actif qu'après validation de l'activation par EBN.
 
-### 3.2 Frais d'adhésion
+### 3.2 Conditions d'adhésion
 
-L'activation donne lieu au paiement de un montant unique de 90 USD, en échange de un kit de produits de démarrage d'une valeur équivalente et la formation d'accueil. Le prix et son contenu vous sont communiqués avant signature de la fiche d'adhésion.
+L'adhésion ne donne lieu à aucun droit d'entrée. Pour devenir membre officiel, il suffit d'acheter en boutique un ou plusieurs produits EBN totalisant **40 points**. Ces points sont inscrits sur votre fiche d'adhésion. Les produits achetés vous appartiennent, et la formation d'accueil est incluse.
 
 ### 3.3 Sécurité du compte
 
