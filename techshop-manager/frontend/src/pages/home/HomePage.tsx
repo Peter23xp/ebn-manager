@@ -43,7 +43,7 @@ const VALEURS = [
   { titre: 'Intégrité', desc: 'Plan de rémunération publié, montants configurés dans le système, aucune promesse irréaliste.' },
   { titre: 'Ancrage local', desc: `Une direction à ${SIEGE.ville}, des équipes qui connaissent le terrain à Goma, Bukavu et Kinshasa.` },
   { titre: 'Croissance réelle', desc: "La vente de produits et services concrets d'abord. Le réseau amplifie la valeur, il ne la remplace pas." },
-  { titre: 'Conformité', desc: 'Une structure juridique claire en Belgique et en RDC, des registres tenus et vérifiables.' },
+  { titre: 'Conformité', desc: 'Une structure juridique claire en Russie et en RDC, des registres tenus et vérifiables.' },
 ];
 
 const OFFRE_PHOTOS = [
@@ -393,7 +393,7 @@ export default function HomePage() {
                 'name': `EBN ${s.lieu}`,
                 'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': s.lieu },
               })),
-              'areaServed': ['Belgique', 'Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
+              'areaServed': ['Russie', 'Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
               'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'availableLanguage': ['French'] },
               'sameAs': ['https://wa.me/243974752784'],
             },
@@ -477,7 +477,7 @@ export default function HomePage() {
             <div className="lp-wrap lp-two">
               <div>
                 <p className="lp-label">À propos</p>
-                <h2 id="lp-about-title" className="lp-h2">Une entreprise belge, au service du commerce en RDC.</h2>
+                <h2 id="lp-about-title" className="lp-h2">Une entreprise russe, au service du commerce en RDC.</h2>
                 <p className="lp-p">
                   Entreprise Bénie Network est une société de marketing relationnel dont le siège social
                   est établi à {SIEGE.libelle}. Ses équipes opérationnelles travaillent en République
@@ -510,7 +510,7 @@ export default function HomePage() {
             <div className="lp-wrap lp-two">
               <figure className="lp-figure">
                 <div className="lp-figure-img lp-ratio-43">
-                  <Photo src={photo('1559113202-c916b8e44373')} alt={`Arcades du Cinquantenaire à ${SIEGE.ville}`} />
+                  <Photo src={photo('1541447271487-09612b3f49f7')} alt={`Tours du quartier d'affaires de ${SIEGE.ville}`} />
                 </div>
                 <figcaption>{SIEGE.ville}, siège social d'EBN.</figcaption>
               </figure>
@@ -518,7 +518,7 @@ export default function HomePage() {
                 <p className="lp-label">Implantations</p>
                 <h2 id="lp-places-title" className="lp-h2">Siège à {SIEGE.ville}, boutiques en RDC.</h2>
                 <p className="lp-p">
-                  La direction est assurée depuis la Belgique. Sur le terrain, nos boutiques accueillent
+                  La direction est assurée depuis la Russie. Sur le terrain, nos boutiques accueillent
                   et accompagnent les membres au quotidien.
                 </p>
                 <ul className="lp-place-list">

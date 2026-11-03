@@ -2,15 +2,17 @@
 
 Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
-Informations publiées conformément à l'article III.74 du Code de droit économique belge.
+Informations publiées conformément à la loi fédérale n° 149-FZ « sur l'information, les technologies de l'information et la protection de l'information » et à la loi de la Fédération de Russie « sur la protection des droits des consommateurs ».
 
 ## Éditeur du site
 
-- Dénomination : Entreprise Bénie Network SRL
-- Forme juridique : société à responsabilité limitée (SRL)
-- Siège social : Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique
-- Numéro d'entreprise (BCE) : 0123.456.789
-- Numéro de TVA : BE 0123.456.789
+- Dénomination : OOO « Entreprise Bénie Network » (ООО « Энтерпрайз Бени Нетворк »)
+- Forme juridique : société à responsabilité limitée (OOO)
+- Siège social : ulitsa Torgovaïa 24, 101000 Moscou, Fédération de Russie
+- OGRN (numéro d'immatriculation d'État) : 1027700000000
+- INN (numéro fiscal) : 7700000000
+- KPP : 770001001
+- Opérateur de données personnelles : registre de Roskomnadzor n° 77-00-000000
 - E-mail : bagalwatibuka182@gmail.com
 - WhatsApp : +243 974 752 784
 - Responsable de la publication : Séraphin Bagalwa, gérant
@@ -30,7 +32,7 @@ Les boutiques EBN de Goma, Bukavu et Kinshasa sont exploitées par Entreprise B�
 
 ## Propriété intellectuelle
 
-La marque EBN Network, le logo, les textes et la structure du site sont la propriété d'Entreprise Bénie Network SRL. Toute reproduction sans autorisation écrite est interdite.
+La marque EBN Network, le logo, les textes et la structure du site sont la propriété de l'OOO « Entreprise Bénie Network ». Toute reproduction sans autorisation écrite est interdite.
 
 Crédits photographiques : photos sous licence Unsplash (https://unsplash.com/license) et photos EBN.
 

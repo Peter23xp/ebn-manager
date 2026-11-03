@@ -13,7 +13,7 @@ import cookies from '@/content/legal/cookies.md?raw';
 /** Documents juridiques publics. Le Markdown de src/content/legal est la source unique. */
 export const LEGAL_DOCS = [
   { slug: 'mentions-legales', titre: 'Mentions légales', description: "Éditeur du site, siège social, hébergement et propriété intellectuelle d'EBN Network.", source: mentions },
-  { slug: 'confidentialite', titre: 'Politique de confidentialité', description: 'Données collectées par EBN Network, finalités, prestataires, durées de conservation et droits RGPD.', source: confidentialite },
+  { slug: 'confidentialite', titre: 'Politique de confidentialité', description: 'Données collectées par EBN Network, finalités, prestataires, durées de conservation et droits des personnes (loi russe 152-FZ).', source: confidentialite },
   { slug: 'conditions', titre: "Conditions générales", description: "Conditions d'utilisation du service et d'adhésion au programme de parrainage EBN Network.", source: conditions },
   { slug: 'cookies', titre: 'Politique cookies', description: 'Cookies et stockage local strictement nécessaires utilisés par EBN Network.', source: cookies },
 ] as const;

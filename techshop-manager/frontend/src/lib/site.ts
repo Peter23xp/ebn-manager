@@ -20,8 +20,8 @@ export const SITE_DESCRIPTION =
 
 /** Siège social. Modifier ici l'adresse exacte : elle est reprise sur l'accueil, les pages de connexion et le JSON-LD. */
 export const SIEGE = {
-  ville: 'Bruxelles',
-  pays: 'Belgique',
-  codePays: 'BE',
-  libelle: 'Bruxelles, Belgique',
+  ville: 'Moscou',
+  pays: 'Russie',
+  codePays: 'RU',
+  libelle: 'Moscou, Russie',
 };

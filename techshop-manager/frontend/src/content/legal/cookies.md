@@ -4,7 +4,7 @@ Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
 ## En bref
 
-EBN Network n'utilise **aucun cookie publicitaire, aucun outil de mesure d'audience et aucun traceur tiers**. Nous utilisons uniquement les éléments strictement nécessaires pour vous connecter et faire fonctionner l'application, y compris hors connexion. Ces éléments sont exemptés de consentement en droit belge et européen ; c'est pourquoi aucun bandeau cookies ne vous est présenté.
+EBN Network n'utilise **aucun cookie publicitaire, aucun outil de mesure d'audience et aucun traceur tiers**. Nous utilisons uniquement les éléments strictement nécessaires pour vous connecter et faire fonctionner l'application, y compris hors connexion. Ces éléments servent uniquement au fonctionnement du service et ne sont jamais utilisés pour vous suivre ; c'est pourquoi aucun bandeau cookies ne vous est présenté.
 
 Les polices de caractères et les photos du site sont hébergées sur nos propres serveurs : votre navigateur ne contacte pas de service tiers (Google, Unsplash…) lorsque vous consultez le site.
 

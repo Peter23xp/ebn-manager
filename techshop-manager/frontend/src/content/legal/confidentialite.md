@@ -4,16 +4,16 @@ Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
 ## 1. Introduction et champ d'application
 
-La présente politique explique comment Entreprise Bénie Network SRL (« EBN », « nous ») collecte, utilise et protège vos données personnelles lorsque vous :
+La présente politique explique comment OOO « Entreprise Bénie Network » (« EBN », « nous ») collecte, utilise et protège vos données personnelles lorsque vous :
 
 - visitez le site EBN Network ;
 - devenez membre du réseau et utilisez le portail membre ;
 - achetez des produits dans nos boutiques de Goma, Bukavu ou Kinshasa ;
 - travaillez pour EBN et utilisez l'espace employé (caisse, stocks, clients, rapports).
 
-Le responsable du traitement est Entreprise Bénie Network SRL, dont le siège social est situé Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique, numéro d'entreprise 0123.456.789.
+L'opérateur des données personnelles est OOO « Entreprise Bénie Network », dont le siège social est situé ulitsa Torgovaïa 24, 101000 Moscou, Fédération de Russie, OGRN 1027700000000, INN 7700000000. EBN est inscrite au registre des opérateurs de données personnelles tenu par Roskomnadzor sous le n° 77-00-000000.
 
-Étant établis en Belgique, nous appliquons le Règlement général sur la protection des données (RGPD, règlement (UE) 2016/679) à l'ensemble des traitements, y compris ceux qui concernent les membres résidant en République démocratique du Congo. Les dispositions de protection des données du Code du numérique congolais (ordonnance-loi n° 23/010 du 13 mars 2023) s'appliquent également aux traitements réalisés en RDC.
+Étant établis en Russie, nous appliquons la loi fédérale n° 152-FZ du 27 juillet 2006 « sur les données personnelles » à l'ensemble des traitements, y compris ceux qui concernent les membres résidant en République démocratique du Congo. Les dispositions de protection des données du Code du numérique congolais (ordonnance-loi n° 23/010 du 13 mars 2023) s'appliquent également aux traitements réalisés en RDC.
 
 Une « donnée personnelle » est toute information qui permet de vous identifier, directement ou indirectement : nom, numéro de téléphone, identifiant de membre, historique d'achats, etc.
 
@@ -46,22 +46,22 @@ Une « donnée personnelle » est toute information qui permet de vous identifie
 
 ## 3. Pourquoi nous utilisons vos données
 
-| Finalité | Base légale (RGPD, art. 6) |
+| Finalité | Base légale (loi 152-FZ, art. 6, partie 1) |
 |---|---|
-| Créer et gérer votre compte membre ou employé | Exécution du contrat |
-| Enregistrer vos achats, vos points et vos remises | Exécution du contrat |
-| Calculer et verser les commissions de parrainage, traiter les retraits | Exécution du contrat |
-| Vous envoyer un SMS de bienvenue et les messages liés à votre compte | Exécution du contrat |
-| Répondre à vos demandes de contact | Mesures précontractuelles / intérêt légitime |
-| Sécuriser les comptes (verrouillage après 5 essais, journaux) et prévenir la fraude | Intérêt légitime |
-| Tenir la comptabilité et répondre aux obligations fiscales | Obligation légale |
-| Vous envoyer des informations commerciales | Consentement, retirable à tout moment |
+| Créer et gérer votre compte membre ou employé | Exécution du contrat (point 5) |
+| Enregistrer vos achats, vos points et vos remises | Exécution du contrat (point 5) |
+| Calculer et verser les commissions de parrainage, traiter les retraits | Exécution du contrat (point 5) |
+| Vous envoyer un SMS de bienvenue et les messages liés à votre compte | Exécution du contrat (point 5) |
+| Répondre à vos demandes de contact | Votre consentement, donné en envoyant le formulaire (point 1) |
+| Sécuriser les comptes (verrouillage après 5 essais, journaux) et prévenir la fraude | Intérêts légitimes d'EBN (point 7) |
+| Tenir la comptabilité et répondre aux obligations fiscales | Obligation légale (point 2) |
+| Vous envoyer des informations commerciales | Consentement préalable, retirable à tout moment (art. 15) |
 
-Nous ne prenons aucune décision produisant des effets juridiques à votre égard sur la seule base d'un traitement automatisé. Le calcul des commissions suit un barème publié et peut être vérifié et contesté auprès de notre équipe.
+Conformément à l'article 16 de la loi 152-FZ, nous ne prenons aucune décision produisant des effets juridiques à votre égard sur la seule base d'un traitement automatisé. Le calcul des commissions suit un barème publié et peut être vérifié et contesté auprès de notre équipe.
 
 ## 4. Prestataires et services tiers
 
-Nous faisons appel à des sous-traitants qui traitent des données pour notre compte, dans le cadre de contrats conformes à l'article 28 du RGPD :
+Nous confions certains traitements à des prestataires qui agissent sur nos instructions, dans le cadre de contrats conformes à l'article 6, partie 3, de la loi 152-FZ (obligation de confidentialité et de sécurité) :
 
 - **Render** : hébergement de l'application et de son serveur. Données concernées : toutes les données de l'application. Politique : https://render.com/privacy
 - Render (base PostgreSQL gérée, région Francfort, Allemagne) : hébergement de la base de données. Données concernées : toutes les données de l'application.
@@ -84,18 +84,19 @@ Au sein du réseau, certaines informations sont visibles par d'autres personnes,
 ## 5. Durée de conservation
 
 - **Compte membre** : pendant toute la durée de votre adhésion, puis 3 ans après la clôture du compte, pour gérer les éventuelles réclamations.
-- **Pièces comptables** (ventes, commissions, retraits) : 7 ans, durée de conservation comptable prévue par le droit belge.
+- **Pièces comptables** (ventes, commissions, retraits) : 5 ans, durée minimale de conservation prévue par la loi fédérale n° 402-FZ « sur la comptabilité ».
 - **Formulaire de contact** : 12 mois après le dernier échange, si aucune adhésion ne s'ensuit.
 - **Journaux techniques et de sécurité** : 12 mois au maximum.
 - **Sauvegardes** : les données supprimées disparaissent des sauvegardes au plus tard 35 jours après leur suppression.
 
 ## 6. Transferts internationaux
 
-Vos données circulent entre la Belgique (siège), la RDC (boutiques et équipes) et les pays où se trouvent nos prestataires (notamment les États-Unis pour certains hébergeurs, et le Kenya pour Africa's Talking).
+Vos données circulent entre la Russie (siège), la RDC (boutiques et équipes) et les pays où se trouvent nos prestataires : l'Allemagne (base de données), les États-Unis (hébergement de l'application, e-mails) et le Kenya (SMS).
 
-- La RDC, le Kenya et les États-Unis ne bénéficient pas tous d'une décision d'adéquation de la Commission européenne.
-- Lorsque c'est nécessaire, ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (art. 46 RGPD), ou par le cadre de protection des données UE-États-Unis pour les prestataires certifiés.
-- Les transferts vers nos équipes en RDC sont nécessaires à l'exécution du contrat qui vous lie à EBN (art. 49, 1, b RGPD).
+- Avant tout transfert transfrontalier, EBN le déclare à Roskomnadzor, conformément à l'article 12 de la loi 152-FZ.
+- L'Allemagne est partie à la Convention 108 du Conseil de l'Europe et assure une protection adéquate des données.
+- Les transferts vers la RDC, le Kenya et les États-Unis sont nécessaires à l'exécution du contrat qui vous lie à EBN ; à défaut, ils reposent sur votre consentement écrit.
+- La loi impose d'enregistrer en Russie les données des citoyens russes (art. 18, partie 5). EBN ne collecte pas, à ce jour, de données de citoyens russes ; si cela devait changer, ces données seraient d'abord enregistrées dans des bases situées en Russie.
 
 Vous pouvez obtenir une copie des garanties applicables en écrivant à bagalwatibuka182@gmail.com.
 
@@ -109,7 +110,7 @@ Nous mettons en œuvre des mesures raisonnables pour protéger vos données :
 - accès limités selon le rôle : un agent ne voit que les données de sa boutique ;
 - journalisation des opérations sensibles (ventes, stocks, retraits).
 
-Aucun système n'est parfaitement sûr. En cas de violation de données présentant un risque pour vos droits, nous informerons l'Autorité de protection des données dans les 72 heures et, si le risque est élevé, nous vous préviendrons directement.
+Aucun système n'est parfaitement sûr. En cas de violation de données présentant un risque pour vos droits, nous en informerons Roskomnadzor dans les 24 heures, puis lui communiquerons les résultats de notre enquête dans les 72 heures (art. 21, partie 3.1, de la loi 152-FZ). Si le risque est élevé, nous vous préviendrons directement.
 
 Vous êtes responsable de la confidentialité de votre code PIN et de votre mot de passe. Ne les communiquez à personne, y compris à un membre du personnel EBN.
 
@@ -117,17 +118,16 @@ Vous êtes responsable de la confidentialité de votre code PIN et de votre mot 
 
 Vous disposez des droits suivants sur vos données :
 
-- **Accès** : obtenir une copie de vos données.
-- **Rectification** : faire corriger des données inexactes.
-- **Effacement** : demander la suppression de vos données, sauf si nous devons les conserver (par exemple pour la comptabilité).
-- **Limitation** : demander le gel temporaire d'un traitement.
-- **Portabilité** : recevoir vos données dans un format structuré et lisible par machine.
-- **Opposition** : vous opposer aux traitements fondés sur notre intérêt légitime, et à tout moment à la prospection commerciale.
-- **Retrait du consentement** : retirer à tout moment un consentement donné, sans effet sur les traitements déjà réalisés.
+- **Accès** : savoir si nous traitons vos données, à quelles fins, sur quelle base et avec quels prestataires, et en obtenir une copie (art. 14).
+- **Rectification** : faire corriger des données incomplètes, inexactes ou périmées (art. 14).
+- **Blocage et destruction** : demander le blocage ou la destruction de données obtenues illégalement ou devenues inutiles, sauf si la loi nous oblige à les conserver, par exemple pour la comptabilité (art. 14).
+- **Retrait du consentement** : retirer à tout moment un consentement donné (art. 9). Le traitement s'arrête, sauf s'il repose aussi sur une autre base légale.
+- **Opposition à la prospection** : refuser à tout moment les messages commerciaux (art. 15).
+- **Décisions automatisées** : contester une décision fondée uniquement sur un traitement automatisé (art. 16).
 
-Pour exercer ces droits, écrivez à bagalwatibuka182@gmail.com ou adressez-vous à votre boutique EBN. Nous pourrons vous demander de prouver votre identité. Nous répondons dans un délai d'un mois, prolongeable de deux mois pour les demandes complexes ; nous vous en informerons le cas échéant.
+Pour exercer ces droits, écrivez à bagalwatibuka182@gmail.com ou adressez-vous à votre boutique EBN. Nous pourrons vous demander de prouver votre identité. Nous répondons dans un délai de 10 jours ouvrables, prolongeable une fois de 5 jours ouvrables par une notification motivée (art. 20).
 
-Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de l'**Autorité de protection des données** (Belgique), rue de la Presse 35, 1000 Bruxelles, https://www.autoriteprotectiondonnees.be, ou auprès de l'autorité compétente de votre pays de résidence.
+Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir **Roskomnadzor** (Service fédéral de supervision des communications, des technologies de l'information et des médias de masse), https://rkn.gov.ru, ou le tribunal compétent (art. 17). Vous pouvez aussi vous adresser à l'autorité compétente de votre pays de résidence.
 
 ## 9. Cookies et stockage sur votre appareil
 
@@ -144,5 +144,5 @@ Nous pouvons mettre à jour cette politique, par exemple si nous changeons de pr
 ## 12. Contact
 
 - Questions sur vos données : bagalwatibuka182@gmail.com
-- Délégué à la protection des données : aucun délégué désigné à ce jour ; les demandes sont traitées par la direction à l'adresse bagalwatibuka182@gmail.com
-- Adresse postale : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique
+- Responsable de l'organisation du traitement des données personnelles (art. 22.1) : Séraphin Bagalwa, gérant
+- Adresse postale : OOO « Entreprise Bénie Network », ulitsa Torgovaïa 24, 101000 Moscou, Fédération de Russie

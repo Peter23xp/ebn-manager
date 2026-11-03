@@ -4,7 +4,7 @@ Dernière mise à jour : 3 novembre 2026 · Version 1.0
 
 ## 1. Définitions
 
-- **EBN**, **nous** : Entreprise Bénie Network SRL, société à responsabilité limitée (SRL), siège social Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique, numéro d'entreprise 0123.456.789.
+- **EBN**, **nous** : OOO « Entreprise Bénie Network », société à responsabilité limitée de droit russe (OOO), siège social ulitsa Torgovaïa 24, 101000 Moscou, Fédération de Russie, OGRN 1027700000000, INN 7700000000.
 - **Service** : le site EBN Network, le portail membre, l'espace employé et les services rendus en boutique.
 - **Membre** : toute personne dont l'adhésion au réseau a été activée par EBN.
 - **Compte** : l'accès personnel d'un membre (téléphone + code PIN) ou d'un employé (identifiant + mot de passe).
@@ -140,9 +140,9 @@ EBN peut modifier ces conditions, par exemple pour faire évoluer le barème. Le
 
 ## 13. Droit applicable et litiges
 
-- Les présentes conditions sont soumises au droit belge.
+- Les présentes conditions sont soumises au droit de la Fédération de Russie.
 - En cas de litige, contactez d'abord le service réclamations : nous cherchons une solution amiable dans un délai de 30 jours.
-- À défaut d'accord, le litige peut être soumis à une médiation, puis aux tribunaux de Bruxelles, sans préjudice des règles protectrices qui permettent au consommateur de saisir les juridictions de son lieu de résidence.
+- À défaut d'accord, le litige peut être soumis à une médiation, puis aux tribunaux compétents de Moscou, sans préjudice du droit du consommateur de saisir le tribunal de son lieu de résidence (loi de la Fédération de Russie « sur la protection des droits des consommateurs », art. 17).
 
 ## 14. Divisibilité
 
@@ -151,5 +151,5 @@ Si une clause est jugée nulle ou inapplicable, les autres clauses restent en vi
 ## 15. Contact et réclamations
 
 - Réclamations : bagalwatibuka182@gmail.com, ou auprès de votre boutique EBN. Nous accusons réception sous 5 jours ouvrés et répondons sous 30 jours.
-- Courrier : Entreprise Bénie Network SRL, Rue du Commerce Équitable 24, 1000 Bruxelles, Belgique.
+- Courrier : OOO « Entreprise Bénie Network », ulitsa Torgovaïa 24, 101000 Moscou, Fédération de Russie.
 - WhatsApp : +243 974 752 784.
