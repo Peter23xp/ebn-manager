@@ -41,7 +41,7 @@ export default function NotFoundPage() {
 
       <header className="nf-top">
         <Link to="/" className="nf-brand" aria-label="EBN Network - Accueil">
-          <img src="/assets/Progress business logo.png" alt="" />
+          <img src="/assets/logo-ebn.png" alt="" />
           <span className="nf-brand-name">EBN <span>Network</span></span>
         </Link>
       </header>

@@ -85,7 +85,7 @@ export default function LegalPage() {
       <header className="lg-top">
         <div className="lg-wrap">
           <Link to="/" className="lg-brand" aria-label="EBN Network - Accueil">
-            <img src="/assets/Progress business logo.png" alt="" />
+            <img src="/assets/logo-ebn.png" alt="" />
             <span className="lg-brand-name">EBN <span>Network</span></span>
           </Link>
           <Link to="/" className="lg-back">← Retour au site</Link>

@@ -3,6 +3,8 @@ import { SITE_NAME, SITE_URL, OG_IMAGE, SITE_DESCRIPTION } from '@/lib/site';
 
 interface PageSEOProps {
   title?: string;
+  /** Titre complet, sans le suffixe « | EBN Network » (page d'accueil). */
+  fullTitle?: string;
   description?: string;
   canonical?: string;
   noindex?: boolean;
@@ -11,14 +13,15 @@ interface PageSEOProps {
 
 export function PageSEO({
   title,
+  fullTitle: fullTitleProp,
   description = SITE_DESCRIPTION,
   canonical,
   noindex = false,
   ogType = 'website',
 }: PageSEOProps) {
-  const fullTitle = title
+  const fullTitle = fullTitleProp ?? (title
     ? `${title} | ${SITE_NAME}`
-    : `${SITE_NAME} — Gestion Commerciale Multi-Sites | RDC`;
+    : SITE_NAME);
   const canonicalUrl = canonical ? `${SITE_URL}${canonical}` : undefined;
 
   return (
@@ -36,9 +39,11 @@ export function PageSEO({
       <meta property="og:site_name"    content={SITE_NAME} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       <meta property="og:image"        content={OG_IMAGE} />
+      <meta property="og:image:type"   content="image/png" />
       <meta property="og:image:width"  content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta property="og:locale"       content="fr_CD" />
+      <meta property="og:image:alt"    content="EBN Network — Entreprise Bénie Network" />
+      <meta property="og:locale"       content="fr_FR" />
 
       {/* Twitter Card */}
       <meta name="twitter:card"        content="summary_large_image" />

@@ -46,3 +46,4 @@ Thumbs.db
 # Backups de base de données (données sensibles — ne jamais commiter)
 db-backup-*.json
 *.tsbuildinfo
+dist-ssr

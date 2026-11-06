@@ -121,7 +121,7 @@ export function AuthShell({ label, title, subtitle, photo, switchLink, banner, c
       <main className="au-main">
         <div className="au-top">
           <Link to="/" className="au-brand" aria-label="EBN Network - Accueil">
-            <img src="/assets/Progress business logo.png" alt="" />
+            <img src="/assets/logo-ebn.png" alt="" />
             <span className="au-brand-name">EBN <span>Network</span></span>
           </Link>
           <Link to="/" className="au-back">← Retour au site</Link>

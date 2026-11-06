@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { useEffect, Suspense, lazy } from 'react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -102,22 +103,14 @@ function PageLoader() {
   );
 }
 
-export default function App() {
-  const setOnline = useUIStore((s) => s.setOnline);
-
-  useEffect(() => {
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => setOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [setOnline]);
-
+/**
+ * Arbre de routes partagé entre le navigateur (BrowserRouter, ci-dessous) et
+ * le pré-rendu au build (StaticRouter, src/entry-server.tsx). Les deux doivent
+ * produire exactement le même balisage pour que l'hydratation réussisse.
+ */
+export function AppRoutes() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <>
       <OfflineBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -205,6 +198,33 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+    </>
+  );
+}
+
+export function OnlineStatusListener({ children }: { children?: ReactNode }) {
+  const setOnline = useUIStore((s) => s.setOnline);
+
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [setOnline]);
+
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <OnlineStatusListener>
+        <AppRoutes />
+      </OnlineStatusListener>
     </BrowserRouter>
   );
 }

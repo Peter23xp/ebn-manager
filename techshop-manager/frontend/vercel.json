@@ -1,5 +1,87 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "ebn-one.vercel.app"
+        }
+      ],
+      "destination": "https://www.ebnsarl.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/legal/:slug",
+      "destination": "/legal/:slug/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/reset-password",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/clients/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/sales/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/stocks/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/mlm/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/reports/:path*",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/settings/:path*",
+      "destination": "/app.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/app.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/(login|reset-password|portal|dashboard|clients|sales|stocks|mlm|reports|support|settings)(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    }
   ]
 }

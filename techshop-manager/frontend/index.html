@@ -5,34 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0A1628" />
 
-    <!-- SEO base — overridden per-page by react-helmet-async (PageSEO).
-         Domaine canonique aligné avec src/lib/site.ts, public/robots.txt
-         et public/sitemap.xml (à mettre à jour ensemble). -->
-    <title>EBN Network — Gestion Commerciale Multi-Sites | RDC</title>
-    <meta name="description" content="Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa — RDC." />
-    <meta name="author"      content="EBN Network" />
-    <link rel="canonical"    href="https://ebnnetwork.onrender.com/" />
-    <meta name="robots"      content="index, follow" />
+    <!-- SEO — ne pas éditer ici les balises de page.
+         Les pages publiques (/, /legal/*, 404) sont pré-rendues au build par
+         scripts/prerender.mjs : leurs balises <title>, description, canonical,
+         Open Graph et JSON-LD (composant PageSEO) remplacent le bloc ci-dessous.
+         Le bloc sert de valeur par défaut aux écrans de l'application (connexion,
+         tableau de bord…), qui ne sont pas indexés. data-rh="true" permet à
+         react-helmet-async de remplacer ces balises au lieu de les dupliquer. -->
+    <!--seo-->
+    <title>EBN Network — Entreprise Bénie Network</title>
+    <meta name="description" content="Entreprise Bénie Network (EBN) : réseau de marketing relationnel avec boutiques à Goma, Bukavu et Kinshasa (RDC)." data-rh="true" />
+    <meta name="robots" content="noindex, nofollow" data-rh="true" />
+    <!--/seo-->
 
-    <!-- Open Graph fallback -->
-    <meta property="og:type"        content="website" />
-    <meta property="og:title"       content="EBN Network — Gestion Commerciale Multi-Sites | RDC" />
-    <meta property="og:description" content="Caisse POS, gestion des stocks, réseau MLM à 8 niveaux pour commerçants à Goma, Bukavu et Kinshasa." />
-    <meta property="og:url"         content="https://ebnnetwork.onrender.com/" />
-    <meta property="og:image"       content="https://ebnnetwork.onrender.com/og-image.svg" />
-    <meta property="og:locale"      content="fr_CD" />
-    <meta property="og:site_name"   content="EBN Network" />
-
-    <!-- Twitter Card fallback -->
-    <meta name="twitter:card"        content="summary_large_image" />
-    <meta name="twitter:title"       content="EBN Network — Gestion Commerciale Multi-Sites | RDC" />
-    <meta name="twitter:description" content="Caisse POS, gestion des stocks, réseau MLM — Goma, Bukavu, Kinshasa." />
-    <meta name="twitter:image"       content="https://ebnnetwork.onrender.com/og-image.svg" />
-
-    <!-- Favicon — /assets/favicon.svg n'existe pas (404) : on retombe sur le
-         logo réel du projet, seul icône disponible. -->
-    <link rel="icon"             type="image/png" href="/assets/Progress business logo.png" />
-    <link rel="apple-touch-icon"                  href="/assets/Progress business logo.png" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Polices auto-hébergées (public/fonts) : aucun appel à Google Fonts,
          donc aucune adresse IP de visiteur transmise à un tiers (protection des données personnelles). -->

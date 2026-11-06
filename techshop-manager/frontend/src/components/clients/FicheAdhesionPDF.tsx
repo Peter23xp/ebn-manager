@@ -33,7 +33,7 @@ const RED  = '#CC0000';
 const BLACK = '#000000';
 const BORDER = '#000000';
 const DOT_BORDER = '#666666';
-const LOGO_URL = '/assets/Progress business logo.png';
+const LOGO_URL = '/assets/logo-ebn.png';
 
 // A4 = 595×842pt — watermark centré
 const WM = 340;

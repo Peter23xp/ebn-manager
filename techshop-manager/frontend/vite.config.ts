@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -21,7 +21,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    rollupOptions: {
+    // Le build SSR (pré-rendu des pages publiques, scripts/prerender.mjs)
+    // laisse les dépendances à Node : pas de découpage manuel.
+    rollupOptions: isSsrBuild ? {} : {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
@@ -31,5 +33,4 @@ export default defineConfig({
       },
     },
   },
-});
-
+}));

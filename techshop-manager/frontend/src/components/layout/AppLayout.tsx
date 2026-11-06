@@ -121,7 +121,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="sidebar flex flex-col shadow-sidebar">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid #e2e8f0' }}>
-        <img src="/assets/Progress business logo.png" alt="EBN Network" className="h-14 w-14 rounded-md object-contain flex-shrink-0" />
+        <img src="/assets/logo-ebn.png" alt="EBN Network" className="h-14 w-14 rounded-md object-contain flex-shrink-0" />
         <div className="flex flex-col leading-none">
           <span className="text-[13px] font-bold tracking-tight" style={{ color: '#0f172a' }}>EBN Network</span>
           <span className="text-[10px] font-medium" style={{ color: '#94a3b8' }}>Manager v1.0</span>

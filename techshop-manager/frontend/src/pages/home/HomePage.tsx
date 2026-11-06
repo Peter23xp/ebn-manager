@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { PageSEO } from '@/components/seo/PageSEO';
@@ -183,14 +183,14 @@ const CSS = `
   .lp-brand-name span { color: var(--gold); }
   .lp-nav-links { display: flex; align-items: center; gap: 26px; }
   @media (max-width: 960px) { .lp-nav-links { display: none; } }
-  .lp-nav-link { font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); background: none; border: none; cursor: pointer; padding: 4px 0; }
+  .lp-nav-link { display: inline-flex; align-items: center; text-decoration: none; font-family: inherit; font-size: 14px; font-weight: 500; color: var(--text); background: none; border: none; cursor: pointer; padding: 4px 0; }
   .lp-nav-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 6px; }
   .lp-nav-link:focus-visible, .lp-btn:focus-visible, .lp-burger:focus-visible, .lp-menu-link:focus-visible, .lp-footer-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
   .lp-burger { display: none; width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); align-items: center; justify-content: center; }
   @media (max-width: 960px) { .lp-burger { display: flex; } }
   .lp-menu { border-top: 1px solid var(--line); background: #fff; padding: 4px 0 18px; }
   .lp-menu .lp-wrap { display: flex; flex-direction: column; }
-  .lp-menu-link { font-family: inherit; text-align: left; font-size: 15px; font-weight: 500; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 14px 0; cursor: pointer; }
+  .lp-menu-link { display: flex; align-items: center; text-decoration: none; font-family: inherit; text-align: left; font-size: 15px; font-weight: 500; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 14px 0; cursor: pointer; }
   .lp-menu .lp-btn { margin-top: 16px; }
 
   /* BOUTONS */
@@ -339,7 +339,7 @@ const CSS = `
   @media (max-width: 520px) { .lp-footer-grid { grid-template-columns: 1fr; } }
   .lp-footer-title { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); margin: 0 0 14px; }
   .lp-footer-links { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; }
-  .lp-footer-link { font-family: inherit; font-size: 14px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; text-align: left; }
+  .lp-footer-link { display: inline-flex; align-items: center; font-family: inherit; font-size: 14px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; text-align: left; }
   .lp-footer-link:hover { color: var(--ink); }
   .lp-legal-links { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
   .lp .lp-legal-links a, .lp .lp-form-note a { min-height: 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
@@ -358,20 +358,23 @@ const NAV = [
 ];
 
 export default function HomePage() {
-  const navigate = useNavigate();
   usePageScroll();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const scrollTo = (id: string) => {
+  // Vrais liens (<a href="#…">, <Link>) : suivis par les robots et utilisables
+  // sans JavaScript ; le JS ajoute seulement le défilement doux.
+  const scrollTo = (id: string) => (e?: React.MouseEvent) => {
+    e?.preventDefault();
     setMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    history.replaceState(null, '', `#${id}`);
   };
 
   return (
     <>
       <PageSEO
-        title="Entreprise Bénie Network — Réseau MLM & solutions de commerce"
-        description={`Entreprise Bénie Network (EBN) — réseau de marketing relationnel avec siège social à ${SIEGE.libelle} et boutiques en RDC (Goma, Bukavu, Kinshasa). Plan de rémunération transparent à 8 niveaux.`}
+        fullTitle="EBN Network — Entreprise Bénie Network, réseau commercial en RDC"
+        description="Entreprise Bénie Network (EBN) : boutiques à Goma, Bukavu et Kinshasa, formation à l'inscription et plan de rémunération publié à 8 niveaux."
         canonical="/"
         ogType="website"
       />
@@ -385,7 +388,7 @@ export default function HomePage() {
               'name': 'Entreprise Bénie Network sarl',
               'alternateName': 'EBN Network',
               'url': SITE_URL,
-              'logo': `${SITE_URL}/assets/Progress business logo.png`,
+              'logo': `${SITE_URL}/assets/logo-ebn.png`,
               'description': `Réseau de marketing relationnel — siège social à ${SIEGE.libelle}, boutiques en RDC.`,
               'address': { '@type': 'PostalAddress', 'addressCountry': SIEGE.codePays, 'addressLocality': SIEGE.ville },
               'location': IMPLANTATIONS.slice(1).map(s => ({
@@ -394,7 +397,7 @@ export default function HomePage() {
                 'address': { '@type': 'PostalAddress', 'addressCountry': 'CD', 'addressLocality': s.lieu },
               })),
               'areaServed': ['Russie', 'Goma', 'Bukavu', 'Kinshasa', 'Grands Lacs'],
-              'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'availableLanguage': ['French'] },
+              'contactPoint': { '@type': 'ContactPoint', 'contactType': 'customer service', 'telephone': '+243974752784', 'availableLanguage': ['French'] },
               'sameAs': ['https://wa.me/243974752784'],
             },
             {
@@ -419,13 +422,13 @@ export default function HomePage() {
         <header className="lp-nav">
           <div className="lp-wrap lp-nav-bar">
             <a href="/" className="lp-brand" aria-label="Entreprise Bénie Network - Accueil">
-              <img src="/assets/Progress business logo.png" alt="" />
+              <img src="/assets/logo-ebn.png" alt="" />
               <span className="lp-brand-name">EBN <span>Network</span></span>
             </a>
             <nav className="lp-nav-links" aria-label="Navigation principale">
-              {NAV.map(n => <button key={n.id} className="lp-nav-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
-              <button className="lp-nav-link" onClick={() => navigate('/login')}>Staff</button>
-              <button className="lp-btn lp-btn-dark lp-btn-sm" onClick={() => navigate('/portal/login')}>Connexion membre</button>
+              {NAV.map(n => <a key={n.id} href={`#${n.id}`} className="lp-nav-link" onClick={scrollTo(n.id)}>{n.label}</a>)}
+              <Link to="/login" className="lp-nav-link" rel="nofollow">Staff</Link>
+              <Link to="/portal/login" className="lp-btn lp-btn-dark lp-btn-sm" rel="nofollow">Connexion membre</Link>
             </nav>
             <button className="lp-burger" onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={menuOpen} aria-controls="lp-menu">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -438,9 +441,9 @@ export default function HomePage() {
           {menuOpen && (
             <nav id="lp-menu" className="lp-menu" aria-label="Navigation mobile">
               <div className="lp-wrap">
-                {NAV.map(n => <button key={n.id} className="lp-menu-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
-                <button className="lp-menu-link" onClick={() => { setMenuOpen(false); navigate('/login'); }}>Espace staff</button>
-                <button className="lp-btn lp-btn-dark" onClick={() => { setMenuOpen(false); navigate('/portal/login'); }}>Connexion membre</button>
+                {NAV.map(n => <a key={n.id} href={`#${n.id}`} className="lp-menu-link" onClick={scrollTo(n.id)}>{n.label}</a>)}
+                <Link to="/login" className="lp-menu-link" rel="nofollow" onClick={() => setMenuOpen(false)}>Espace staff</Link>
+                <Link to="/portal/login" className="lp-btn lp-btn-dark" rel="nofollow" onClick={() => setMenuOpen(false)}>Connexion membre</Link>
               </div>
             </nav>
           )}
@@ -459,8 +462,8 @@ export default function HomePage() {
                   consultable à tout moment.
                 </p>
                 <div className="lp-actions">
-                  <button className="lp-btn lp-btn-dark" onClick={() => scrollTo('contact')} id="hero-cta-contact">Devenir partenaire</button>
-                  <button className="lp-btn lp-btn-line" onClick={() => scrollTo('opportunite')} id="hero-cta-produits">Voir le plan de carrière</button>
+                  <a href="#contact" className="lp-btn lp-btn-dark" onClick={scrollTo('contact')} id="hero-cta-contact">Devenir partenaire</a>
+                  <a href="#opportunite" className="lp-btn lp-btn-line" onClick={scrollTo('opportunite')} id="hero-cta-produits">Voir le plan de carrière</a>
                 </div>
                 <dl className="lp-facts">
                   {FAITS.map(f => <div key={f.k}><dt>{f.k}</dt><dd>{f.v}</dd></div>)}
@@ -673,12 +676,12 @@ export default function HomePage() {
                 <div className="lp-access-card">
                   <h3 className="lp-h3" style={{ fontSize: 19 }}>Portail membre</h3>
                   <p className="lp-small">Achats, points fidélité, filleuls et portefeuille.</p>
-                  <button className="lp-btn lp-btn-dark" onClick={() => navigate('/portal/login')} id="portal-client">Accéder au portail</button>
+                  <Link to="/portal/login" className="lp-btn lp-btn-dark" rel="nofollow" id="portal-client">Accéder au portail</Link>
                 </div>
                 <div className="lp-access-card">
                   <h3 className="lp-h3" style={{ fontSize: 19 }}>Espace employé</h3>
                   <p className="lp-small">Gérants, agents et superviseurs : caisse, stocks, clients, rapports.</p>
-                  <button className="lp-btn lp-btn-line" onClick={() => navigate('/login')} id="portal-employe">Se connecter</button>
+                  <Link to="/login" className="lp-btn lp-btn-line" rel="nofollow" id="portal-employe">Se connecter</Link>
                 </div>
               </div>
             </div>
@@ -713,7 +716,7 @@ export default function HomePage() {
             <div className="lp-footer-grid">
               <div>
                 <div className="lp-brand" style={{ marginBottom: 14 }}>
-                  <img src="/assets/Progress business logo.png" alt="" />
+                  <img src="/assets/logo-ebn.png" alt="" />
                   <span className="lp-brand-name">EBN <span>Network</span></span>
                 </div>
                 <p className="lp-small" style={{ maxWidth: 320 }}>
@@ -724,14 +727,14 @@ export default function HomePage() {
               <div>
                 <p className="lp-footer-title">Navigation</p>
                 <div className="lp-footer-links">
-                  {NAV.map(n => <button key={n.id} className="lp-footer-link" onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+                  {NAV.map(n => <a key={n.id} href={`#${n.id}`} className="lp-footer-link" onClick={scrollTo(n.id)}>{n.label}</a>)}
                 </div>
               </div>
               <div>
                 <p className="lp-footer-title">Espaces</p>
                 <div className="lp-footer-links">
-                  <button className="lp-footer-link" onClick={() => navigate('/portal/login')}>Portail membre</button>
-                  <button className="lp-footer-link" onClick={() => navigate('/login')}>Espace employé</button>
+                  <Link to="/portal/login" className="lp-footer-link" rel="nofollow">Portail membre</Link>
+                  <Link to="/login" className="lp-footer-link" rel="nofollow">Espace employé</Link>
                   <a className="lp-footer-link" href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 </div>
               </div>
