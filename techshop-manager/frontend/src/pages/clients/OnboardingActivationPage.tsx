@@ -194,7 +194,7 @@ function SuccessScreen({
         agentNom: user?.nom ?? user?.name ?? 'Agent',
         produitNom: activationProduit.nom,
         produitPrix: activationProduit.prixVente,
-        pointsCumules: 40,
+        pointsCumules: 100,
       };
       const blob = await pdf(<FicheAdhesionPDF data={ficheData} />).toBlob();
       if (!scope.isCurrent()) return;

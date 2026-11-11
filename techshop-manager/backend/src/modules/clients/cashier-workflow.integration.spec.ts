@@ -383,7 +383,7 @@ integration('Cashier workflow on dedicated native PostgreSQL', () => {
     expect(client.onboardingEtapes.find(step => step.etape === 'ACTIVATION').montant.toFixed(2)).toBe('30.00');
     expect(client.ventes).toHaveLength(1);
     const invoice = client.ventes[0];
-    expect(invoice).toMatchObject({ agentId: cashier.id, siteId, statut: 'VALIDE', pointsAttribues: 40, modePaiement: 'CASH', referenceTransaction: `activation-${runId}` });
+    expect(invoice).toMatchObject({ agentId: cashier.id, siteId, statut: 'VALIDE', pointsAttribues: 100, modePaiement: 'CASH', referenceTransaction: `activation-${runId}` });
     expect(invoice.numeroVente).toMatch(/^[A-Z0-9]{3}-\d{6}-\d{4,}$/);
     expect(invoice.montantNet.toFixed(2)).toBe('30.00');
     expect(invoice.lignes).toHaveLength(1);

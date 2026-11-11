@@ -1430,8 +1430,8 @@ export class ClientsService implements OnModuleInit {
         },
       });
 
-      // Créer la vente pour le produit d'activation (40 points fixes à l'activation)
-      const POINTS_ACTIVATION = 40;
+      // Créer la vente pour le produit d'activation (100 points fixes à l'activation)
+      const POINTS_ACTIVATION = 100;
       const newVente = await tx.vente.create({
         data: {
           numeroVente,

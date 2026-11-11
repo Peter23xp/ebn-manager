@@ -32,7 +32,7 @@ L'adhésion suit quatre étapes obligatoires, dans l'ordre : présentation (réc
 
 ### 3.2 Conditions d'adhésion
 
-L'adhésion ne donne lieu à aucun droit d'entrée. Pour devenir membre officiel, il suffit d'acheter en boutique un ou plusieurs produits EBN totalisant **40 points**. Ces points sont inscrits sur votre fiche d'adhésion. Les produits achetés vous appartiennent, et la formation d'accueil est incluse.
+L'adhésion ne donne lieu à aucun droit d'entrée. Pour devenir membre officiel, il suffit d'acheter en boutique un ou plusieurs produits EBN totalisant **100 points**. Ces points sont inscrits sur votre fiche d'adhésion. Les produits achetés vous appartiennent, et la formation d'accueil est incluse.
 
 ### 3.3 Sécurité du compte
 

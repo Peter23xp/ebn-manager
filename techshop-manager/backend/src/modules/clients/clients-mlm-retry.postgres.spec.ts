@@ -60,7 +60,7 @@ integration('MLM activation retries on isolated PostgreSQL', () => {
     await matrix.onClientActivated(recruiter.id);
     const client = await createClient(recruiter.id);
     const sale = await prisma.vente.create({ data: { numeroVente: randomUUID(), clientId: client.id, siteId: site.id,
-      agentId: admin.id, modePaiement: 'CASH', montantBrut: 40, montantNet: 40, pointsAttribues: 40 } });
+      agentId: admin.id, modePaiement: 'CASH', montantBrut: 40, montantNet: 40, pointsAttribues: 100 } });
     const actor = { id: admin.id, role: Role.SUPER_ADMIN };
     const results = await Promise.all([
       service.retryMlmActivation(client.id, actor),

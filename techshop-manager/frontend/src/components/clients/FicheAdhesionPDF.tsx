@@ -428,7 +428,7 @@ export function FicheAdhesionPDF({ data }: { data: FicheAdhesionData }) {
           </View>
           <Text style={styles.satText}>
             <Text style={styles.satBold}>
-              Le membre a atteint les points de satisfaction (40 points),{' '}
+              Le membre a atteint les points de satisfaction (100 points),{' '}
             </Text>
             Désormais membre officiel de{' '}
             <Text style={styles.satBold}>EBN NETWORK</Text>
