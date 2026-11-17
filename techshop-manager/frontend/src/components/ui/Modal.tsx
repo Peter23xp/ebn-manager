@@ -60,7 +60,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
       {/* Dialog */}
       <div
         className={cn(
-          'relative z-10 w-full bg-white rounded-xl shadow-2xl flex flex-col max-h-[90vh]',
+          'relative z-10 w-full bg-white rounded-xl shadow-2xl flex flex-col max-h-[90dvh]',
           sizeClasses[size],
         )}
       >

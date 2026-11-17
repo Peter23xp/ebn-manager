@@ -8,6 +8,7 @@ import { PasswordStrength } from '@/components/auth/PasswordStrength';
 import { PageSEO } from '@/components/seo/PageSEO';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { usePageScroll } from '@/hooks/usePageScroll';
 
 type Step = 1 | 2 | 3 | 'done';
 
@@ -20,6 +21,8 @@ function normalizePhone(raw: string): string {
 const STEP_LABELS = ['Téléphone', 'Code OTP', 'Nouveau MDP'];
 
 export default function ResetPasswordPage() {
+  // Page hors application : le document doit pouvoir défiler (clavier mobile).
+  usePageScroll();
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
   const countdown = useCountdown(120);

@@ -151,7 +151,8 @@ function PurchaseDetailPanel({ venteId, onClose }: { venteId: string; onClose: (
       aria-label="Détail de l'achat"
     >
       <div
-        className="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl bg-bg-card p-5 shadow-2xl"
+        className="max-h-[80dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl bg-bg-card p-5 shadow-2xl"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div aria-hidden className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-strong" />

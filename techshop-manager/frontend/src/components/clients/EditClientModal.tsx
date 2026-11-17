@@ -97,7 +97,7 @@ export function EditClientModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-modal-title"
-        className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-border"
+        className="w-full max-w-lg max-h-[90dvh] flex flex-col rounded-2xl bg-white shadow-2xl border border-border"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
