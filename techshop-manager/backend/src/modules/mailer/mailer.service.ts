@@ -23,7 +23,12 @@ export class MailerService {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = config.get<string>('RESEND_API_KEY');
-    this.from = config.get<string>('MAIL_FROM') ?? 'EBN Network <onboarding@resend.dev>';
+    // Domaine vérifié dans Resend : ebnsarl.com. L'adresse de test onboarding@resend.dev
+    // n'envoie qu'au propriétaire du compte Resend : tous les autres emails sont refusés.
+    this.from = config.get<string>('MAIL_FROM') || 'EBN Network <noreply@ebnsarl.com>';
+    if (this.from.includes('@resend.dev')) {
+      this.logger.warn(`MAIL_FROM utilise l'adresse de test Resend (${this.from}) : les emails aux autres destinataires seront refusés. Utilisez une adresse @ebnsarl.com.`);
+    }
 
     if (apiKey) {
       this.resend = new Resend(apiKey);
@@ -39,8 +44,13 @@ export class MailerService {
       this.logger.warn(`Resend non configuré — email non envoyé à ${to}`);
       return;
     }
-    this.resend.emails.send({ from: this.from, to, subject, html }).then(() => {
-      this.logger.log(`Email envoyé à ${to} | ${subject}`);
+    // Le SDK Resend ne lève pas d'exception en cas de refus : il renvoie { error }.
+    this.resend.emails.send({ from: this.from, to, subject, html }).then(({ data, error }) => {
+      if (error) {
+        this.logger.error(`Email refusé par Resend pour ${to} | ${subject} : ${error.message}`);
+        return;
+      }
+      this.logger.log(`Email envoyé à ${to} | ${subject} (id ${data?.id})`);
     }).catch((err: Error) => {
       this.logger.error(`Échec envoi email à ${to}: ${err.message}`);
     });
