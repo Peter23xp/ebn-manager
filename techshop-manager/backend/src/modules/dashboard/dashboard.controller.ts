@@ -6,7 +6,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
 import { StaffActor } from '../../common/access/staff-access';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
+@RequireFeature('dashboard')
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DashboardController {

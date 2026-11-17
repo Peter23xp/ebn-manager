@@ -6,7 +6,10 @@ import {
   MinLength,
   IsBoolean,
   ValidateIf,
+  IsArray,
+  IsIn,
 } from 'class-validator';
+import { FEATURES } from '../../../common/access/features';
 import { Role } from '@prisma/client';
 import { requiresAssignedSite } from '../../../common/access/staff-access';
 
@@ -28,6 +31,12 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6)
   passwordTemp: string;
+
+  /** Fonctionnalités retirées à cet utilisateur (ignoré pour SUPER_ADMIN). */
+  @IsOptional()
+  @IsArray()
+  @IsIn(FEATURES as unknown as string[], { each: true, message: 'Fonctionnalité inconnue' })
+  fonctionnalitesRetirees?: string[];
 }
 
 export class UpdateProfileDto {
@@ -60,6 +69,12 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   siteId?: string | null;
+
+  /** Fonctionnalités retirées à cet utilisateur (ignoré pour SUPER_ADMIN). */
+  @IsOptional()
+  @IsArray()
+  @IsIn(FEATURES as unknown as string[], { each: true, message: 'Fonctionnalité inconnue' })
+  fonctionnalitesRetirees?: string[];
 }
 
 export class ChangePasswordDto {

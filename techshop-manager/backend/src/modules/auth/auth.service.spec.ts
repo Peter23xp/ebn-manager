@@ -51,7 +51,7 @@ describe("AuthService staff site assignment at login", () => {
   it.each(assignedRoles)("returns the assigned site and %s role", async (role) => {
     prisma.utilisateur.findFirst.mockResolvedValue(staff(role, "site-1"));
     const result = await service.login({ identifier: "+243812345678", password: "password" });
-    expect(result.user).toEqual({ id: "staff-1", name: "Staff", role, siteId: "site-1", siteName: "Site 1" });
+    expect(result.user).toEqual({ id: "staff-1", name: "Staff", role, siteId: "site-1", siteName: "Site 1", fonctionnalitesRetirees: [] });
     expect(jwt.sign).toHaveBeenCalledWith({ sub: "staff-1", role, siteId: "site-1" }, expect.any(Object));
   });
 

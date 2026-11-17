@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import * as bcrypt from 'bcrypt';
 import { requiresAssignedSite } from '../../common/access/staff-access';
+import { Role } from '@prisma/client';
+import { sanitizeFeatures } from '../../common/access/features';
 import { CreateUserDto, UpdateProfileDto, ChangePasswordDto, UpdateUserDto } from './dto/user.dto';
 
 @Injectable()
@@ -40,6 +42,7 @@ export class UsersService {
         telephone: true,
         email: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
         langue: true,
         derniereConnexion: true,
@@ -87,6 +90,7 @@ export class UsersService {
         telephone: dto.telephone,
         role: dto.role,
         siteId: dto.siteId || null,
+        fonctionnalitesRetirees: dto.role === Role.SUPER_ADMIN ? [] : sanitizeFeatures(dto.fonctionnalitesRetirees),
         passwordHash,
       },
       select: {
@@ -94,6 +98,7 @@ export class UsersService {
         nom: true,
         telephone: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
         siteId: true,
         site: { select: { id: true, nom: true } },
@@ -113,6 +118,7 @@ export class UsersService {
         telephone: true,
         email: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
         langue: true,
         siteId: true,
@@ -162,6 +168,10 @@ export class UsersService {
         ...(dto.email !== undefined && { email: dto.email }),
         ...(dto.role !== undefined && { role: dto.role }),
         ...(dto.siteId !== undefined && { siteId: dto.siteId || null }),
+        // Le super admin n'est jamais restreint ; sinon on ne garde que des clés connues.
+        ...(finalRole === Role.SUPER_ADMIN
+          ? { fonctionnalitesRetirees: [] }
+          : dto.fonctionnalitesRetirees !== undefined && { fonctionnalitesRetirees: sanitizeFeatures(dto.fonctionnalitesRetirees) }),
       },
       select: {
         id: true,
@@ -169,6 +179,7 @@ export class UsersService {
         telephone: true,
         email: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
         langue: true,
         siteId: true,
@@ -192,6 +203,7 @@ export class UsersService {
         nom: true,
         telephone: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
       },
     });
@@ -211,6 +223,7 @@ export class UsersService {
         nom: true,
         telephone: true,
         role: true,
+        fonctionnalitesRetirees: true,
         actif: true,
       },
     });
@@ -277,6 +290,7 @@ export class UsersService {
         telephone: true,
         email: true,
         role: true,
+        fonctionnalitesRetirees: true,
         langue: true,
         siteId: true,
         site: { select: { id: true, nom: true } },

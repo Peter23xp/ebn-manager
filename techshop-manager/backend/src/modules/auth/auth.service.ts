@@ -116,6 +116,7 @@ export class AuthService {
         name: user.nom,
         siteId: user.siteId ?? null,
         siteName: user.site?.nom ?? null,
+        fonctionnalitesRetirees: user.fonctionnalitesRetirees ?? [],
       },
     };
   }

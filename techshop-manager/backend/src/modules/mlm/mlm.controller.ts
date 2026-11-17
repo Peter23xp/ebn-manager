@@ -33,6 +33,7 @@ import { MlmPlacementService } from './mlm-placement.service';
 import { MlmCalendarService } from './mlm-calendar.service';
 import { MovePlacementDto, SwapPlacementDto, MlmCalendarYearDto, ReconcileAscentsDto } from './dto/matrix-placement.dto';
 import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
 @Controller('mlm')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,24 +51,28 @@ export class MlmController {
 
   @Get('stats')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getStats() {
     return this.mlmService.getNetworkStats();
   }
 
   @Get('notifications/counts')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getNotificationCounts() {
     return this.mlmService.getNotificationCounts();
   }
 
   @Get('members-by-level')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getMembersByLevel() {
     return this.mlmService.getMembersByLevel();
   }
 
   @Get('promotions/recent')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getRecentPromotions(@Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number) {
     return this.mlmService.getRecentPromotions(limit);
   }
@@ -76,6 +81,7 @@ export class MlmController {
 
   @Get('members')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   listMembers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -110,6 +116,7 @@ export class MlmController {
 
   @Get('members/:memberId/promotions')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getPromotionHistory(@Param('memberId') memberId: string) {
     return this.mlmService.getPromotionHistory(memberId);
   }
@@ -129,18 +136,21 @@ export class MlmController {
 
   @Post('matrix/move')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   movePlacement(@Body() input: MovePlacementDto, @CurrentUser('id') actorId: string) {
     return this.placementService.move(input, actorId);
   }
 
   @Post('matrix/swap')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   swapPlacement(@Body() input: SwapPlacementDto, @CurrentUser('id') actorId: string) {
     return this.placementService.swap(input, actorId);
   }
 
   @Get('matrix/:memberId/history')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getPlacementHistory(@Param('memberId') memberId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number) {
@@ -149,6 +159,7 @@ export class MlmController {
 
   @Post('matrix/:memberId/reconcile-ascents')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   reconcileAscents(@Param('memberId') memberId: string, @Body() input: ReconcileAscentsDto, @CurrentUser('id') actorId: string) {
     return this.placementService.reconcileAscents(memberId, input, actorId);
   }
@@ -174,6 +185,7 @@ export class MlmController {
 
   @Get('commissions')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   listCommissions(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -196,6 +208,7 @@ export class MlmController {
 
   @Put('commissions/:commissionId/validate')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   validateCommission(@Param('commissionId') commissionId: string, @CurrentUser('id') actorId: string) {
     return this.matrixService.validateCommission(commissionId, actorId);
@@ -203,6 +216,7 @@ export class MlmController {
 
   @Put('commissions/:commissionId/pay')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   payCommission(@Param('commissionId') commissionId: string) {
     return this.matrixService.payCommission(commissionId);
@@ -210,6 +224,7 @@ export class MlmController {
 
   @Patch('commissions/:commissionId/cancel')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   cancelCommission(
     @Param('commissionId') commissionId: string,
@@ -224,6 +239,7 @@ export class MlmController {
 
   @Get('wallet/transactions')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getTransactions(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -235,6 +251,7 @@ export class MlmController {
 
   @Get('wallet/:memberId/earnings-by-level')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getEarningsByLevel(@Param('memberId') memberId: string) {
     return this.walletService.getEarningsByLevel(memberId);
   }
@@ -251,12 +268,14 @@ export class MlmController {
   @Post('wallet/:memberId/payouts')
   @CheckMobileMoney()
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   initPayout(@Param('memberId') memberId: string, @Body() body: { amount: number; provider: KpayProvider; phoneNumber: string }) {
     return this.walletService.initPayout(memberId, body);
   }
 
   @Get('payouts')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   listPayouts(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -268,6 +287,7 @@ export class MlmController {
   @Put('payouts/:payoutId/approve')
   @CheckMobileMoney()
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   approvePayout(@Param('payoutId') payoutId: string) {
     return this.walletService.approvePayout(payoutId);
@@ -275,6 +295,7 @@ export class MlmController {
 
   @Patch('payouts/:payoutId/cancel')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   cancelPayout(@Param('payoutId') payoutId: string) {
     return this.walletService.cancelPayout(payoutId);
@@ -282,6 +303,7 @@ export class MlmController {
 
   @Get('wallet')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getWalletGlobal(@Query('memberId') memberId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number) {
@@ -295,6 +317,7 @@ export class MlmController {
 
   @Get('withdrawal-requests')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   listWithdrawalRequests(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -306,6 +329,7 @@ export class MlmController {
 
   @Put('withdrawal-requests/:requestId/approve')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   approveWithdrawalRequest(
     @Param('requestId') requestId: string,
@@ -316,6 +340,7 @@ export class MlmController {
 
   @Patch('withdrawal-requests/:requestId/reject')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   rejectWithdrawalRequest(
     @Param('requestId') requestId: string,
@@ -326,6 +351,7 @@ export class MlmController {
 
   @Put('withdrawal-requests/:requestId/mark-paid')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   markWithdrawalAsPaid(@Param('requestId') requestId: string) {
     return this.walletService.markWithdrawalAsPaid(requestId);
@@ -335,6 +361,7 @@ export class MlmController {
 
   @Get('config')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getConfig() {
     return this.mlmService.getConfig();
   }
@@ -347,6 +374,7 @@ export class MlmController {
 
   @Get('config/calendar')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   getCalendar() {
     return this.calendarService.listYears();
   }
@@ -359,6 +387,7 @@ export class MlmController {
 
   @Post('reinvest/:lotId/release')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   releaseHeldLot(@Param('lotId') lotId: string, @CurrentUser('id') actorId: string) {
     return this.walletService.releaseHeldLot(lotId, actorId);
   }
@@ -367,6 +396,7 @@ export class MlmController {
 
   @Get('bonuses/pending')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getPendingBonuses(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -376,6 +406,7 @@ export class MlmController {
 
   @Put('bonuses/:bonusId/deliver')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   deliverBonus(@Param('bonusId') bonusId: string) {
     return this.matrixService.deliverBonus(bonusId);
   }
@@ -384,12 +415,14 @@ export class MlmController {
 
   @Get('salaries/member/:memberId')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getMemberSalaries(@Param('memberId') memberId: string) {
     return this.matrixService.getMemberSalaries(memberId);
   }
 
   @Get('salaries')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   getAllSalaries(@Query('period') period: string) {
     return this.matrixService.getAllSalariesForPeriod(period);
   }
@@ -398,12 +431,14 @@ export class MlmController {
 
   @Get('retirement/:memberId')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   getMemberRetirement(@Param('memberId') memberId: string) {
     return this.matrixService.getMemberRetirement(memberId);
   }
 
   @Put('retirement/:bonusId/validate')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL')
+  @RequireFeature('mlm')
   @HttpCode(HttpStatus.OK)
   validateRetirement(@Param('bonusId') bonusId: string) {
     return this.matrixService.validateRetirement(bonusId);
@@ -413,6 +448,7 @@ export class MlmController {
 
   @Get('claims')
   @Roles('SUPER_ADMIN', 'DIRECTEUR_REGIONAL', 'GERANT')
+  @RequireFeature('mlm')
   async listClaims(@Query('siteId') siteId?: string) {
     return this.mlmClaimService.listPendingClaims(siteId);
   }

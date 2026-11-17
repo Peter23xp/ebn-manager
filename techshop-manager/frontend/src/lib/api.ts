@@ -123,7 +123,7 @@ export const authApi = {
   login: (body: { identifier: string; password: string; rememberMe?: boolean }) =>
     api.post('/auth/login', body),
   refresh: () => api.post('/auth/refresh', {}),
-  me: () => api.get('/auth/me'),
+  me: () => api.get('/users/me'),
   logout: () => api.post('/auth/logout'),
   forgotPassword: (phone: string) => api.post('/auth/forgot-password', { phone }),
   verifyOtp: (phone: string, otp: string) => api.post('/auth/verify-otp', { phone, otp }),

@@ -218,6 +218,8 @@ model Utilisateur {
   derniereConnexion   DateTime?
   tentativesConnexion Int       @default(0)
   bloqueJusquA        DateTime?
+  /// Fonctionnalités retirées à cet utilisateur par le super admin (en plus des limites de son rôle).
+  fonctionnalitesRetirees String[]  @default([])
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

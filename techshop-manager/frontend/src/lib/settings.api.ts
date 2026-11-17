@@ -13,6 +13,7 @@ export interface CreateUserPayload {
   role: Role;
   siteId?: string;
   passwordTemp: string;
+  fonctionnalitesRetirees?: string[];
 }
 
 export interface ResetPasswordResponse {
@@ -26,6 +27,7 @@ export interface UpdateUserPayload {
   email?: string;
   role?: Role;
   siteId?: string | null;
+  fonctionnalitesRetirees?: string[];
 }
 
 export const usersApi = {

@@ -33,7 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Token staff → vérifier dans utilisateurs
     const user = await this.prisma.utilisateur.findUnique({
       where: { id: payload.sub },
-      select: { id: true, nom: true, role: true, siteId: true, actif: true },
+      select: { id: true, nom: true, role: true, siteId: true, actif: true, fonctionnalitesRetirees: true },
     });
 
     if (!user || !user.actif) {

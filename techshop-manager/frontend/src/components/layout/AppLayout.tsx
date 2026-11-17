@@ -34,6 +34,9 @@ import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import { useOnlineSync } from '@/hooks/useOnlineSync';
 import { useLogout } from '@/hooks/useLogout';
+import { useSyncAccountRestrictions } from '@/hooks/useSyncAccountRestrictions';
+import { canAccessPath, featureForPath, FEATURES } from '@/lib/features';
+import { ShieldOff } from 'lucide-react';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { cn } from '@/lib/utils';
 import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
@@ -108,7 +111,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     if (onSettingsPage) setSettingsOpen(true);
   }, [onSettingsPage]);
 
-  const visibleItems = NAV_ITEMS.filter((item) => hasMinimumRole(user?.role, item.minRole));
+  const visibleItems = NAV_ITEMS.filter((item) => hasMinimumRole(user?.role, item.minRole) && canAccessPath(user, item.to));
   const visibleSettingsChildren = SETTINGS_GROUP.children.filter((c) => hasRole(c.minRole));
   const showSettings = hasRole(SETTINGS_GROUP.minRole) && visibleSettingsChildren.length > 0;
 
@@ -391,6 +394,27 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
   );
 }
 
+// ── Écran restreint ──────────────────────────────────────────────
+/** Affiche la page, sauf si le super admin a retiré cette fonctionnalité au compte. */
+function FeatureGate() {
+  const user = useAuthStore((s) => s.user);
+  const { pathname } = useLocation();
+  if (canAccessPath(user, pathname)) return <Outlet />;
+  const feature = FEATURES.find((f) => f.key === featureForPath(pathname));
+  return (
+    <div className="mx-auto mt-10 max-w-md rounded-xl border border-border bg-white p-6 text-center shadow-card" role="alert">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-warning">
+        <ShieldOff size={22} aria-hidden />
+      </div>
+      <h1 className="text-lg font-bold text-primary">Accès restreint</h1>
+      <p className="mt-2 text-sm text-text-muted">
+        {feature ? <>La fonctionnalité <strong>« {feature.label} »</strong> a été désactivée pour votre compte.</> : 'Cette page a été désactivée pour votre compte.'}
+        {' '}Contactez l’administrateur si vous en avez besoin.
+      </p>
+    </div>
+  );
+}
+
 // ── AppLayout ─────────────────────────────────────────────────────
 export function AppLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -398,6 +422,8 @@ export function AppLayout() {
   useOnlineSync();
   // iPhone : ramène la fenêtre en haut quand le clavier se ferme
   useLockedViewport();
+  // Applique sans reconnexion les fonctionnalités retirées par le super admin
+  useSyncAccountRestrictions();
 
   return (
     <>
@@ -429,7 +455,7 @@ export function AppLayout() {
           <main className="flex-1 overflow-y-auto p-5 sm:p-7 bg-bg"
             style={{ paddingBottom: 'max(1.75rem, env(safe-area-inset-bottom, 0px))' }}
           >
-            <Outlet />
+            <FeatureGate />
           </main>
           {/* Home-bar filler — same color as page background */}
           <div className="flex-shrink-0 bg-bg" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />

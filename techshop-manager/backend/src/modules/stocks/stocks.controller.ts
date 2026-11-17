@@ -24,6 +24,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,11 +60,13 @@ export class StocksController {
   }
 
   @Get('produits/:id/stocks')
+  @RequireFeature('stocks')
   getProduitStocks(@Param('id') produitId: string) {
     return this.stocksService.getProduitStocks(produitId);
   }
 
   @Get('stocks/:produitId/movements')
+  @RequireFeature('stocks')
   getMovements(
     @Param('produitId') produitId: string,
     @Query('type') type?: string,
@@ -84,16 +87,19 @@ export class StocksController {
   }
 
   @Post('stocks/entree')
+  @RequireFeature('stocks')
   entreeStock(@Body() dto: EntreeStockDto, @CurrentUser() user: any) {
     return this.stocksService.entreeStock(dto, user.id);
   }
 
   @Post('stocks/transfert')
+  @RequireFeature('stocks')
   transfert(@Body() dto: TransfertDto, @CurrentUser() user: any) {
     return this.stocksService.transfert(dto, user.id);
   }
 
   @Patch('stocks/transfert/:id/recevoir')
+  @RequireFeature('stocks')
   recevoirTransfert(
     @Param('id') transfertId: string,
     @Body() dto: ReceptionTransfertDto,
@@ -103,6 +109,7 @@ export class StocksController {
   }
 
   @Get('stocks/alertes')
+  @RequireFeature('stocks')
   getAlertes(
     @Query('siteId') siteId?: string,
     @Query('type') type?: string,
@@ -118,6 +125,7 @@ export class StocksController {
   }
 
   @Patch('stocks/:siteId/:produitId/seuil')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   updateSeuil(
     @Param('siteId') siteId: string,
@@ -128,6 +136,7 @@ export class StocksController {
   }
 
   @Post('stocks/inventaire')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   inventairePhysique(@Body() dto: InventaireDto, @CurrentUser() user: any) {
     return this.stocksService.inventairePhysique(dto, user.id);
@@ -157,18 +166,21 @@ export class StocksController {
   }
 
   @Post('produits/categories')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   addCategorie(@Body() dto: CreateCategorieDto) {
     return this.stocksService.addCategorie(dto.nom);
   }
 
   @Delete('produits/categories/:nom')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   deleteCategorie(@Param('nom') nom: string) {
     return this.stocksService.deleteCategorie(nom);
   }
 
   @Get('produits/sku-preview')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   skuPreview(@Query('categorie') categorie: string) {
     if (!categorie) return { sku: '—' };
@@ -176,6 +188,7 @@ export class StocksController {
   }
 
   @Post('produits')
+  @RequireFeature('stocks')
   @Roles(Role.GERANT)
   createProduit(@Body() dto: CreateProduitDto, @CurrentUser() user: any) {
     return this.stocksService.createProduit(dto, user);

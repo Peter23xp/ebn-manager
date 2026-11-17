@@ -27,6 +27,7 @@ import { Role } from '@prisma/client';
 import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 import { effectiveStaffSite, StaffActor } from '../../common/access/staff-access';
 import { StaffScopeService } from '../../common/access/staff-scope.service';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,18 +40,21 @@ export class ClientsController {
   ) {}
 
   @Post(':id/parrain')
+  @RequireFeature('clients')
   @Roles(Role.GERANT)
   assignParrain(@Param('id') id: string, @Body() dto: AssignParrainDto, @CurrentUser() user: any) {
     return this.clientParrain.assign(id, dto, user);
   }
 
   @Get(':id/parrain/attribution')
+  @RequireFeature('clients')
   @Roles(Role.GERANT)
   getParrainAttribution(@Param('id') id: string, @CurrentUser() user: any) {
     return this.clientParrain.getAttribution(id, user);
   }
 
   @Get()
+  @RequireFeature('clients')
   @Roles(Role.AGENT)
   findAll(
     @Query('siteId') siteId?: string,
@@ -96,6 +100,7 @@ export class ClientsController {
   }
 
   @Get('onboarding-queue')
+  @RequireFeature('onboarding')
   @Roles(Role.AGENT)
   getOnboardingQueue(
     @Query('siteId') siteId?: string,
@@ -106,6 +111,7 @@ export class ClientsController {
   }
 
   @Get('paiements-onboarding')
+  @RequireFeature('onboarding')
   @Roles(Role.AGENT)
   getPaiementsOnboarding(
     @Query('siteId') siteId?: string,
@@ -134,6 +140,7 @@ export class ClientsController {
   }
 
   @Post('onboarding/draft')
+  @RequireFeature('onboarding')
   @Roles(Role.AGENT)
   createDraft(@Body() dto: CreateClientDraftDto, @CurrentUser() actor: StaffActor) {
     return this.clientsService.createDraft(dto, actor);
@@ -141,6 +148,7 @@ export class ClientsController {
 
   /** Création d'un nouveau client + RÉCIT (Cash) */
   @Post('onboarding/recit')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
   async onboardingRecit(@Body() body: any, @CurrentUser() user: StaffActor) {
@@ -151,6 +159,7 @@ export class ClientsController {
 
   /** Reprise du RÉCIT d'un client existant — Cash (depuis la file d'attente) */
   @Post(':id/onboarding/recit')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
   async resumeOnboardingRecit(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: StaffActor) {
@@ -161,6 +170,7 @@ export class ClientsController {
 
   /** Reprise du RÉCIT d'un client existant — Mobile Money KPay */
   @Post(':id/onboarding/recit/kpay/init')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney()
   async resumeOnboardingRecitKpay(@Param('id') clientId: string, @Body() body: any, @CurrentUser() user: StaffActor) {
@@ -170,6 +180,7 @@ export class ClientsController {
   }
 
   @Post('import/preview')
+  @RequireFeature('onboarding')
   @UseInterceptors(FileInterceptor('file'))
   importPreview(
     @UploadedFile(
@@ -186,6 +197,7 @@ export class ClientsController {
   }
 
   @Post('import/execute')
+  @RequireFeature('onboarding')
   @UseInterceptors(FileInterceptor('file'))
   importExecute(
     @UploadedFile(
@@ -202,6 +214,7 @@ export class ClientsController {
   }
 
   @Get(':id')
+  @RequireFeature('clients')
   @Roles(Role.FORMATEUR)
   async findOne(@Param('id') id: string, @CurrentUser() user: StaffActor) {
     await this.staffScope.requireClient(user, id, Role.FORMATEUR);
@@ -209,6 +222,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
+  @RequireFeature('clients')
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateClientDto,
@@ -219,6 +233,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/formation')
+  @RequireFeature('onboarding')
   @Roles(Role.FORMATEUR)
   async onboardingFormation(
     @Param('id') clientId: string,
@@ -230,6 +245,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/fiche')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
   async onboardingFiche(
@@ -242,6 +258,7 @@ export class ClientsController {
   }
 
   @Post('onboarding/recit/kpay/init')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney()
   async onboardingRecitKpay(@Body() body: any, @CurrentUser() user: StaffActor) {
@@ -251,6 +268,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/fiche/kpay/init')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney()
   async onboardingFicheKpay(
@@ -263,6 +281,7 @@ export class ClientsController {
   }
 
   @Post(':id/mlm/retry')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   async retryMlmActivation(@Param('id') clientId: string, @CurrentUser() user: StaffActor) {
     await this.staffScope.requireClient(user, clientId, Role.CAISSIER);
@@ -270,6 +289,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/activate')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
   async onboardingActivate(
@@ -282,6 +302,7 @@ export class ClientsController {
   }
 
   @Post(':id/onboarding/activate/kpay/init')
+  @RequireFeature('onboarding')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney()
   async onboardingActivateKpay(@Param('id') clientId: string, @Body() dto: InitKpayActivationDto, @CurrentUser() user: StaffActor) {

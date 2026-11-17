@@ -52,7 +52,7 @@ describe('cashier user management', () => {
     expect(usersApi.create).not.toHaveBeenCalled();
     await userEvent.selectOptions(dialog.getByLabelText('Site'), 'site-1');
     await userEvent.click(dialog.getByRole('button', { name: 'Valider la création' }));
-    await waitFor(() => expect(usersApi.create).toHaveBeenCalledWith({ nom: 'New Cashier', telephone: '+243822345678', passwordTemp: 'temporary-password', role: 'CAISSIER', siteId: 'site-1' }));
+    await waitFor(() => expect(usersApi.create).toHaveBeenCalledWith({ nom: 'New Cashier', telephone: '+243822345678', passwordTemp: 'temporary-password', role: 'CAISSIER', siteId: 'site-1', fonctionnalitesRetirees: [] }));
   });
 
   it('requires a site and preserves the cashier role when editing', async () => {
@@ -66,6 +66,6 @@ describe('cashier user management', () => {
     expect(usersApi.update).not.toHaveBeenCalled();
     await userEvent.selectOptions(dialog.getByLabelText('Site'), 'site-1');
     await userEvent.click(dialog.getByRole('button', { name: /Enregistrer/ }));
-    await waitFor(() => expect(usersApi.update).toHaveBeenCalledWith('cashier', { nom: 'Cashier Test', email: undefined, role: 'CAISSIER', siteId: 'site-1' }));
+    await waitFor(() => expect(usersApi.update).toHaveBeenCalledWith('cashier', { nom: 'Cashier Test', email: undefined, role: 'CAISSIER', siteId: 'site-1', fonctionnalitesRetirees: [] }));
   });
 });

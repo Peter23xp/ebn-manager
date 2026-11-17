@@ -18,6 +18,7 @@ import { requiresAssignedSite } from '@/lib/roles';
 import { SettingsPageLayout, SettingsSummary } from '@/components/settings/SettingsPageLayout';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
 import { AdminDeleteButton } from '@/components/admin/AdminDeleteButton';
+import { UserFeaturePicker, retireesForRole } from '@/components/settings/UserFeaturePicker';
 import './settings-directory.css';
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
 }) {
   const qc = useQueryClient();
   const [showPwd, setShowPwd] = useState(false);
+  const [retirees, setRetirees] = useState<string[]>([]);
   const { data: sitesData } = useQuery({ queryKey: ['sites'], queryFn: () => sitesApi.getAll() });
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<CreateForm>({
@@ -100,6 +102,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
       qc.invalidateQueries({ queryKey: ['users'] });
       onCreated(vars.passwordTemp);
       reset();
+      setRetirees([]);
       onClose();
     },
   });
@@ -111,6 +114,7 @@ function CreateUserDialog({ open, onClose, onCreated }: {
       role: data.role,
       passwordTemp: data.passwordTemp,
       ...(needsSite && data.siteId ? { siteId: data.siteId } : {}),
+      fonctionnalitesRetirees: retireesForRole(data.role, retirees),
     };
     mutation.mutate(payload);
   };
@@ -192,6 +196,8 @@ function CreateUserDialog({ open, onClose, onCreated }: {
               {errors.passwordTemp && <p className="form-error">{errors.passwordTemp.message}</p>}
               <p className="text-[11px] text-text-subtle mt-1">L'utilisateur devra changer ce mot de passe à la première connexion.</p>
             </div>
+
+            <UserFeaturePicker role={role} retirees={retirees} onChange={setRetirees} disabled={mutation.isPending} />
           </div>
 
           {mutation.isError && (
@@ -227,6 +233,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
   user: Utilisateur; onClose: () => void; onSaved: () => void;
 }) {
   const qc = useQueryClient();
+  const [retirees, setRetirees] = useState<string[]>(user.fonctionnalitesRetirees ?? []);
   const { data: sitesData } = useQuery({ queryKey: ['sites'], queryFn: () => sitesApi.getAll() });
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<EditForm>({
@@ -249,6 +256,7 @@ function EditUserDialog({ user, onClose, onSaved }: {
         email: data.email || undefined,
         role: data.role,
         siteId: needsSite ? (data.siteId || null) : null,
+        fonctionnalitesRetirees: retireesForRole(data.role, retirees),
       };
       return usersApi.update(user.id, payload);
     },
@@ -320,6 +328,8 @@ function EditUserDialog({ user, onClose, onSaved }: {
               </div>
             )}
           </div>
+
+          <UserFeaturePicker role={role} retirees={retirees} onChange={setRetirees} disabled={mutation.isPending} />
 
           {mutation.isError && (
             <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5" role="alert">
@@ -436,7 +446,7 @@ export default function UsersPage() {
             <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Utilisateur</th><th scope="col" role="columnheader">Rôle</th><th scope="col" role="columnheader">Site</th><th scope="col" role="columnheader">Dernière connexion</th><th scope="col" role="columnheader">Statut</th><th scope="col" role="columnheader">Actions</th></tr></thead>
             <tbody role="rowgroup">{filtered.map((user) => <tr key={user.id} role="row">
               <th scope="row" role="rowheader" className="settings-user-identity"><div className="flex items-start gap-3 min-w-0"><UserAvatar nom={user.nom} /><div className="min-w-0"><p className="font-semibold text-text">{user.nom}</p><p className="font-mono text-xs text-text-muted mt-1">{user.telephone}</p>{user.email && <p className="text-xs text-text-muted mt-1">{user.email}</p>}</div></div></th>
-              <td role="cell" className="settings-user-role" data-label="Rôle"><UserRoleBadge role={user.role} /></td>
+              <td role="cell" className="settings-user-role" data-label="Rôle"><UserRoleBadge role={user.role} />{user.role !== 'SUPER_ADMIN' && (user.fonctionnalitesRetirees?.length ?? 0) > 0 && <span className="badge-warning mt-1.5" title={`${user.fonctionnalitesRetirees!.length} fonctionnalité(s) retirée(s)`}>Accès limité</span>}</td>
               <td role="cell" className="settings-user-site" data-label="Site">{user.site?.nom ?? 'Non rattaché'}</td>
               <td role="cell" className="settings-user-connection" data-label="Dernière connexion">{user.derniereConnexion ? formatRelative(user.derniereConnexion) : 'Jamais'}</td>
               <td role="cell" className="settings-user-status" data-label="Statut"><span className={user.actif ? 'badge-success' : 'badge-gray'}>{user.actif ? <CheckCircle size={13} aria-hidden="true" /> : <Lock size={13} aria-hidden="true" />}{user.actif ? 'Actif' : 'Inactif'}</span></td>

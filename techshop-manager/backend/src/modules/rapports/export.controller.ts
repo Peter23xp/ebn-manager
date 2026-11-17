@@ -9,7 +9,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ExportService } from './export.service';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
+@RequireFeature('rapports')
 @Controller('rapports/export')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.GERANT)

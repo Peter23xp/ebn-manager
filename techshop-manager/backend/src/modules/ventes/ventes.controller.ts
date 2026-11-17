@@ -19,6 +19,7 @@ import { CheckMobileMoney } from '../../common/payments/mobile-money.guard';
 import { effectiveStaffSite, StaffActor } from '../../common/access/staff-access';
 import { StaffScopeService } from '../../common/access/staff-scope.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RequireFeature } from '../../common/decorators/feature.decorator';
 
 @Controller('ventes')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +32,7 @@ export class VentesController {
   ) {}
 
   @Post()
+  @RequireFeature('caisse')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney('modePaiement')
   async createVente(@Body() dto: CreateVenteDto, @CurrentUser() user: StaffActor) {
@@ -40,6 +42,7 @@ export class VentesController {
   }
 
   @Post('kpay/init')
+  @RequireFeature('caisse')
   @Roles(Role.CAISSIER)
   @CheckMobileMoney()
   async initKpayVente(@Body() dto: InitKpayVenteDto, @CurrentUser() user: StaffActor) {
@@ -49,6 +52,7 @@ export class VentesController {
   }
 
   @Get('kpay/:transactionId')
+  @RequireFeature('caisse')
   async getKpayVenteStatus(@Param('transactionId') transactionId: string, @CurrentUser() user: StaffActor) {
     effectiveStaffSite(user);
     const transaction = await this.prisma.kpayTransaction.findFirst({
@@ -61,6 +65,7 @@ export class VentesController {
   }
 
   @Get()
+  @RequireFeature('caisse')
   findAll(
     @Query('siteId') siteId?: string,
     @Query('dateDebut') dateDebut?: string,
@@ -83,6 +88,7 @@ export class VentesController {
   // ── Routes statiques AVANT :id ────────────────────────────────────────────
 
   @Get('journal-retours')
+  @RequireFeature('retours')
   @Roles(Role.GERANT)
   getJournalRetours(
     @Query('siteId') siteId?: string,
@@ -101,6 +107,7 @@ export class VentesController {
   }
 
   @Get('retours/:retourId/avoir')
+  @RequireFeature('retours')
   async getAvoir(@Param('retourId') retourId: string, @CurrentUser() user: StaffActor) {
     effectiveStaffSite(user);
     const retour = await this.prisma.retour.findUnique({ where: { id: retourId }, select: { venteId: true } });
@@ -110,6 +117,7 @@ export class VentesController {
   }
 
   @Get('retours/:retourId/ecritures-ohada')
+  @RequireFeature('retours')
   @Roles(Role.GERANT)
   getEcrituresOhada(@Param('retourId') retourId: string) {
     return this.ventesService.getEcrituresOhada(retourId);
@@ -118,18 +126,21 @@ export class VentesController {
   // ── Routes avec :id ───────────────────────────────────────────────────────
 
   @Get(':id')
+  @RequireFeature('caisse')
   async findOne(@Param('id') id: string, @CurrentUser() user: StaffActor) {
     await this.staffScope.requireSale(user, id, Role.AGENT);
     return this.ventesService.findOne(id);
   }
 
   @Get(':id/receipt')
+  @RequireFeature('caisse')
   async getReceipt(@Param('id') id: string, @CurrentUser() user: StaffActor) {
     await this.staffScope.requireSale(user, id, Role.AGENT);
     return this.ventesService.getReceipt(id);
   }
 
   @Post(':id/sms-recu')
+  @RequireFeature('caisse')
   async sendSmsRecu(
     @Param('id') id: string,
     @Body('telephone') telephone: string,
@@ -140,6 +151,7 @@ export class VentesController {
   }
 
   @Post(':id/retour')
+  @RequireFeature('retours')
   @Roles(Role.GERANT)
   @CheckMobileMoney('modeRemboursement')
   async createRetour(
@@ -152,6 +164,7 @@ export class VentesController {
   }
 
   @Post(':id/retour/kpay-refund')
+  @RequireFeature('retours')
   @Roles(Role.GERANT)
   @CheckMobileMoney()
   async initKpayRefund(

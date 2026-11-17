@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell, Landmark, Gift, UserPlus, CheckCircle2 } from 'lucide-react';
 import { MlmApi } from '@/lib/mlm.api';
 import { useAuthStore } from '@/store/auth.store';
+import { hasFeature } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
 /**
@@ -15,7 +16,9 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const hasRole = useAuthStore((s) => s.hasRole);
   const [open, setOpen] = useState(false);
-  const visible = hasRole('GERANT');
+  const user = useAuthStore((s) => s.user);
+  // Notifications MLM : masquées si le super admin a retiré la gestion du réseau.
+  const visible = hasRole('GERANT') && hasFeature(user, 'mlm');
 
   const { data, isLoading } = useQuery({
     queryKey: ['mlm-notifications-counts'],

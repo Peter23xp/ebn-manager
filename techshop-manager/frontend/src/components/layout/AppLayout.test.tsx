@@ -80,3 +80,26 @@ describe('Menu préparation, caisse et retours', () => {
     }
   });
 });
+
+describe('Fonctionnalités retirées par le super admin', () => {
+  it('masque le lien et bloque la page pour un gérant sans rapports', async () => {
+    useAuthStore.getState().setAuth({ id: 'staff', name: 'Gérant', role: 'GERANT', fonctionnalitesRetirees: ['rapports'] }, 'test-token');
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/reports']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="/reports" element={<h1>Rapports secrets</h1>} />
+              <Route path="/dashboard" element={<h1>Tableau de bord</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole('heading', { name: 'Rapports secrets' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Accès restreint' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Rapports$/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Dashboard/ }).length).toBeGreaterThan(0);
+  });
+});
+

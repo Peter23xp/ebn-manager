@@ -39,6 +39,8 @@ export interface AuthUser {
   siteId?: string | null;
   siteName?: string | null;
   site?: { id: string; nom: string } | null;
+  /** Fonctionnalités retirées par le super admin (voir lib/features.ts). */
+  fonctionnalitesRetirees?: string[];
 }
 
 export interface LoginResponse {
@@ -74,6 +76,7 @@ export interface Utilisateur {
   siteId?: string;
   site?: Pick<Site, 'id' | 'nom'>;
   derniereConnexion?: string;
+  fonctionnalitesRetirees?: string[];
 }
 
 // ============================================
