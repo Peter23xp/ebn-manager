@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLockedViewport } from '@/hooks/useLockedViewport';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -399,6 +400,8 @@ export function AppLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   // Drain de la file de ventes offline (IndexedDB → API) à la reconnexion
   useOnlineSync();
+  // iPhone : ramène la fenêtre en haut quand le clavier se ferme
+  useLockedViewport();
 
   return (
     <>

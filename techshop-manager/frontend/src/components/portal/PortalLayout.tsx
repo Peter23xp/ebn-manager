@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { PortalHeader } from './PortalHeader';
 import { PortalNav } from './PortalNav';
+import { useLockedViewport } from '@/hooks/useLockedViewport';
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -15,6 +16,9 @@ export function PortalLayout({
   showBackButton = false,
   onBack,
 }: PortalLayoutProps) {
+  // iPhone : ramène la fenêtre en haut quand le clavier se ferme
+  useLockedViewport();
+
   return (
     // Mobile: plein écran (100dvh). Desktop: carte centrée type téléphone
     <div className="h-[100dvh] bg-bg md:h-screen md:flex md:items-start md:justify-center md:bg-gradient-to-b md:from-slate-100 md:to-slate-200 md:pt-10 md:overflow-hidden">

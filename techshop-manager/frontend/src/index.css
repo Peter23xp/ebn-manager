@@ -298,3 +298,15 @@
 .stagger-2 { animation-delay: 120ms; }
 .stagger-3 { animation-delay: 180ms; }
 .stagger-4 { animation-delay: 240ms; }
+
+/* iPhone : Safari zoome sur tout champ dont le texte fait moins de 16px et ne
+   dézoome pas toujours après la fermeture du clavier (page décalée, zone vide).
+   Sur écrans tactiles, on force 16px — hors @layer pour passer devant les
+   classes text-sm / text-xs posées sur les champs. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
