@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, LogOut } from 'lucide-react';
-import { useAuthStore } from '@/store/auth.store';
+import { useLogout } from '@/hooks/useLogout';
 
 interface PortalHeaderProps {
   title?: string;
@@ -14,12 +14,11 @@ export function PortalHeader({
   onBack,
 }: PortalHeaderProps) {
   const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
+  const logout = useLogout();
 
   const handleLogout = () => {
     if (!window.confirm('Voulez-vous vous déconnecter ?')) return;
     logout();
-    navigate('/', { replace: true });
   };
 
   const handleBack = () => {

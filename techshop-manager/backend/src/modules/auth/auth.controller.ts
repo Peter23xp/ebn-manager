@@ -1,4 +1,8 @@
-import { Controller, Post, Body, HttpCode, Res, Req, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Res, Req, Get, Query, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { MailerService } from '../mailer/mailer.service';
@@ -55,7 +59,11 @@ export class AuthController {
     return { success: true };
   }
 
+  // Diagnostic d'envoi d'email : réservé au super admin (sinon n'importe qui
+  // peut faire envoyer des emails depuis le domaine EBN vers n'importe quelle adresse).
   @Get('test-smtp')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
   async testSmtp(@Query('to') to: string) {
     if (!to) return { error: 'Paramètre ?to=email requis' };
     return this.mailer.testSmtp(to);

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './AppLayout';
 import { useAuthStore } from '@/store/auth.store';
 import type { Role } from '@/types';
@@ -12,6 +13,7 @@ vi.mock('@/components/layout/NotificationBell', () => ({ NotificationBell: () =>
 function renderLayout(role: Role) {
   useAuthStore.getState().setAuth({ id: 'staff', name: 'Compte test', role }, 'test-token');
   return render(
+    <QueryClientProvider client={new QueryClient()}>
     <MemoryRouter initialEntries={['/dashboard']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route element={<AppLayout />}>
@@ -19,7 +21,8 @@ function renderLayout(role: Role) {
           <Route path="/mlm/config" element={<h1>Configuration du réseau</h1>} />
         </Route>
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLockedViewport } from '@/hooks/useLockedViewport';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -33,6 +33,7 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { useUIStore } from '@/store/ui.store';
 import { useOnlineSync } from '@/hooks/useOnlineSync';
+import { useLogout } from '@/hooks/useLogout';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { cn } from '@/lib/utils';
 import { hasMinimumRole, isSiteScopedStaff } from '@/lib/roles';
@@ -302,14 +303,9 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
 
 // ── Header ────────────────────────────────────────────────────────
 function Header({ onMenuClick }: { onMenuClick: () => void }) {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { selectedSiteId } = useUIStore();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/', { replace: true });
-  };
+  const handleLogout = useLogout();
 
   const siteName = user?.site?.nom ?? user?.siteName ?? (user && isSiteScopedStaff(user.role)
     ? user.siteId

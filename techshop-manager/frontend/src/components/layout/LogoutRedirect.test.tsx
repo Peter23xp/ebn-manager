@@ -2,17 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthGuard } from './AuthGuard';
 import { AppLayout } from './AppLayout';
 import { PortalHeader } from '@/components/portal/PortalHeader';
 import { useAuthStore } from '@/store/auth.store';
 import type { Role } from '@/types';
 
+const logoutRequest = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: { success: true } })));
+vi.mock('@/lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api')>();
+  return { ...actual, authApi: { ...actual.authApi, logout: logoutRequest } };
+});
 vi.mock('@/hooks/useOnlineSync', () => ({ useOnlineSync: () => undefined }));
 vi.mock('@/components/layout/NotificationBell', () => ({ NotificationBell: () => null }));
 
 function renderSession(path: string) {
-  return render(<MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+  return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
     <Routes>
       <Route path="/" element={<h1>Accueil public</h1>} />
       <Route path="/login" element={<h1>Connexion staff</h1>} />
@@ -21,13 +27,15 @@ function renderSession(path: string) {
         <Route path="/dashboard" element={<p>Contenu privé staff</p>} />
       </Route>
     </Routes>
-  </MemoryRouter>);
+  </MemoryRouter></QueryClientProvider>);
 }
 
 beforeEach(() => {
   localStorage.clear();
   useAuthStore.setState(useAuthStore.getInitialState(), true);
   vi.spyOn(window, 'confirm').mockReturnValue(true);
+  logoutRequest.mockReset();
+  logoutRequest.mockImplementation(() => Promise.resolve({ data: { success: true } }));
 });
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -46,6 +54,8 @@ describe('Retour à l’accueil après déconnexion', () => {
     expect(screen.queryByRole('heading', { name: 'Connexion staff' })).not.toBeInTheDocument();
     expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, user: null, accessToken: null });
     expect(localStorage.getItem('ebn_auth_v1')).toBeNull();
+    // Le cookie de rafraîchissement doit être révoqué côté serveur.
+    expect(logoutRequest).toHaveBeenCalledTimes(1);
   });
 
   it.each<[Role, string]>([['AGENT', '/dashboard'], ['CAISSIER' as Role, '/dashboard'], ['CLIENT', '/portal/home']])('ne laisse pas le garde renvoyer %s vers login lorsque la session se termine', async (role, path) => {
@@ -64,6 +74,7 @@ describe('Retour à l’accueil après déconnexion', () => {
     expect(screen.getByText('Contenu privé client')).toBeInTheDocument();
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(localStorage.getItem('ebn_auth_v1')).not.toBeNull();
+    expect(logoutRequest).not.toHaveBeenCalled();
   });
 
   it('continue à protéger une page privée ouverte sans session', async () => {
