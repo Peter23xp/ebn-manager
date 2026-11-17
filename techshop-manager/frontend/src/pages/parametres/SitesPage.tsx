@@ -10,6 +10,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/api';
 import { SettingsPageLayout, SettingsSummary } from '@/components/settings/SettingsPageLayout';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
+import { AdminDeleteButton } from '@/components/admin/AdminDeleteButton';
 import './settings-directory.css';
 
 const siteSchema = z.object({
@@ -134,7 +135,7 @@ export default function SitesPage() {
               <div className="settings-site-identity"><h3>{site.nom}</h3><p>{site.ville}</p><p className="settings-description">{site.adresse || 'Adresse non renseignée'}</p></div>
               <div className="settings-site-status"><span className={site.actif ? 'badge-success' : 'badge-gray'}>{site.actif ? <CheckCircle size={13} aria-hidden="true" /> : <PowerOff size={13} aria-hidden="true" />}{site.actif ? 'Actif' : 'Inactif'}</span><p className="settings-description mt-2">Créé le {formatDate(site.createdAt)}</p></div>
               <dl className="settings-site-counts"><div><dt>Utilisateurs</dt><dd>{site._count?.utilisateurs.toLocaleString('fr-CD') ?? 'Non disponible'}</dd></div><div><dt>Clients</dt><dd>{site._count?.clients.toLocaleString('fr-CD') ?? 'Non disponible'}</dd></div></dl>
-              <div className="settings-site-actions"><button className="btn-secondary" onClick={() => setDialog({ mode: 'edit', site })} aria-label={`Modifier ${site.nom}`}><Pencil size={14} aria-hidden="true" />Modifier</button><button className={cn('btn-secondary', site.actif ? '!text-red-700' : '!text-green-700')} onClick={() => setConfirm(site)} aria-label={`${site.actif ? 'Désactiver' : 'Activer'} ${site.nom}`}>{site.actif ? <PowerOff size={14} aria-hidden="true" /> : <Power size={14} aria-hidden="true" />}{site.actif ? 'Désactiver' : 'Activer'}</button></div>
+              <div className="settings-site-actions"><button className="btn-secondary" onClick={() => setDialog({ mode: 'edit', site })} aria-label={`Modifier ${site.nom}`}><Pencil size={14} aria-hidden="true" />Modifier</button><button className={cn('btn-secondary', site.actif ? '!text-red-700' : '!text-green-700')} onClick={() => setConfirm(site)} aria-label={`${site.actif ? 'Désactiver' : 'Activer'} ${site.nom}`}>{site.actif ? <PowerOff size={14} aria-hidden="true" /> : <Power size={14} aria-hidden="true" />}{site.actif ? 'Désactiver' : 'Activer'}</button><AdminDeleteButton entity="site" id={site.id} label={site.nom} className="!text-red-700" /></div>
             </li>
           ))}</ul>}
       </section>

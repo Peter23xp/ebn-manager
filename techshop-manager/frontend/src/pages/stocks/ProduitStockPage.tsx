@@ -14,6 +14,7 @@ import { StockStatusBadge } from '@/components/stocks/StockStatusBadge';
 import { cn, formatUSD, formatDateTime } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { TypeMouvement } from '@/types';
+import { AdminDeleteButton } from '@/components/admin/AdminDeleteButton';
 
 // ── Seuil modal ───────────────────────────────────────────────────────────────
 
@@ -201,6 +202,13 @@ export default function ProduitStockPage() {
           </h1>
           <p className="text-[12px] text-text-muted">{produit.categorie}</p>
         </div>
+        <AdminDeleteButton
+          entity="produit"
+          id={produitId!}
+          label={produit.nom}
+          className="ml-auto"
+          onDone={(result) => { if (result === 'deleted') navigate('/stocks', { replace: true }); }}
+        />
       </div>
 
       {/* Carte produit */}

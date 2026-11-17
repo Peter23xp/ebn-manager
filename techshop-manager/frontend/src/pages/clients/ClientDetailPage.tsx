@@ -18,6 +18,7 @@ import { ClientStatusBadge } from '@/components/clients/ClientStatusBadge';
 import { MlmActivationRetry } from '@/components/clients/MlmActivationRetry';
 import { MlmLevelBadge } from '@/components/mlm/MlmLevelBadge';
 import { EditClientModal } from '@/components/clients/EditClientModal';
+import { AdminDeleteButton } from '@/components/admin/AdminDeleteButton';
 import { ClientInfoTab } from '@/components/clients/tabs/ClientInfoTab';
 import { ClientAchatsTab } from '@/components/clients/tabs/ClientAchatsTab';
 import { FicheAdhesionPDF, type FicheAdhesionData } from '@/components/clients/FicheAdhesionPDF';
@@ -390,6 +391,12 @@ export default function ClientDetailPage() {
                   Modifier
                 </button>
               )}
+              <AdminDeleteButton
+                entity="client"
+                id={client.id}
+                label={`${client.prenom} ${client.nom}`}
+                onDone={(result) => { if (result === 'deleted') navigate('/clients', { replace: true }); }}
+              />
             </div>
           </div>
         </div>

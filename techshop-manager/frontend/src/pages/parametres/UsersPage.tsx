@@ -17,6 +17,7 @@ import type { Role, Utilisateur } from '@/types';
 import { requiresAssignedSite } from '@/lib/roles';
 import { SettingsPageLayout, SettingsSummary } from '@/components/settings/SettingsPageLayout';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
+import { AdminDeleteButton } from '@/components/admin/AdminDeleteButton';
 import './settings-directory.css';
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -443,6 +444,7 @@ export default function UsersPage() {
                 <button className="btn-secondary" onClick={() => setEditUser(user)} aria-label={`Modifier ${user.nom}`}><Pencil size={14} aria-hidden="true" />Modifier</button>
                 <button className="btn-secondary" onClick={() => setConfirm({ user, action: 'reset' })} aria-label={`Réinitialiser le mot de passe de ${user.nom}`}><RotateCcw size={14} aria-hidden="true" />Mot de passe</button>
                 <button className={cn('btn-secondary', user.actif ? '!text-red-700' : '!text-green-700')} onClick={() => setConfirm({ user, action: user.actif ? 'desactiver' : 'reactiver' })} aria-label={`${user.actif ? 'Désactiver' : 'Réactiver'} ${user.nom}`}>{user.actif ? <Lock size={14} aria-hidden="true" /> : <Unlock size={14} aria-hidden="true" />}{user.actif ? 'Désactiver' : 'Réactiver'}</button>
+                <AdminDeleteButton entity="utilisateur" id={user.id} label={user.nom} className="!text-red-700" />
               </div></td>
             </tr>)}</tbody>
           </table></div>}

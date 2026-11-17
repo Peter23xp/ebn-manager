@@ -18,6 +18,7 @@ import { MlmModule } from './modules/mlm/mlm.module';
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
 import { KpayModule } from './modules/kpay/kpay.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { KpayModule } from './modules/kpay/kpay.module';
     PublicModule,
     HealthModule,
     KpayModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
